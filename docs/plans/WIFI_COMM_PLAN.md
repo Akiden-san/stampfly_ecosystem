@@ -17,7 +17,7 @@ StampFlyの通信機能を拡張し、以下を実現する：
 |------|------|
 | 計画策定 | ✅ 完了 (2026-01) |
 | Phase 1: UDP通信 | ✅ 完了 (2026-01) |
-| Phase 2: WiFi CLI | ⏳ 未着手 |
+| Phase 2: WiFi CLI | ✅ 完了 (2026-01) |
 
 ### 背景
 
@@ -1017,7 +1017,7 @@ Extend StampFly communication capabilities:
 |------|--------|
 | Planning | ✅ Complete (2026-01) |
 | Phase 1: UDP Comm | ✅ Complete (2026-01) |
-| Phase 2: WiFi CLI | ⏳ Not started |
+| Phase 2: WiFi CLI | ✅ Complete (2026-01) |
 
 ## 2. Current vs Target Architecture
 
