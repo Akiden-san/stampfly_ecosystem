@@ -102,14 +102,10 @@ static TaskHandle_t display_task_handle = NULL;
 static uint32_t stime = 0, etime = 0, dtime = 0;
 static const float dTime = 0.01f;
 
-// 通信モード (USB HID / ESP-NOW)
-// Communication mode (USB HID / ESP-NOW)
-typedef enum {
-    COMM_MODE_ESPNOW,   // ESP-NOW TDMA mode (default)
-    COMM_MODE_USB_HID,  // USB HID Joystick mode
-} CommMode;
-
-static CommMode g_comm_mode = COMM_MODE_ESPNOW;
+// 通信モード (ESP-NOW / UDP / USB HID)
+// Communication mode (ESP-NOW / UDP / USB HID)
+// comm_mode_t is defined in menu_system.h
+static comm_mode_t g_comm_mode = COMM_MODE_ESPNOW;
 
 // NVS設定
 // NVS settings
@@ -131,7 +127,7 @@ static uint8_t g_deadband = 2;
 
 // 通信モードをNVSから読み込み
 // Load communication mode from NVS
-static CommMode load_comm_mode_from_nvs(void) {
+static comm_mode_t load_comm_mode_from_nvs(void) {
     nvs_handle_t handle;
     uint8_t mode = COMM_MODE_ESPNOW;  // デフォルト
 
@@ -141,12 +137,18 @@ static CommMode load_comm_mode_from_nvs(void) {
         nvs_close(handle);
     }
 
-    return (CommMode)mode;
+    // 有効な値のみ受け入れ (ESPNOW, UDP, USB_HID)
+    // Only accept valid values
+    if (mode > COMM_MODE_USB_HID) {
+        mode = COMM_MODE_ESPNOW;
+    }
+
+    return (comm_mode_t)mode;
 }
 
 // 通信モードをNVSに保存
 // Save communication mode to NVS
-static esp_err_t save_comm_mode_to_nvs(CommMode mode) {
+static esp_err_t save_comm_mode_to_nvs(comm_mode_t mode) {
     nvs_handle_t handle;
 
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
@@ -464,19 +466,45 @@ static int16_t apply_deadband(int16_t value) {
     return value;
 }
 
-// USBモード切替コールバック（メニューから呼ばれる）
-// USB mode switch callback (called from menu)
-static void on_usb_mode_selected(void) {
-    ESP_LOGI(TAG, "USB HIDモード選択 - NVS保存後に再起動");
+// 通信モード切替コールバック（メニューから呼ばれる）
+// Communication mode switch callback (called from menu)
+static void on_comm_mode_selected(void) {
+    // サイクル: ESP-NOW -> UDP -> USB HID -> ESP-NOW
+    // Cycle: ESP-NOW -> UDP -> USB HID -> ESP-NOW
+    comm_mode_t new_mode;
+    switch (g_comm_mode) {
+        case COMM_MODE_ESPNOW:
+            new_mode = COMM_MODE_UDP;
+            break;
+        case COMM_MODE_UDP:
+            new_mode = COMM_MODE_USB_HID;
+            break;
+        case COMM_MODE_USB_HID:
+        default:
+            new_mode = COMM_MODE_ESPNOW;
+            break;
+    }
 
-    // 現在ESP-NOWモードならUSB HIDに切り替え
-    // 現在USB HIDモードならESP-NOWに切り替え（トグル動作）
-    CommMode new_mode = (g_comm_mode == COMM_MODE_ESPNOW) ? COMM_MODE_USB_HID : COMM_MODE_ESPNOW;
+    ESP_LOGI(TAG, "通信モード変更: %s -> %s",
+             menu_get_comm_mode_name(g_comm_mode),
+             menu_get_comm_mode_name(new_mode));
 
     if (save_comm_mode_to_nvs(new_mode) == ESP_OK) {
-        ESP_LOGI(TAG, "モード保存完了、再起動します");
-        vTaskDelay(pdMS_TO_TICKS(100));
-        esp_restart();
+        // メニュー表示を更新
+        // Update menu display
+        menu_set_comm_mode(new_mode);
+        g_comm_mode = new_mode;
+
+        // ESP-NOWとUDP間の切替は再起動不要（将来対応）
+        // USB HIDモード切替は再起動が必要
+        // Switching between ESP-NOW and UDP doesn't require restart (future)
+        // USB HID mode change requires restart
+        if (new_mode == COMM_MODE_USB_HID ||
+            (g_comm_mode == COMM_MODE_USB_HID && new_mode != COMM_MODE_USB_HID)) {
+            ESP_LOGI(TAG, "USB HIDモード変更のため再起動します");
+            vTaskDelay(pdMS_TO_TICKS(100));
+            esp_restart();
+        }
     } else {
         ESP_LOGE(TAG, "モード保存失敗");
     }
@@ -1586,19 +1614,27 @@ extern "C" void app_main(void)
     // NVSから通信モード読み込み
     // Load communication mode from NVS
     g_comm_mode = load_comm_mode_from_nvs();
-    ESP_LOGI(TAG, "通信モード: %s", g_comm_mode == COMM_MODE_USB_HID ? "USB HID" : "ESP-NOW");
+    menu_set_comm_mode(g_comm_mode);  // メニュー表示を初期化
+    ESP_LOGI(TAG, "通信モード: %s", menu_get_comm_mode_name(g_comm_mode));
 
     M5.Display.setCursor(4, 2);
     M5.Display.setTextColor(SF_WHITE, SF_BLACK);
-    if (g_comm_mode == COMM_MODE_USB_HID) {
-        M5.Display.println("StampFly USB HID");
-    } else {
-        M5.Display.println("StampFly ESP-IDF");
+    switch (g_comm_mode) {
+        case COMM_MODE_USB_HID:
+            M5.Display.println("StampFly USB HID");
+            break;
+        case COMM_MODE_UDP:
+            M5.Display.println("StampFly UDP");
+            break;
+        case COMM_MODE_ESPNOW:
+        default:
+            M5.Display.println("StampFly ESP-NOW");
+            break;
     }
 
     // メニューシステム初期化
     menu_init();
-    menu_register_usb_mode_callback(on_usb_mode_selected);
+    menu_register_comm_mode_callback(on_comm_mode_selected);
     menu_register_stick_mode_callback(on_stick_mode_selected);
     ESP_LOGI(TAG, "メニューシステム初期化完了");
 
@@ -1655,6 +1691,36 @@ extern "C" void app_main(void)
             M5.Display.println("USB HID: FAIL");
             ESP_LOGE(TAG, "USB HID初期化失敗");
         }
+    } else if (g_comm_mode == COMM_MODE_UDP) {
+        // UDPモード初期化
+        // UDP mode initialization
+        // TODO: WiFi STA接続とUDPクライアント初期化
+        // TODO: WiFi STA connection and UDP client initialization
+        M5.Display.setTextColor(SF_YELLOW, SF_BLACK);
+        M5.Display.println("UDP: TODO");
+        ESP_LOGW(TAG, "UDPモードは実装中です");
+
+        // 暫定的にESP-NOW初期化も行う（将来的にはWiFi STA初期化に変更）
+        // Temporarily also initialize ESP-NOW (will be changed to WiFi STA init)
+        peer_info_load();
+        ret = espnow_init();
+        if (ret == ESP_OK) {
+            M5.Display.setTextColor(SF_GREEN, SF_BLACK);
+            M5.Display.println("ESP-NOW: OK");
+        }
+        beacon_peer_init();
+        M5.update();
+        bool force_pairing = M5.BtnA.isPressed();
+        if (force_pairing) {
+            M5.Display.setTextColor(SF_YELLOW, SF_BLACK);
+            M5.Display.println("Pairing mode...");
+            peering_process(true);
+            peer_info_save();
+        } else {
+            peering_process(false);
+        }
+        drone_peer_init();
+        AltMode = NOT_ALT_CONTROL_MODE;
     } else {
         // ESP-NOWモード初期化
         // ESP-NOW mode initialization
@@ -1738,9 +1804,9 @@ extern "C" void app_main(void)
         ESP_LOGI(TAG, "LCD更新タスク作成完了");
     }
 
-    // TDMA初期化 (ESP-NOWモードのみ)
-    // TDMA initialization (ESP-NOW mode only)
-    if (g_comm_mode == COMM_MODE_ESPNOW) {
+    // TDMA初期化 (ESP-NOWモードおよびUDPモード（暫定）)
+    // TDMA initialization (ESP-NOW mode and UDP mode (temporary))
+    if (g_comm_mode == COMM_MODE_ESPNOW || g_comm_mode == COMM_MODE_UDP) {
         ret = tdma_init();
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "TDMA初期化失敗");
@@ -1776,6 +1842,8 @@ extern "C" void app_main(void)
         if (g_comm_mode == COMM_MODE_USB_HID) {
             usb_hid_main_loop();
         } else {
+            // ESP-NOWモードとUDPモードは共通のメインループを使用
+            // ESP-NOW mode and UDP mode use common main loop
             main_loop();
         }
         vTaskDelay(pdMS_TO_TICKS(10));  // 100Hz

@@ -35,8 +35,17 @@ static uint8_t scroll_offset = 0;
 static menu_item_t menu_items[MAX_MENU_ITEMS];
 static uint8_t menu_item_count = 0;
 
-// USB mode callback
-// USBモードコールバック
+// Comm mode callback and state
+// 通信モードコールバックと状態
+static menu_action_callback_t g_comm_mode_callback = NULL;
+static comm_mode_t g_comm_mode = COMM_MODE_ESPNOW;  // Default: ESP-NOW
+
+// Dynamic label buffer for Comm Mode menu item
+// 通信モードメニュー項目の動的ラベルバッファ
+static char g_comm_mode_label_buf[16] = "Comm: ESP-NOW";
+
+// USB mode callback (legacy)
+// USBモードコールバック（レガシー）
 static menu_action_callback_t g_usb_mode_callback = NULL;
 
 // Stick mode callback
@@ -73,10 +82,15 @@ static char g_deadband_label_buf[16] = "Deadband: 2%";
 // Menu action callbacks
 // メニューアクションコールバック
 // ============================================================================
-static void action_usb_mode(void) {
-    // Call registered callback to switch to USB HID mode
-    // 登録されたコールバックを呼び出してUSB HIDモードに切り替え
-    if (g_usb_mode_callback != NULL) {
+static void action_comm_mode(void) {
+    // Call registered callback to toggle communication mode
+    // 登録されたコールバックを呼び出して通信モードを切り替え
+    if (g_comm_mode_callback != NULL) {
+        g_comm_mode_callback();
+    }
+    // Also call legacy USB mode callback if in USB HID mode
+    // USB HIDモードの場合はレガシーUSBモードコールバックも呼び出し
+    else if (g_usb_mode_callback != NULL && g_comm_mode == COMM_MODE_USB_HID) {
         g_usb_mode_callback();
     }
 }
@@ -152,7 +166,7 @@ void menu_init(void) {
     // Define main menu items
     // メインメニュー項目の定義
     menu_items[menu_item_count++] = {g_stick_mode_label_buf, action_stick_mode, false};
-    menu_items[menu_item_count++] = {"USB Mode", action_usb_mode, false};
+    menu_items[menu_item_count++] = {g_comm_mode_label_buf, action_comm_mode, false};
     menu_items[menu_item_count++] = {g_battery_warn_label_buf, action_battery_warn, false};
     menu_items[menu_item_count++] = {g_deadband_label_buf, action_deadband, false};
     menu_items[menu_item_count++] = {"Stick Test", action_stick_test, false};
@@ -277,8 +291,38 @@ const char* menu_get_item_label(uint8_t index) {
 }
 
 // ============================================================================
-// Register USB mode callback
-// USBモードコールバック登録
+// Communication mode functions
+// 通信モード関数
+// ============================================================================
+void menu_register_comm_mode_callback(menu_action_callback_t callback) {
+    g_comm_mode_callback = callback;
+}
+
+comm_mode_t menu_get_comm_mode(void) {
+    return g_comm_mode;
+}
+
+void menu_set_comm_mode(comm_mode_t mode) {
+    g_comm_mode = mode;
+    // Update dynamic label buffer
+    // 動的ラベルバッファを更新
+    const char* mode_name = menu_get_comm_mode_name(mode);
+    snprintf(g_comm_mode_label_buf, sizeof(g_comm_mode_label_buf),
+             "Comm: %s", mode_name);
+}
+
+const char* menu_get_comm_mode_name(comm_mode_t mode) {
+    switch (mode) {
+        case COMM_MODE_ESPNOW:  return "ESP-NOW";
+        case COMM_MODE_UDP:     return "UDP";
+        case COMM_MODE_USB_HID: return "USB HID";
+        default:                return "Unknown";
+    }
+}
+
+// ============================================================================
+// Register USB mode callback (legacy)
+// USBモードコールバック登録（レガシー）
 // ============================================================================
 void menu_register_usb_mode_callback(menu_action_callback_t callback) {
     g_usb_mode_callback = callback;

@@ -139,8 +139,46 @@ const char* menu_get_item_label(uint8_t index);
 typedef void (*menu_action_callback_t)(void);
 
 /**
- * Register USB mode callback
- * USBモードコールバックを登録
+ * Communication mode enumeration
+ * 通信モード列挙
+ */
+typedef enum {
+    COMM_MODE_ESPNOW = 0,   // ESP-NOW mode (default)
+    COMM_MODE_UDP = 1,      // UDP over WiFi mode
+    COMM_MODE_USB_HID = 2,  // USB HID mode
+} comm_mode_t;
+
+/**
+ * Register Comm Mode callback
+ * 通信モードコールバックを登録
+ * @param callback Function to call when Comm Mode is toggled
+ */
+void menu_register_comm_mode_callback(menu_action_callback_t callback);
+
+/**
+ * Get current communication mode
+ * 現在の通信モードを取得
+ */
+comm_mode_t menu_get_comm_mode(void);
+
+/**
+ * Set communication mode (called from main after mode change)
+ * 通信モードを設定（モード変更後にmainから呼ばれる）
+ * @param mode communication mode
+ */
+void menu_set_comm_mode(comm_mode_t mode);
+
+/**
+ * Get communication mode name for display
+ * 表示用の通信モード名を取得
+ * @return "ESP-NOW", "UDP", or "USB HID"
+ */
+const char* menu_get_comm_mode_name(comm_mode_t mode);
+
+/**
+ * @deprecated Use menu_register_comm_mode_callback instead
+ * Register USB mode callback (legacy API)
+ * USBモードコールバックを登録（レガシーAPI）
  * @param callback Function to call when USB mode is selected
  */
 void menu_register_usb_mode_callback(menu_action_callback_t callback);
