@@ -184,6 +184,12 @@ extern sf::SensorFusion* g_fusion_ptr;
 #include "rate_controller.hpp"
 extern RateController* g_rate_controller_ptr;
 
+// Control Arbiter for comm mode management
+#include "control_arbiter.hpp"
+
+// UDP Server
+#include "udp_server.hpp"
+
 namespace stampfly {
 
 // Forward declarations for command handlers
@@ -209,6 +215,7 @@ static void cmd_led(int argc, char** argv, void* context);
 static void cmd_sound(int argc, char** argv, void* context);
 static void cmd_pos(int argc, char** argv, void* context);
 static void cmd_trim(int argc, char** argv, void* context);
+static void cmd_comm(int argc, char** argv, void* context);
 // Note: cmd_fftmode removed - telemetry is now fixed at 400Hz
 
 esp_err_t CLI::init()
@@ -388,6 +395,7 @@ void CLI::registerDefaultCommands()
     registerCommand("sound", cmd_sound, "Sound [on|off]", this);
     registerCommand("pos", cmd_pos, "Position [reset|status]", this);
     registerCommand("trim", cmd_trim, "Trim adjust [roll|pitch|yaw <val>|save|reset]", this);
+    registerCommand("comm", cmd_comm, "Comm mode [espnow|udp|status]", this);
     // Note: fftmode command removed - telemetry is now fixed at 400Hz
 }
 
@@ -1696,6 +1704,88 @@ void CLI::outputBinaryLogV2()
     write(fd, data, sizeof(pkt));
 
     binlog_counter_++;
+}
+
+// ========== Communication Mode Command ==========
+
+static void cmd_comm(int argc, char** argv, void* context)
+{
+    CLI* cli = static_cast<CLI*>(context);
+    auto& arbiter = ControlArbiter::getInstance();
+    auto& udp_server = UDPServer::getInstance();
+
+    if (argc < 2) {
+        // Show current status
+        // 現在のステータスを表示
+        cli->print("=== Communication Status ===\r\n");
+
+        // Current mode
+        CommMode mode = arbiter.getCommMode();
+        cli->print("Mode: %s\r\n", ControlArbiter::getCommModeName(mode));
+
+        // ESP-NOW status
+        if (g_comm_ptr != nullptr) {
+            cli->print("\r\nESP-NOW:\r\n");
+            cli->print("  Paired: %s\r\n", g_comm_ptr->isPaired() ? "yes" : "no");
+            cli->print("  Connected: %s\r\n", g_comm_ptr->isConnected() ? "yes" : "no");
+            cli->print("  Channel: %d\r\n", g_comm_ptr->getChannel());
+        }
+
+        // UDP status
+        cli->print("\r\nUDP:\r\n");
+        cli->print("  Running: %s\r\n", udp_server.isRunning() ? "yes" : "no");
+        cli->print("  Clients: %d\r\n", udp_server.getClientCount());
+        cli->print("  RX count: %lu\r\n", udp_server.getRxCount());
+        cli->print("  TX count: %lu\r\n", udp_server.getTxCount());
+        cli->print("  Errors: %lu\r\n", udp_server.getErrorCount());
+
+        // Control Arbiter stats
+        cli->print("\r\nControl Arbiter:\r\n");
+        cli->print("  ESP-NOW packets: %lu\r\n", arbiter.getESPNOWCount());
+        cli->print("  UDP packets: %lu\r\n", arbiter.getUDPCount());
+        cli->print("  WebSocket packets: %lu\r\n", arbiter.getWebSocketCount());
+        cli->print("  Active control: %s\r\n", arbiter.hasActiveControl() ? "yes" : "no");
+
+        cli->print("\r\nUsage:\r\n");
+        cli->print("  comm espnow    - Switch to ESP-NOW mode\r\n");
+        cli->print("  comm udp       - Switch to UDP mode\r\n");
+        cli->print("  comm status    - Show this status\r\n");
+        return;
+    }
+
+    const char* cmd = argv[1];
+
+    if (strcmp(cmd, "espnow") == 0) {
+        arbiter.setCommMode(CommMode::ESPNOW);
+        cli->print("Communication mode set to ESP-NOW\r\n");
+
+        // Stop UDP server if running
+        // UDP serverが動作中なら停止
+        if (udp_server.isRunning()) {
+            udp_server.stop();
+            cli->print("UDP server stopped\r\n");
+        }
+    } else if (strcmp(cmd, "udp") == 0) {
+        // Start UDP server if not running
+        // UDPサーバーが動作していなければ開始
+        if (!udp_server.isRunning()) {
+            esp_err_t ret = udp_server.start();
+            if (ret != ESP_OK) {
+                cli->print("Failed to start UDP server: %s\r\n", esp_err_to_name(ret));
+                return;
+            }
+            cli->print("UDP server started\r\n");
+        }
+
+        arbiter.setCommMode(CommMode::UDP);
+        cli->print("Communication mode set to UDP\r\n");
+    } else if (strcmp(cmd, "status") == 0) {
+        // Re-call with argc=1 to show status
+        cmd_comm(1, argv, context);
+    } else {
+        cli->print("Unknown command: %s\r\n", cmd);
+        cli->print("Usage: comm [espnow|udp|status]\r\n");
+    }
 }
 
 }  // namespace stampfly
