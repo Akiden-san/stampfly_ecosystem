@@ -1769,16 +1769,26 @@ static void cmd_comm(int argc, char** argv, void* context)
         // Start UDP server if not running
         // UDPサーバーが動作していなければ開始
         if (!udp_server.isRunning()) {
-            esp_err_t ret = udp_server.start();
+            // Initialize UDP server first
+            // まずUDPサーバーを初期化
+            esp_err_t ret = udp_server.init();
+            if (ret != ESP_OK) {
+                cli->print("Failed to init UDP server: %s\r\n", esp_err_to_name(ret));
+                return;
+            }
+
+            ret = udp_server.start();
             if (ret != ESP_OK) {
                 cli->print("Failed to start UDP server: %s\r\n", esp_err_to_name(ret));
                 return;
             }
-            cli->print("UDP server started\r\n");
+            cli->print("UDP server started on port %d\r\n", 8888);
         }
 
         arbiter.setCommMode(CommMode::UDP);
         cli->print("Communication mode set to UDP\r\n");
+        cli->print("WiFi AP SSID: StampFly\r\n");
+        cli->print("Vehicle IP: 192.168.4.1\r\n");
     } else if (strcmp(cmd, "status") == 0) {
         // Re-call with argc=1 to show status
         cmd_comm(1, argv, context);
