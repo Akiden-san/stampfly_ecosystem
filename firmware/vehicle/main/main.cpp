@@ -552,9 +552,14 @@ extern "C" void app_main(void)
     init::communication();
     updateLedDuringInit();
 
-    // Initialize CLI
+    // Initialize CLI (Serial)
     ESP_LOGI(TAG, "Initializing CLI...");
     init::cli();
+    updateLedDuringInit();
+
+    // Initialize Console (esp_console - for WiFi CLI)
+    ESP_LOGI(TAG, "Initializing Console...");
+    init::console();
     updateLedDuringInit();
 
     // Initialize Logger (400Hz binary log)

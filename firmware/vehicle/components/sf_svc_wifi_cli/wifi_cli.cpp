@@ -9,6 +9,7 @@
  */
 
 #include "wifi_cli.hpp"
+#include "console.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -406,6 +407,22 @@ void WiFiCLI::handleClient(ClientContext* ctx)
 }
 
 // =============================================================================
+// Output Callback for Console
+// =============================================================================
+
+// Output function for redirecting Console output to WiFi client
+// Console出力をWiFiクライアントにリダイレクトする関数
+static void wifiOutputCallback(const char* str, void* ctx)
+{
+    if (ctx == nullptr || str == nullptr) return;
+    int fd = *static_cast<int*>(ctx);
+    size_t len = strlen(str);
+    if (len > 0 && fd >= 0) {
+        send(fd, str, len, 0);
+    }
+}
+
+// =============================================================================
 // Command Processing
 // =============================================================================
 
@@ -419,8 +436,8 @@ void WiFiCLI::processLine(ClientContext* ctx, const char* line)
         return;
     }
 
-    // Handle built-in commands
-    // 組み込みコマンドを処理
+    // Handle built-in exit commands
+    // 組み込みexitコマンドを処理
     if (strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
         const char* msg = "\r\nGoodbye.\r\n";
         send(ctx->client_fd, msg, strlen(msg), 0);
@@ -428,84 +445,32 @@ void WiFiCLI::processLine(ClientContext* ctx, const char* line)
         return;
     }
 
-    // Forward to CLI for command processing
-    // コマンド処理のためにCLIに転送
-    if (cli_ == nullptr) {
-        const char* msg = "CLI not available\r\n";
+    // Send newline before command output
+    // コマンド出力前に改行を送信
+    send(ctx->client_fd, "\r\n", 2, 0);
+
+    // Execute command via Console (esp_console based)
+    // Console経由でコマンドを実行（esp_consoleベース）
+    auto& console = Console::getInstance();
+
+    if (!console.isInitialized()) {
+        const char* msg = "Console not available\r\n";
         send(ctx->client_fd, msg, strlen(msg), 0);
         return;
     }
 
-    // Parse command line into argc/argv
-    // コマンドラインをargc/argvにパース
-    static constexpr int MAX_ARGS = 8;
-    char* argv[MAX_ARGS];
-    int argc = 0;
+    // Set output redirection to this client's socket
+    // このクライアントのソケットに出力をリダイレクト
+    int client_fd = ctx->client_fd;
+    console.setOutput(wifiOutputCallback, &client_fd);
 
-    // Make a copy of the line for tokenization
-    // トークン化のために行のコピーを作成
-    char line_copy[256];
-    strncpy(line_copy, line, sizeof(line_copy) - 1);
-    line_copy[sizeof(line_copy) - 1] = '\0';
+    // Execute the command
+    // コマンドを実行
+    console.run(line);
 
-    // Tokenize
-    // トークン化
-    char* token = strtok(line_copy, " \t");
-    while (token != nullptr && argc < MAX_ARGS) {
-        argv[argc++] = token;
-        token = strtok(nullptr, " \t");
-    }
-
-    if (argc == 0) {
-        return;
-    }
-
-    // Send newline after command
-    // コマンド後に改行を送信
-    send(ctx->client_fd, "\r\n", 2, 0);
-
-    // Look up and execute command
-    // コマンドを検索して実行
-    // Note: This requires the CLI to have a way to redirect output.
-    // For now, we'll implement a simple response system.
-    // 注意: CLIに出力リダイレクト機能が必要
-    // 今のところ、シンプルなレスポンスシステムを実装
-
-    // For help command
-    if (strcmp(argv[0], "help") == 0 || strcmp(argv[0], "?") == 0) {
-        const char* help_msg =
-            "Available commands:\r\n"
-            "  help    - Show this help\r\n"
-            "  exit    - Disconnect\r\n"
-            "  status  - Show system status\r\n"
-            "  sensor  - Sensor commands\r\n"
-            "  comm    - Communication settings\r\n"
-            "  motor   - Motor commands\r\n"
-            "  (More commands available via USB CLI)\r\n";
-        send(ctx->client_fd, help_msg, strlen(help_msg), 0);
-        return;
-    }
-
-    // For status command - basic implementation
-    if (strcmp(argv[0], "status") == 0) {
-        char buf[256];
-        int len = snprintf(buf, sizeof(buf),
-            "WiFi CLI Status:\r\n"
-            "  Connected clients: %d\r\n"
-            "  Server port: %d\r\n"
-            "  Uptime: %lu ms\r\n",
-            client_count_,
-            config_.port,
-            (unsigned long)(xTaskGetTickCount() * portTICK_PERIOD_MS)
-        );
-        send(ctx->client_fd, buf, len, 0);
-        return;
-    }
-
-    // Unknown command
-    const char* msg = "Command not available via WiFi CLI.\r\n"
-                      "Type 'help' for available commands.\r\n";
-    send(ctx->client_fd, msg, strlen(msg), 0);
+    // Clear output redirection
+    // 出力リダイレクトをクリア
+    console.clearOutput();
 }
 
 // =============================================================================

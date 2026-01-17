@@ -1,0 +1,34 @@
+idf_component_register(
+    SRCS
+        "console.cpp"
+        "commands/cmd_system.cpp"
+        "commands/cmd_sensor.cpp"
+        "commands/cmd_motor.cpp"
+        "commands/cmd_control.cpp"
+        "commands/cmd_comm.cpp"
+        "commands/cmd_calib.cpp"
+        "commands/cmd_misc.cpp"
+    INCLUDE_DIRS
+        "include"
+    REQUIRES
+        console
+        nvs_flash
+        freertos
+        sf_svc_state
+        sf_hal_motor
+        sf_hal_buzzer
+        sf_hal_led
+        sf_hal_bmm150
+        sf_svc_led
+        sf_algo_fusion
+        sf_svc_logger
+        sf_svc_comm
+        sf_svc_udp
+        sf_svc_control_arbiter
+        sf_algo_control
+        sf_algo_pid
+)
+
+# main/rate_controller.hpp へのアクセス（コンソールからゲイン調整用）
+# Access to main/rate_controller.hpp (for gain adjustment from console)
+target_include_directories(${COMPONENT_LIB} PRIVATE ${CMAKE_SOURCE_DIR}/main)

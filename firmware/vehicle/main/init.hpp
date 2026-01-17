@@ -45,6 +45,12 @@ esp_err_t communication();
 esp_err_t cli();
 
 /**
+ * @brief Consoleの初期化 (esp_console ベース)
+ * Serial/WiFi共通のコマンド基盤
+ */
+esp_err_t console();
+
+/**
  * @brief Loggerの初期化
  */
 esp_err_t logger();

@@ -34,6 +34,7 @@
 // Communication
 #include "controller_comm.hpp"
 #include "cli.hpp"
+#include "console.hpp"
 #include "logger.hpp"
 #include "telemetry.hpp"
 #include "control_arbiter.hpp"
@@ -633,6 +634,24 @@ esp_err_t cli()
     g_cli.setBinlogStartCallback(onBinlogStart);
 
     ESP_LOGI(TAG, "CLI initialized");
+    return ESP_OK;
+}
+
+esp_err_t console()
+{
+    ESP_LOGI(TAG, "Initializing Console (esp_console)...");
+
+    auto& console = stampfly::Console::getInstance();
+
+    esp_err_t ret = console.init();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Console init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    console.registerAllCommands();
+
+    ESP_LOGI(TAG, "Console initialized (esp_console based)");
     return ESP_OK;
 }
 
