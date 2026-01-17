@@ -1,11 +1,19 @@
 /**
  * @file cli_task.cpp
- * @brief CLIタスク - USBシリアルコマンドライン処理
+ * @brief CLI Task - Serial REPL with linenoise
+ *
+ * CLIタスク - linenoiseを使用したSerial REPL
+ *
+ * Features:
+ * - Command history (up/down arrows)
+ * - Tab completion for registered commands
+ * - Line editing (cursor movement, backspace, delete)
  *
  * Note: Binary logging moved to stampfly_logger component (400Hz via ESP Timer)
  */
 
 #include "tasks_common.hpp"
+#include "serial_repl.hpp"
 
 static const char* TAG = "CLITask";
 
@@ -16,37 +24,32 @@ void CLITask(void* pvParameters)
 {
     ESP_LOGI(TAG, "CLITask started");
 
-    // Print initial prompt
-    g_cli.print("\r\n=== StampFly RTOS Skeleton ===\r\n");
-    g_cli.print("Type 'help' for available commands\r\n");
-    g_cli.print("> ");
+    // Get SerialREPL instance
+    // SerialREPLインスタンスを取得
+    auto& repl = stampfly::SerialREPL::getInstance();
 
-    TickType_t last_teleplot = xTaskGetTickCount();
-    TickType_t last_csvlog = xTaskGetTickCount();
-    const TickType_t teleplot_period = pdMS_TO_TICKS(50);  // 20Hz teleplot output
-    const TickType_t csvlog_period = pdMS_TO_TICKS(50);    // 20Hz CSV log output
-
-    while (true) {
-        if (g_cli.isInitialized()) {
-            g_cli.processInput();
-
-            TickType_t now = xTaskGetTickCount();
-
-            // Output teleplot data at fixed interval
-            if (g_cli.isTeleplotEnabled() && (now - last_teleplot) >= teleplot_period) {
-                g_cli.outputTeleplot();
-                last_teleplot = now;
-            }
-
-            // Output CSV log data at fixed interval
-            if (g_cli.isLogEnabled() && (now - last_csvlog) >= csvlog_period) {
-                g_cli.outputCSVLog();
-                last_csvlog = now;
-            }
-
-            // Binary logging now handled by stampfly_logger component at 400Hz
-            // controlled via g_logger.start()/stop()
+    // Initialize SerialREPL (USB Serial JTAG + linenoise)
+    // SerialREPLを初期化（USB Serial JTAG + linenoise）
+    esp_err_t ret = repl.init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize SerialREPL: %s", esp_err_to_name(ret));
+        // Fall back to simple loop if initialization fails
+        // 初期化に失敗した場合はシンプルなループにフォールバック
+        while (true) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
         }
-        vTaskDelay(pdMS_TO_TICKS(10));  // 10ms polling (teleplot/csvlog only)
+    }
+
+    // Run REPL loop (blocking)
+    // REPLループを実行（ブロッキング）
+    // This function never returns under normal operation
+    // この関数は通常動作では戻らない
+    repl.run();
+
+    // Should not reach here
+    // ここには到達しないはず
+    ESP_LOGE(TAG, "SerialREPL::run() returned unexpectedly");
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
