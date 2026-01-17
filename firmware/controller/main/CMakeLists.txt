@@ -13,4 +13,5 @@ idf_component_register(
         espnow_tdma
         menu_system
         usb_hid
+        sf_udp_client
 )

@@ -26,6 +26,7 @@
 #include <espnow_tdma.h>
 #include <menu_system.h>
 #include <usb_hid.hpp>
+#include <udp_client.hpp>
 
 static const char* TAG = "MAIN";
 
@@ -1036,6 +1037,8 @@ static volatile bool display_task_enabled = false;
 // 前方宣言 / Forward declarations
 static void update_usb_hid_display(void);
 static void usb_hid_main_loop(void);
+static void udp_main_loop(void);
+static void update_udp_display(void);
 
 static void display_task(void* parameter)
 {
@@ -1107,6 +1110,8 @@ static void display_task(void* parameter)
         // Flight screen branches by mode
         if (g_comm_mode == COMM_MODE_USB_HID) {
             update_usb_hid_display();
+        } else if (g_comm_mode == COMM_MODE_UDP) {
+            update_udp_display();
         } else {
             update_display();
         }
@@ -1352,6 +1357,218 @@ static void usb_hid_main_loop(void)
 
     // レポート送信
     usb_hid_send_report(&report);
+}
+
+// UDP画面更新
+// UDP mode display update
+static void update_udp_display(void)
+{
+    const int line_height = 17;
+    auto& udp_client = stampfly::UDPClient::getInstance();
+
+    // 行0: タイトル
+    M5.Display.setCursor(4, 2 + 0 * line_height);
+    M5.Display.setTextColor(SF_CYAN, SF_BLACK);
+    M5.Display.printf("=== UDP MODE ===");
+
+    // 行1: WiFi接続状態
+    M5.Display.setCursor(4, 2 + 1 * line_height);
+    if (udp_client.isWiFiConnected()) {
+        M5.Display.setTextColor(SF_GREEN, SF_BLACK);
+        M5.Display.printf("WiFi: Connected ");
+    } else {
+        M5.Display.setTextColor(SF_RED, SF_BLACK);
+        M5.Display.printf("WiFi: Disconn   ");
+    }
+
+    // 行2: 送信パケット数
+    M5.Display.setCursor(4, 2 + 2 * line_height);
+    M5.Display.setTextColor(SF_WHITE, SF_BLACK);
+    M5.Display.printf("TX: %lu        ", udp_client.getTxCount());
+
+    // 行3: 受信パケット数
+    M5.Display.setCursor(4, 2 + 3 * line_height);
+    M5.Display.printf("RX: %lu        ", udp_client.getRxCount());
+
+    // 行4: エラー数
+    M5.Display.setCursor(4, 2 + 4 * line_height);
+    M5.Display.printf("Err: %lu       ", udp_client.getErrorCount());
+
+    // 行5: スティックモード
+    M5.Display.setCursor(4, 2 + 5 * line_height);
+    M5.Display.setTextColor(SF_YELLOW, SF_BLACK);
+    M5.Display.printf("Stick Mode: %d  ", StickMode);
+
+    // 行6: 制御モード
+    M5.Display.setCursor(4, 2 + 6 * line_height);
+    if (Mode == ANGLECONTROL)
+        M5.Display.printf("-STABILIZE-    ");
+    else
+        M5.Display.printf("-ACRO-         ");
+}
+
+// UDPメインループ処理
+// UDP mode main loop
+static void udp_main_loop(void)
+{
+    int16_t _throttle, _phi, _theta, _psi;
+    InputData local_input;
+    auto& udp_client = stampfly::UDPClient::getInstance();
+
+    // タイミング計測
+    etime = stime;
+    stime = millis_now();
+    dtime = stime - etime;
+
+    // 入力データ取得
+    if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+        memcpy(&local_input, &shared_inputdata, sizeof(InputData));
+        xSemaphoreGive(input_mutex);
+    } else {
+        memset(&local_input, 0, sizeof(InputData));
+    }
+
+    // 画面状態取得
+    screen_state_t current_state = menu_get_state();
+
+    // キャリブレーション画面: 累積開始/停止制御
+    static screen_state_t prev_state_udp = SCREEN_STATE_FLIGHT;
+    if (current_state == SCREEN_STATE_CALIBRATION && prev_state_udp != SCREEN_STATE_CALIBRATION) {
+        calibration_start();
+    } else if (current_state != SCREEN_STATE_CALIBRATION && prev_state_udp == SCREEN_STATE_CALIBRATION) {
+        calibration_stop();
+    }
+    prev_state_udp = current_state;
+
+    // キャリブレーション画面: Modeボタンで確定
+    if (current_state == SCREEN_STATE_CALIBRATION && local_input.mode_changed == 1) {
+        calibration_confirm();
+        menu_set_state(SCREEN_STATE_MENU);
+        if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+            shared_inputdata.mode_changed = 0;
+            xSemaphoreGive(input_mutex);
+        }
+    }
+
+    // ボタンイベント処理
+    if (local_input.btn_pressed) {
+        if (current_state == SCREEN_STATE_ABOUT ||
+            current_state == SCREEN_STATE_BATTERY_WARN ||
+            current_state == SCREEN_STATE_CHANNEL ||
+            current_state == SCREEN_STATE_MAC ||
+            current_state == SCREEN_STATE_CALIBRATION ||
+            current_state == SCREEN_STATE_STICK_TEST) {
+            menu_set_state(SCREEN_STATE_MENU);
+        } else {
+            menu_toggle();
+        }
+    }
+
+    // タイマー更新 (メニュー外のみ)
+    if (!menu_is_active()) {
+        if (Timer_state == 1) {
+            Timer += dTime;
+        } else if (Timer_state == 2) {
+            Timer = 0.0f;
+            Timer_state = 0;
+        }
+    }
+
+    // メニューナビゲーション
+    if (menu_get_state() == SCREEN_STATE_MENU) {
+        static uint32_t last_nav_time = 0;
+        const uint32_t NAV_DEBOUNCE_MS = 200;
+        uint32_t now = millis_now();
+
+        int16_t stick_y = (int16_t)joy_get_stick_right_y() - 2048;
+
+        if (now - last_nav_time > NAV_DEBOUNCE_MS) {
+            if (stick_y < -800) {
+                menu_move_up();
+                last_nav_time = now;
+            } else if (stick_y > 800) {
+                menu_move_down();
+                last_nav_time = now;
+            }
+
+            if (local_input.mode_changed == 1) {
+                menu_select();
+                last_nav_time = now;
+                if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+                    shared_inputdata.mode_changed = 0;
+                    xSemaphoreGive(input_mutex);
+                }
+            }
+        }
+    }
+
+    // Battery warning screen: Mode button changes threshold
+    if (menu_get_state() == SCREEN_STATE_BATTERY_WARN && local_input.mode_changed == 1) {
+        on_battery_warn_change();
+        if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+            shared_inputdata.mode_changed = 0;
+            xSemaphoreGive(input_mutex);
+        }
+    }
+
+    // モード変更処理 (メニュー外のみ)
+    if (!menu_is_active() && local_input.mode_changed == 1) {
+        Mode = (Mode == ANGLECONTROL) ? RATECONTROL : ANGLECONTROL;
+        ESP_LOGI(TAG, "モード変更: %s", Mode == ANGLECONTROL ? "STABILIZE" : "ACRO");
+
+        if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+            shared_inputdata.mode_changed = 0;
+            xSemaphoreGive(input_mutex);
+        }
+    }
+
+    if (!menu_is_active() && local_input.alt_mode_changed == 1) {
+        AltMode = (AltMode == ALT_CONTROL_MODE) ? NOT_ALT_CONTROL_MODE : ALT_CONTROL_MODE;
+        ESP_LOGI(TAG, "高度モード変更: %s", AltMode == ALT_CONTROL_MODE ? "Auto ALT" : "Manual ALT");
+
+        if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+            shared_inputdata.alt_mode_changed = 0;
+            xSemaphoreGive(input_mutex);
+        }
+    }
+
+    // メニューアクティブ時は制御送信しない
+    if (menu_is_active()) {
+        return;
+    }
+
+    // スティック値取得（キャリブレーション + デッドバンド適用）
+    if (StickMode == STICK_MODE_2) {
+        _throttle = get_calibrated_value(local_input.throttle_raw, g_stick_cal.left_y);
+        _phi = apply_deadband(get_calibrated_value(local_input.phi_raw, g_stick_cal.right_x));
+        _theta = apply_deadband(get_calibrated_value(local_input.theta_raw, g_stick_cal.right_y));
+        _psi = apply_deadband(get_calibrated_value(local_input.psi_raw, g_stick_cal.left_x));
+    } else {
+        _throttle = get_calibrated_value(local_input.throttle_raw, g_stick_cal.right_y);
+        _phi = apply_deadband(get_calibrated_value(local_input.phi_raw, g_stick_cal.left_x));
+        _theta = apply_deadband(get_calibrated_value(local_input.theta_raw, g_stick_cal.left_y));
+        _psi = apply_deadband(get_calibrated_value(local_input.psi_raw, g_stick_cal.right_x));
+    }
+
+    // 制御値計算
+    Throttle = 4095 - _throttle;
+    Phi = _phi;
+    Theta = _theta;
+    Psi = _psi;
+
+    // フラグ構築
+    uint8_t flags = (0x01 & AltMode) << 3 |
+                    (0x01 & Mode) << 2 |
+                    (0x01 & joy_get_flip_button()) << 1 |
+                    (0x01 & joy_get_arm_button());
+
+    // UDP送信（接続時のみ）
+    if (udp_client.isConnected()) {
+        esp_err_t ret = udp_client.sendControl(Throttle, Phi, Theta, Psi, flags);
+        if (ret != ESP_OK) {
+            // エラーは統計にカウントされる
+        }
+    }
 }
 
 // メインループ処理 (ESP-NOW mode)
@@ -1694,32 +1911,80 @@ extern "C" void app_main(void)
     } else if (g_comm_mode == COMM_MODE_UDP) {
         // UDPモード初期化
         // UDP mode initialization
-        // TODO: WiFi STA接続とUDPクライアント初期化
-        // TODO: WiFi STA connection and UDP client initialization
         M5.Display.setTextColor(SF_YELLOW, SF_BLACK);
-        M5.Display.println("UDP: TODO");
-        ESP_LOGW(TAG, "UDPモードは実装中です");
+        M5.Display.println("UDP Mode");
+        ESP_LOGI(TAG, "UDPモード初期化開始");
 
-        // 暫定的にESP-NOW初期化も行う（将来的にはWiFi STA初期化に変更）
-        // Temporarily also initialize ESP-NOW (will be changed to WiFi STA init)
-        peer_info_load();
-        ret = espnow_init();
-        if (ret == ESP_OK) {
-            M5.Display.setTextColor(SF_GREEN, SF_BLACK);
-            M5.Display.println("ESP-NOW: OK");
-        }
-        beacon_peer_init();
-        M5.update();
-        bool force_pairing = M5.BtnA.isPressed();
-        if (force_pairing) {
-            M5.Display.setTextColor(SF_YELLOW, SF_BLACK);
-            M5.Display.println("Pairing mode...");
-            peering_process(true);
-            peer_info_save();
+        // UDPクライアント初期化
+        // Initialize UDP client
+        auto& udp_client = stampfly::UDPClient::getInstance();
+        stampfly::UDPClient::Config udp_config;
+        udp_config.vehicle_ssid_prefix = "StampFly";  // StampFly APを検索
+        udp_config.vehicle_password = "";              // オープンネットワーク
+        udp_config.vehicle_ip = "192.168.4.1";
+        udp_config.control_port = 8888;
+        udp_config.telemetry_port = 8889;
+        udp_config.connection_timeout_ms = 10000;
+
+        ret = udp_client.init(udp_config);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "UDPクライアント初期化失敗: %s", esp_err_to_name(ret));
+            M5.Display.setTextColor(SF_RED, SF_BLACK);
+            M5.Display.println("UDP Init: FAIL");
         } else {
-            peering_process(false);
+            M5.Display.setTextColor(SF_GREEN, SF_BLACK);
+            M5.Display.println("UDP Init: OK");
         }
-        drone_peer_init();
+
+        // WiFi開始
+        // Start WiFi
+        ret = udp_client.start();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "WiFi開始失敗: %s", esp_err_to_name(ret));
+            M5.Display.setTextColor(SF_RED, SF_BLACK);
+            M5.Display.println("WiFi: FAIL");
+        } else {
+            M5.Display.setTextColor(SF_YELLOW, SF_BLACK);
+            M5.Display.println("WiFi: Scanning...");
+        }
+
+        // StampFly APをスキャンして接続
+        // Scan for StampFly AP and connect
+        char found_ssid[33] = {0};
+        M5.Display.println("Searching AP...");
+        vTaskDelay(pdMS_TO_TICKS(500));  // WiFi安定待ち
+
+        ret = udp_client.scanForVehicle(found_ssid, sizeof(found_ssid));
+        if (ret == ESP_OK) {
+            ESP_LOGI(TAG, "StampFly AP発見: %s", found_ssid);
+            M5.Display.setTextColor(SF_GREEN, SF_BLACK);
+            M5.Display.printf("Found: %s\n", found_ssid);
+
+            // 接続
+            ret = udp_client.connectToAP(found_ssid, "");
+            if (ret == ESP_OK) {
+                M5.Display.println("Connecting...");
+                // IP取得を待つ（最大5秒）
+                for (int i = 0; i < 50 && !udp_client.isWiFiConnected(); i++) {
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                }
+                if (udp_client.isWiFiConnected()) {
+                    M5.Display.setTextColor(SF_GREEN, SF_BLACK);
+                    M5.Display.println("WiFi: Connected!");
+                    ESP_LOGI(TAG, "WiFi接続完了");
+                } else {
+                    M5.Display.setTextColor(SF_RED, SF_BLACK);
+                    M5.Display.println("WiFi: Timeout");
+                    ESP_LOGW(TAG, "WiFi接続タイムアウト");
+                }
+            }
+        } else {
+            ESP_LOGW(TAG, "StampFly AP未検出");
+            M5.Display.setTextColor(SF_RED, SF_BLACK);
+            M5.Display.println("AP Not Found");
+            M5.Display.println("Check Vehicle");
+        }
+
         AltMode = NOT_ALT_CONTROL_MODE;
     } else {
         // ESP-NOWモード初期化
@@ -1804,9 +2069,9 @@ extern "C" void app_main(void)
         ESP_LOGI(TAG, "LCD更新タスク作成完了");
     }
 
-    // TDMA初期化 (ESP-NOWモードおよびUDPモード（暫定）)
-    // TDMA initialization (ESP-NOW mode and UDP mode (temporary))
-    if (g_comm_mode == COMM_MODE_ESPNOW || g_comm_mode == COMM_MODE_UDP) {
+    // TDMA初期化 (ESP-NOWモードのみ)
+    // TDMA initialization (ESP-NOW mode only)
+    if (g_comm_mode == COMM_MODE_ESPNOW) {
         ret = tdma_init();
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "TDMA初期化失敗");
@@ -1841,9 +2106,11 @@ extern "C" void app_main(void)
     while (true) {
         if (g_comm_mode == COMM_MODE_USB_HID) {
             usb_hid_main_loop();
+        } else if (g_comm_mode == COMM_MODE_UDP) {
+            udp_main_loop();
         } else {
-            // ESP-NOWモードとUDPモードは共通のメインループを使用
-            // ESP-NOW mode and UDP mode use common main loop
+            // ESP-NOWモード
+            // ESP-NOW mode
             main_loop();
         }
         vTaskDelay(pdMS_TO_TICKS(10));  // 100Hz
