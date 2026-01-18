@@ -619,7 +619,7 @@ esp_err_t communication()
 
 esp_err_t console()
 {
-    ESP_LOGI(TAG, "Initializing Console (esp_console)...");
+    ESP_LOGI(TAG, "Initializing Console...");
 
     auto& console = stampfly::Console::getInstance();
 
@@ -629,9 +629,12 @@ esp_err_t console()
         return ret;
     }
 
-    console.registerAllCommands();
+    // Note: registerAllCommands() is called from CLITask after SerialREPL::init()
+    // registerAllCommands() は SerialREPL::init() の後に CLITask から呼ばれる
+    // because esp_console_init() is done inside esp_console_new_repl_usb_cdc()
+    // esp_console_init() は esp_console_new_repl_usb_cdc() 内で行われるため
 
-    ESP_LOGI(TAG, "Console initialized (esp_console based)");
+    ESP_LOGI(TAG, "Console pre-initialized");
     return ESP_OK;
 }
 

@@ -14,6 +14,7 @@
 
 #include "tasks_common.hpp"
 #include "serial_repl.hpp"
+#include "console.hpp"
 
 static const char* TAG = "CLITask";
 
@@ -28,8 +29,8 @@ void CLITask(void* pvParameters)
     // SerialREPLインスタンスを取得
     auto& repl = stampfly::SerialREPL::getInstance();
 
-    // Initialize SerialREPL (creates USB CDC REPL)
-    // SerialREPLを初期化（USB CDC REPL を作成）
+    // Initialize SerialREPL (creates USB CDC REPL, calls esp_console_init internally)
+    // SerialREPLを初期化（USB CDC REPL を作成、内部で esp_console_init を呼ぶ）
     esp_err_t ret = repl.init();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize SerialREPL: %s", esp_err_to_name(ret));
@@ -39,6 +40,11 @@ void CLITask(void* pvParameters)
             vTaskDelay(pdMS_TO_TICKS(1000));
         }
     }
+
+    // Now that esp_console is initialized, register all commands
+    // esp_console が初期化されたので、全コマンドを登録
+    auto& console = stampfly::Console::getInstance();
+    console.registerAllCommands();
 
     // Start the REPL (non-blocking, starts internal task)
     // REPLを開始（非ブロッキング、内部タスクを開始）

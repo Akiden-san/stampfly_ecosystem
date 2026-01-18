@@ -40,28 +40,15 @@ esp_err_t Console::init()
         return ESP_OK;
     }
 
-    ESP_LOGI(TAG, "Initializing Console with esp_console");
+    ESP_LOGI(TAG, "Console::init() called");
 
-    // Initialize esp_console
-    // esp_console を初期化
-    esp_console_config_t console_config = {
-        .max_cmdline_length = 256,
-        .max_cmdline_args = 16,
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
-        .heap_alloc_caps = MALLOC_CAP_DEFAULT,
-#endif
-        .hint_color = 0,  // Not used in raw mode
-        .hint_bold = 0,
-    };
-
-    esp_err_t ret = esp_console_init(&console_config);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize esp_console: %s", esp_err_to_name(ret));
-        return ret;
-    }
+    // Note: esp_console_init() is NOT called here.
+    // esp_console_init() はここでは呼ばない。
+    // It will be called by SerialREPL via esp_console_new_repl_usb_cdc()
+    // SerialREPL が esp_console_new_repl_usb_cdc() を通じて呼ぶ
 
     initialized_ = true;
-    ESP_LOGI(TAG, "Console initialized");
+    ESP_LOGI(TAG, "Console initialized (commands can be registered after REPL init)");
 
     return ESP_OK;
 }
