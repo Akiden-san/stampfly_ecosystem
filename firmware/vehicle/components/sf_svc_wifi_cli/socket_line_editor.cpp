@@ -676,26 +676,62 @@ void SocketLineEditor::writeChar(char c)
 
 void SocketLineEditor::refreshLine(const char* prompt)
 {
-    // Clear current line and rewrite
-    // 現在の行をクリアして書き直す
-    // \r - return to start
-    // \x1B[K - clear to end of line
-    // <prompt><buffer>
-    // Move cursor to correct position
+    // Build the entire output string first, then send at once
+    // 出力文字列を先に構築し、一度に送信（チラつき軽減）
+    char output[512];
+    int out_pos = 0;
 
-    writeStr("\r\x1B[K");  // Carriage return + clear line
-
-    if (prompt) {
-        writeStr(prompt);
+    // Save cursor, move to beginning, clear line
+    // カーソル保存、行先頭に移動、行クリア
+    // Use \x1B[?25l to hide cursor, \x1B[?25h to show
+    const char* prefix = "\x1B[?25l\r\x1B[K";  // Hide cursor + CR + clear line
+    size_t prefix_len = strlen(prefix);
+    if (out_pos + prefix_len < sizeof(output)) {
+        memcpy(output + out_pos, prefix, prefix_len);
+        out_pos += prefix_len;
     }
-    writeStr(buffer_);
 
-    // Move cursor to correct position
-    // カーソルを正しい位置に移動
+    // Add prompt
+    // プロンプトを追加
+    if (prompt) {
+        size_t plen = strlen(prompt);
+        if (out_pos + plen < sizeof(output)) {
+            memcpy(output + out_pos, prompt, plen);
+            out_pos += plen;
+        }
+    }
+
+    // Add buffer content
+    // バッファ内容を追加
+    if (len_ > 0 && out_pos + len_ < sizeof(output)) {
+        memcpy(output + out_pos, buffer_, len_);
+        out_pos += len_;
+    }
+
+    // Move cursor to correct position if not at end
+    // カーソルが末尾でない場合、正しい位置に移動
     if (pos_ < len_) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "\x1B[%dD", (int)(len_ - pos_));
-        writeStr(buf);
+        char move_buf[16];
+        int move_len = snprintf(move_buf, sizeof(move_buf), "\x1B[%dD", (int)(len_ - pos_));
+        if (out_pos + move_len < (int)sizeof(output)) {
+            memcpy(output + out_pos, move_buf, move_len);
+            out_pos += move_len;
+        }
+    }
+
+    // Show cursor again
+    // カーソルを再表示
+    const char* suffix = "\x1B[?25h";
+    size_t suffix_len = strlen(suffix);
+    if (out_pos + suffix_len < sizeof(output)) {
+        memcpy(output + out_pos, suffix, suffix_len);
+        out_pos += suffix_len;
+    }
+
+    // Send all at once
+    // 一度に送信
+    if (out_pos > 0) {
+        send(fd_, output, out_pos, 0);
     }
 }
 
