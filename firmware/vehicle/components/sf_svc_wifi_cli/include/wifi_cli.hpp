@@ -18,7 +18,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#include "cli.hpp"
 
 namespace stampfly {
 
@@ -86,12 +85,6 @@ public:
     bool isRunning() const { return running_; }
 
     /**
-     * @brief Set CLI instance (for command dispatch)
-     * @param cli Pointer to CLI instance
-     */
-    void setCLI(CLI* cli) { cli_ = cli; }
-
-    /**
      * @brief Broadcast message to all connected clients
      * @param message Message to send
      *
@@ -153,7 +146,6 @@ private:
     void sendWelcome(int fd);
 
     Config config_;
-    CLI* cli_ = nullptr;
     int server_fd_ = -1;
     bool initialized_ = false;
     bool running_ = false;

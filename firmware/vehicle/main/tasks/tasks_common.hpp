@@ -42,7 +42,6 @@
 
 // Communication
 #include "controller_comm.hpp"
-#include "cli.hpp"
 #include "logger.hpp"
 #include "telemetry.hpp"
 

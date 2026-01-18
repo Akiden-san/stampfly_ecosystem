@@ -33,7 +33,6 @@
 
 // Communication
 #include "controller_comm.hpp"
-#include "cli.hpp"
 #include "console.hpp"
 #include "logger.hpp"
 #include "telemetry.hpp"
@@ -618,25 +617,6 @@ esp_err_t communication()
     return ESP_OK;
 }
 
-esp_err_t cli()
-{
-    ESP_LOGI(TAG, "Initializing CLI...");
-
-    esp_err_t ret = g_cli.init();
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "CLI init failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    g_cli.registerDefaultCommands();
-
-    // binlog開始時にmag_refを設定するコールバックを登録 (後方互換性のため維持)
-    g_cli.setBinlogStartCallback(onBinlogStart);
-
-    ESP_LOGI(TAG, "CLI initialized");
-    return ESP_OK;
-}
-
 esp_err_t console()
 {
     ESP_LOGI(TAG, "Initializing Console (esp_console)...");
@@ -710,10 +690,6 @@ esp_err_t wifi_cli()
         ESP_LOGW(TAG, "WiFi CLI init failed: %s", esp_err_to_name(ret));
         return ret;
     }
-
-    // Set CLI instance for command forwarding
-    // コマンド転送用にCLIインスタンスを設定
-    wifi_cli.setCLI(&g_cli);
 
     // Start the server
     // サーバーを開始

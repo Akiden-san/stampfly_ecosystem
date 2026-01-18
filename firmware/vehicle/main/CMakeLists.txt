@@ -35,7 +35,6 @@ idf_component_register(
         sf_svc_health
         sf_svc_state
         sf_svc_comm
-        sf_svc_cli
         sf_svc_console
         sf_svc_serial_repl
         sf_svc_telemetry

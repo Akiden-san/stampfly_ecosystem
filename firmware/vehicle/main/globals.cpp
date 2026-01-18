@@ -50,7 +50,6 @@ stampfly::LowPassFilter g_gyro_lpf[3];
 // =============================================================================
 
 stampfly::ControllerComm g_comm;
-stampfly::CLI g_cli;
 stampfly::Logger g_logger;
 
 // =============================================================================

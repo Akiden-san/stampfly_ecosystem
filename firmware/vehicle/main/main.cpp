@@ -46,9 +46,6 @@
 #include "controller_comm.hpp"
 #include "control_arbiter.hpp"
 
-// CLI
-#include "cli.hpp"
-
 // Logger
 #include "logger.hpp"
 
@@ -552,12 +549,7 @@ extern "C" void app_main(void)
     init::communication();
     updateLedDuringInit();
 
-    // Initialize CLI (Serial)
-    ESP_LOGI(TAG, "Initializing CLI...");
-    init::cli();
-    updateLedDuringInit();
-
-    // Initialize Console (esp_console - for WiFi CLI)
+    // Initialize Console (esp_console - shared by Serial REPL and WiFi CLI)
     ESP_LOGI(TAG, "Initializing Console...");
     init::console();
     updateLedDuringInit();

@@ -12,7 +12,7 @@
 #include "freertos/semphr.h"
 #include "esp_timer.h"
 
-// Sensor drivers
+// Sensor drivers (センサードライバ)
 #include "bmi270_wrapper.hpp"
 #include "bmm150.hpp"
 #include "mag_calibration.hpp"
@@ -37,7 +37,6 @@
 
 // Communication
 #include "controller_comm.hpp"
-#include "cli.hpp"
 #include "logger.hpp"
 
 // Math
@@ -88,7 +87,6 @@ extern stampfly::LowPassFilter g_gyro_lpf[3];
 // =============================================================================
 
 extern stampfly::ControllerComm g_comm;
-extern stampfly::CLI g_cli;
 extern stampfly::Logger g_logger;
 
 // =============================================================================

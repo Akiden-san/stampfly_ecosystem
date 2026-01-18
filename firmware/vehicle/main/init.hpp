@@ -40,11 +40,6 @@ esp_err_t estimators();
 esp_err_t communication();
 
 /**
- * @brief CLIの初期化
- */
-esp_err_t cli();
-
-/**
  * @brief Consoleの初期化 (esp_console ベース)
  * Serial/WiFi共通のコマンド基盤
  */

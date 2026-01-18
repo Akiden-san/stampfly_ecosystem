@@ -19,9 +19,9 @@ extern RateController* g_rate_controller_ptr;
 
 // Trim values (accessed from control_task.cpp)
 // トリム値（control_task.cppからアクセスされる）
-extern float g_trim_roll;
-extern float g_trim_pitch;
-extern float g_trim_yaw;
+float g_trim_roll = 0.0f;
+float g_trim_pitch = 0.0f;
+float g_trim_yaw = 0.0f;
 
 // NVS keys
 static const char* NVS_NAMESPACE_CLI = "stampfly_cli";
