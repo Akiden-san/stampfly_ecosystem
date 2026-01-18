@@ -247,6 +247,12 @@ static int cmd_binlog(int argc, char** argv)
 
 void register_sensor_commands()
 {
+    // Load log level from NVS at startup
+    // 起動時に NVS からログレベルを読み込む
+    esp_log_level_t saved_level = loadLogLevelFromNVS();
+    esp_log_level_set("*", saved_level);
+    ESP_LOGI("SensorCmds", "Log level loaded from NVS: %d", saved_level);
+
     // sensor
     const esp_console_cmd_t sensor_cmd = {
         .command = "sensor",

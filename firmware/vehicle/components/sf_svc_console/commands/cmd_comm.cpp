@@ -10,6 +10,7 @@
 #include "control_arbiter.hpp"
 #include "udp_server.hpp"
 #include "esp_console.h"
+#include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include <cstring>
@@ -33,6 +34,25 @@ namespace stampfly {
 // =============================================================================
 // NVS Helper Functions
 // =============================================================================
+
+// Returns: 0 = ESP-NOW, 1 = UDP, -1 = not found/error
+static int loadCommModeFromNVS()
+{
+    nvs_handle_t handle;
+    esp_err_t ret = nvs_open(NVS_NAMESPACE_CLI, NVS_READONLY, &handle);
+    if (ret != ESP_OK) {
+        return -1;  // NVS not initialized or namespace not found
+    }
+
+    uint8_t mode = 0;
+    ret = nvs_get_u8(handle, NVS_KEY_COMM_MODE, &mode);
+    nvs_close(handle);
+
+    if (ret != ESP_OK) {
+        return -1;  // Key not found
+    }
+    return static_cast<int>(mode);
+}
 
 static esp_err_t saveCommModeToNVS(uint8_t mode)
 {
@@ -259,6 +279,17 @@ static int cmd_unpair(int argc, char** argv)
 
 void register_comm_commands()
 {
+    // Load comm mode from NVS at startup
+    // 起動時に NVS から通信モードを読み込む
+    int saved_mode = loadCommModeFromNVS();
+    if (saved_mode >= 0) {
+        auto& arbiter = ControlArbiter::getInstance();
+        CommMode mode = (saved_mode == 1) ? CommMode::UDP : CommMode::ESPNOW;
+        arbiter.setCommMode(mode);
+        ESP_LOGI("CommCmds", "Comm mode loaded from NVS: %s",
+                 ControlArbiter::getCommModeName(mode));
+    }
+
     // comm
     const esp_console_cmd_t comm_cmd = {
         .command = "comm",

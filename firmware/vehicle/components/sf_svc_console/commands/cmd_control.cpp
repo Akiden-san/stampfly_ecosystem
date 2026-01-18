@@ -8,6 +8,7 @@
 #include "console.hpp"
 #include "rate_controller.hpp"
 #include "esp_console.h"
+#include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include <cstring>
@@ -34,6 +35,27 @@ namespace stampfly {
 // =============================================================================
 // NVS Helper Functions
 // =============================================================================
+
+static esp_err_t loadTrimFromNVS()
+{
+    nvs_handle_t handle;
+    esp_err_t ret = nvs_open(NVS_NAMESPACE_CLI, NVS_READONLY, &handle);
+    if (ret != ESP_OK) {
+        return ret;  // NVS not initialized or namespace not found
+    }
+
+    int32_t roll_val = 0, pitch_val = 0, yaw_val = 0;
+    nvs_get_i32(handle, NVS_KEY_TRIM_ROLL, &roll_val);
+    nvs_get_i32(handle, NVS_KEY_TRIM_PITCH, &pitch_val);
+    nvs_get_i32(handle, NVS_KEY_TRIM_YAW, &yaw_val);
+    nvs_close(handle);
+
+    g_trim_roll = static_cast<float>(roll_val) / 10000.0f;
+    g_trim_pitch = static_cast<float>(pitch_val) / 10000.0f;
+    g_trim_yaw = static_cast<float>(yaw_val) / 10000.0f;
+
+    return ESP_OK;
+}
 
 static esp_err_t saveTrimToNVS()
 {
@@ -234,6 +256,13 @@ static int cmd_gain(int argc, char** argv)
 
 void register_control_commands()
 {
+    // Load trim values from NVS at startup
+    // 起動時に NVS からトリム値を読み込む
+    if (loadTrimFromNVS() == ESP_OK) {
+        ESP_LOGI("ControlCmds", "Trim loaded: roll=%.4f, pitch=%.4f, yaw=%.4f",
+                 g_trim_roll, g_trim_pitch, g_trim_yaw);
+    }
+
     // trim
     const esp_console_cmd_t trim_cmd = {
         .command = "trim",
