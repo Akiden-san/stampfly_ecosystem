@@ -115,9 +115,9 @@ private:
     // 補完コールバック
     SocketCompletionCallback completion_callback_ = nullptr;
 
-    // Escape sequence state machine
-    // エスケープシーケンス状態マシン
-    enum class EscState { NONE, ESC, CSI };
+    // Escape sequence state machine (also handles Telnet IAC)
+    // エスケープシーケンス状態マシン（Telnet IACも処理）
+    enum class EscState { NONE, ESC, CSI, IAC, IAC_CMD, IAC_SB, IAC_SB_IAC };
     EscState esc_state_ = EscState::NONE;
     char esc_buf_[8];
     int esc_pos_ = 0;
