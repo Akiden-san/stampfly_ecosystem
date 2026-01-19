@@ -17,6 +17,7 @@
 
 #include "esp_log.h"
 #include "esp_console.h"
+#include "esp_vfs_cdcacm.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -155,19 +156,28 @@ esp_err_t SerialCLI::init()
     ESP_LOGI(TAG, "Initializing SerialCLI");
 
     // =========================================================================
-    // VFS Setup
-    // VFS セットアップ
+    // VFS Setup for USB CDC
+    // USB CDC 用の VFS セットアップ
     // =========================================================================
-    // Note: VFS is set up automatically by esp_vfs_console component based on
-    // sdkconfig (CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG or similar).
-    // Disable buffering on stdin and stdout for character-at-a-time I/O.
+    // Configure line endings for USB CDC:
+    // - RX: CR -> LF (terminals send CR when Enter is pressed)
+    // - TX: LF -> CRLF (move cursor to beginning of next line)
     //
-    // esp_vfs_console コンポーネントが sdkconfig に基づいて
-    // 自動的に VFS をセットアップする。
-    // 1文字ずつのI/Oのため stdin と stdout のバッファリングを無効化する。
+    // USB CDC の改行変換を設定：
+    // - 受信: CR -> LF（ターミナルは Enter で CR を送る）
+    // - 送信: LF -> CRLF（カーソルを次行の先頭に移動）
+    esp_vfs_dev_cdcacm_set_rx_line_endings(ESP_LINE_ENDINGS_CR);
+    esp_vfs_dev_cdcacm_set_tx_line_endings(ESP_LINE_ENDINGS_CRLF);
 
+    // Disable buffering on stdin and stdout for character-at-a-time I/O
+    // 1文字ずつのI/Oのため stdin と stdout のバッファリングを無効化
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
+
+    // Set stdin and stdout to blocking mode
+    // stdin と stdout をブロッキングモードに設定
+    fcntl(fileno(stdin), F_SETFL, 0);
+    fcntl(fileno(stdout), F_SETFL, 0);
 
     // =========================================================================
     // Initialize esp_console (for command registration)

@@ -4,6 +4,7 @@ idf_component_register(
     REQUIRES
         console
         freertos
+        vfs
         sf_svc_console
         sf_lib_line_editor
 )
