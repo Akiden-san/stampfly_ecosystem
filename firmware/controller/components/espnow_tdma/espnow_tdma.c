@@ -127,10 +127,19 @@ static void on_data_recv(const esp_now_recv_info_t *recv_info, const uint8_t *da
     (void)recv_info;  // 未使用
 
     if (is_peering) {
-        // ペアリングパケット (AA 55 16 88 ヘッダ)
+        // ペアリングパケット形式:
+        // Byte 0: チャンネル
+        // Byte 1-6: MACアドレス
+        // Byte 7-10: シグネチャ (AA 55 16 88)
         if (data_len >= 11 && data[7] == 0xAA && data[8] == 0x55 &&
             data[9] == 0x16 && data[10] == 0x88) {
             received_flag = 1;
+            // チャンネルを取得・設定
+            uint8_t recv_channel = data[0];
+            if (recv_channel >= ESPNOW_CHANNEL_MIN && recv_channel <= ESPNOW_CHANNEL_MAX) {
+                g_espnow_channel = recv_channel;
+                ESP_LOGI(TAG, "ペアリング受信: チャンネル=%d", recv_channel);
+            }
             // MACアドレスを取得
             Drone_mac[0] = data[1];
             Drone_mac[1] = data[2];
@@ -569,6 +578,14 @@ esp_err_t peer_info_load(void)
     if (n != 7) {
         ESP_LOGW(TAG, "ピア情報パース失敗");
         return ESP_FAIL;
+    }
+
+    // チャンネルを適用（範囲チェック付き）
+    // Apply channel (with range check)
+    if (saved_channel >= ESPNOW_CHANNEL_MIN && saved_channel <= ESPNOW_CHANNEL_MAX) {
+        g_espnow_channel = saved_channel;
+    } else {
+        ESP_LOGW(TAG, "保存されたチャンネル %d は無効、デフォルト使用", saved_channel);
     }
 
     ESP_LOGI(TAG, "ピア情報読込: CH=%d, MAC=%02X:%02X:%02X:%02X:%02X:%02X",

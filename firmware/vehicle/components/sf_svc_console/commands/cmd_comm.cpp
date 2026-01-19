@@ -1,6 +1,6 @@
 /**
  * @file cmd_comm.cpp
- * @brief Communication commands (comm, pair, unpair)
+ * @brief Communication commands (comm, wifi, pair, unpair)
  *
  * 通信コマンド
  */
@@ -11,6 +11,7 @@
 #include "udp_server.hpp"
 #include "esp_console.h"
 #include "esp_log.h"
+#include "esp_wifi.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include <cstring>
@@ -174,6 +175,100 @@ static int cmd_comm(int argc, char** argv)
 }
 
 // =============================================================================
+// wifi command
+// =============================================================================
+
+static int cmd_wifi(int argc, char** argv)
+{
+    auto& console = Console::getInstance();
+
+    if (argc < 2) {
+        // Show usage
+        console.print("WiFi Configuration:\r\n");
+        if (g_comm_ptr != nullptr) {
+            console.print("  Channel: %d\r\n", g_comm_ptr->getChannel());
+        }
+        console.print("\r\nUsage:\r\n");
+        console.print("  wifi channel [1-13] - Get/set WiFi channel\r\n");
+        console.print("  wifi status         - Show WiFi status\r\n");
+        return 0;
+    }
+
+    const char* cmd = argv[1];
+
+    if (strcmp(cmd, "channel") == 0) {
+        if (g_comm_ptr == nullptr) {
+            console.print("ControllerComm not available\r\n");
+            return 1;
+        }
+
+        if (argc < 3) {
+            // Show current channel
+            console.print("WiFi channel: %d\r\n", g_comm_ptr->getChannel());
+            return 0;
+        }
+
+        // Set channel
+        int channel = atoi(argv[2]);
+        if (channel < 1 || channel > 13) {
+            console.print("Invalid channel. Use 1-13.\r\n");
+            return 1;
+        }
+
+        esp_err_t ret = g_comm_ptr->setChannel(channel, true);
+        if (ret == ESP_OK) {
+            console.print("WiFi channel set to %d (saved to NVS)\r\n", channel);
+            console.print("Note: Controller must be re-paired to use this channel.\r\n");
+        } else {
+            console.print("Failed to set channel: %s\r\n", esp_err_to_name(ret));
+            return 1;
+        }
+    } else if (strcmp(cmd, "status") == 0) {
+        console.print("=== WiFi Status ===\r\n");
+
+        // Get WiFi mode
+        wifi_mode_t mode;
+        if (esp_wifi_get_mode(&mode) == ESP_OK) {
+            const char* mode_str = "Unknown";
+            switch (mode) {
+                case WIFI_MODE_STA: mode_str = "STA"; break;
+                case WIFI_MODE_AP: mode_str = "AP"; break;
+                case WIFI_MODE_APSTA: mode_str = "AP+STA"; break;
+                default: break;
+            }
+            console.print("Mode: %s\r\n", mode_str);
+        }
+
+        // Get channel
+        uint8_t primary;
+        wifi_second_chan_t second;
+        if (esp_wifi_get_channel(&primary, &second) == ESP_OK) {
+            console.print("Channel: %d\r\n", primary);
+        }
+
+        // Get AP config
+        wifi_config_t ap_config;
+        if (esp_wifi_get_config(WIFI_IF_AP, &ap_config) == ESP_OK) {
+            console.print("AP SSID: %s\r\n", ap_config.ap.ssid);
+            console.print("AP IP: 192.168.4.1\r\n");
+        }
+
+        // Get MAC
+        uint8_t mac[6];
+        if (esp_wifi_get_mac(WIFI_IF_STA, mac) == ESP_OK) {
+            console.print("STA MAC: %02X:%02X:%02X:%02X:%02X:%02X\r\n",
+                         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        }
+    } else {
+        console.print("Unknown subcommand: %s\r\n", cmd);
+        console.print("Usage: wifi channel [1-13] | wifi status\r\n");
+        return 1;
+    }
+
+    return 0;
+}
+
+// =============================================================================
 // pair command
 // =============================================================================
 
@@ -188,15 +283,13 @@ static int cmd_pair(int argc, char** argv)
 
     if (argc < 2) {
         console.print("ESP-NOW Pairing Status:\r\n");
-        console.print("  Initialized: %s\r\n", g_comm_ptr->isInitialized() ? "yes" : "no");
-        console.print("  Channel: %d\r\n", g_comm_ptr->getChannel());
         console.print("  Paired: %s\r\n", g_comm_ptr->isPaired() ? "yes" : "no");
         console.print("  Connected: %s\r\n", g_comm_ptr->isConnected() ? "yes" : "no");
         console.print("  Pairing mode: %s\r\n", g_comm_ptr->isPairingMode() ? "active" : "inactive");
+        console.print("  Channel: %d (use 'wifi channel' to change)\r\n", g_comm_ptr->getChannel());
         console.print("\r\nUsage:\r\n");
-        console.print("  pair start      - Enter pairing mode\r\n");
-        console.print("  pair stop       - Exit pairing mode\r\n");
-        console.print("  pair channel <n>- Set WiFi channel (1-13)\r\n");
+        console.print("  pair start - Enter pairing mode\r\n");
+        console.print("  pair stop  - Exit pairing mode\r\n");
         return 0;
     }
 
@@ -208,7 +301,7 @@ static int cmd_pair(int argc, char** argv)
             return 0;
         }
         console.print("Entering pairing mode on channel %d...\r\n", g_comm_ptr->getChannel());
-        console.print("Send control packet from controller to complete pairing.\r\n");
+        console.print("Long-press M5 button on controller to pair.\r\n");
         g_comm_ptr->enterPairingMode();
     } else if (strcmp(cmd, "stop") == 0) {
         if (!g_comm_ptr->isPairingMode()) {
@@ -217,25 +310,6 @@ static int cmd_pair(int argc, char** argv)
         }
         console.print("Exiting pairing mode\r\n");
         g_comm_ptr->exitPairingMode();
-    } else if (strcmp(cmd, "channel") == 0) {
-        if (argc < 3) {
-            console.print("Current channel: %d\r\n", g_comm_ptr->getChannel());
-            console.print("Usage: pair channel <1-13>\r\n");
-            return 0;
-        }
-        int channel = atoi(argv[2]);
-        if (channel < 1 || channel > 13) {
-            console.print("Invalid channel. Use 1-13.\r\n");
-            return 1;
-        }
-        // Set channel and save to NVS
-        esp_err_t ret = g_comm_ptr->setChannel(channel, true);
-        if (ret == ESP_OK) {
-            console.print("WiFi channel set to %d (saved to NVS)\r\n", channel);
-        } else {
-            console.print("Failed to set channel: %s\r\n", esp_err_to_name(ret));
-            return 1;
-        }
     } else {
         console.print("Unknown subcommand: %s\r\n", cmd);
         return 1;
@@ -301,10 +375,20 @@ void register_comm_commands()
     };
     esp_console_cmd_register(&comm_cmd);
 
+    // wifi
+    const esp_console_cmd_t wifi_cmd = {
+        .command = "wifi",
+        .help = "WiFi config [channel|status]",
+        .hint = NULL,
+        .func = &cmd_wifi,
+        .argtable = NULL,
+    };
+    esp_console_cmd_register(&wifi_cmd);
+
     // pair
     const esp_console_cmd_t pair_cmd = {
         .command = "pair",
-        .help = "Pairing control [start|stop|channel]",
+        .help = "Pairing control [start|stop]",
         .hint = NULL,
         .func = &cmd_pair,
         .argtable = NULL,

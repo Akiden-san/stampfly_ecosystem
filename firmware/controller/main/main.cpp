@@ -43,6 +43,7 @@ static const char* TAG = "MAIN";
 #define SF_CYAN    TFT_YELLOW  // G+B→G+R: YELLOW displays as CYAN
 #define SF_MAGENTA TFT_MAGENTA // R+B→B+R: same (MAGENTA stays MAGENTA)
 #define SF_ORANGE  0x051F      // Custom: swap R/B in original orange
+#define SF_GRAY    TFT_DARKGREY // Gray (no swap needed, equal R/G/B)
 
 // ログレベル
 #define GLOBAL_LOG_LEVEL ESP_LOG_INFO
@@ -116,7 +117,6 @@ static comm_mode_t g_comm_mode = COMM_MODE_ESPNOW;
 #define NVS_KEY_BATT_WARN "batt_warn"
 #define NVS_KEY_STICK_CAL "stick_cal"
 #define NVS_KEY_DEADBAND "deadband"
-#define NVS_KEY_ESPNOW_CH "espnow_ch"
 #define NVS_KEY_DEVICE_ID "device_id"
 
 // バッテリー警告閾値 (voltage * 10, e.g., 33 = 3.3V)
@@ -351,51 +351,9 @@ static void on_deadband_change(void) {
 }
 
 // ============================================================================
-// ESP-NOW チャンネル / デバイスID NVS保存
-// ESP-NOW Channel / Device ID NVS storage
+// デバイスID NVS保存
+// Device ID NVS storage
 // ============================================================================
-
-// チャンネルをNVSから読み込み
-// Load channel from NVS
-static uint8_t load_espnow_channel_from_nvs(void) {
-    nvs_handle_t handle;
-    uint8_t channel = ESPNOW_CHANNEL_DEFAULT;
-
-    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &handle);
-    if (err == ESP_OK) {
-        nvs_get_u8(handle, NVS_KEY_ESPNOW_CH, &channel);
-        nvs_close(handle);
-    }
-
-    // 範囲チェック
-    if (channel < ESPNOW_CHANNEL_MIN || channel > ESPNOW_CHANNEL_MAX) {
-        channel = ESPNOW_CHANNEL_DEFAULT;
-    }
-    return channel;
-}
-
-// チャンネルをNVSに保存
-// Save channel to NVS
-static esp_err_t save_espnow_channel_to_nvs(uint8_t channel) {
-    nvs_handle_t handle;
-
-    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "NVS open failed: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    err = nvs_set_u8(handle, NVS_KEY_ESPNOW_CH, channel);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "NVS set failed: %s", esp_err_to_name(err));
-        nvs_close(handle);
-        return err;
-    }
-
-    err = nvs_commit(handle);
-    nvs_close(handle);
-    return err;
-}
 
 // デバイスIDをNVSから読み込み
 // Load device ID from NVS
@@ -437,27 +395,6 @@ static esp_err_t save_device_id_to_nvs(uint8_t device_id) {
     err = nvs_commit(handle);
     nvs_close(handle);
     return err;
-}
-
-// チャンネル変更コールバック（メニューから呼ばれる）
-// Channel change callback (called from menu)
-static void on_channel_changed(void) {
-    uint8_t current = espnow_get_channel();
-    uint8_t new_channel = current + 1;
-    if (new_channel > ESPNOW_CHANNEL_MAX) {
-        new_channel = ESPNOW_CHANNEL_MIN;
-    }
-
-    if (save_espnow_channel_to_nvs(new_channel) == ESP_OK) {
-        ESP_LOGI(TAG, "チャンネル変更: %d -> %d (再起動後に反映)", current, new_channel);
-        espnow_set_channel(new_channel);
-        // 再起動が必要なため、ビープ音で通知
-        beep();
-        vTaskDelay(pdMS_TO_TICKS(100));
-        beep();
-    } else {
-        ESP_LOGE(TAG, "チャンネル保存失敗");
-    }
 }
 
 // デバイスID変更コールバック（メニューから呼ばれる）
@@ -976,8 +913,6 @@ static void render_stick_test_screen(void)
 // Channel screen rendering
 // チャンネル設定画面の選択状態
 // Channel setting screen selection state
-static uint8_t g_channel_screen_sel = 0;  // 0: Channel, 1: Device ID
-
 static void render_channel_screen(void)
 {
     const int line_height = 17;
@@ -991,33 +926,25 @@ static void render_channel_screen(void)
     M5.Display.setCursor(4, 2 + 1 * line_height);
     M5.Display.printf("                ");
 
-    // 行2: ESP-NOW Channel（選択中はハイライト）
+    // 行2: ESP-NOW Channel（ペアリングで設定、変更不可）
     M5.Display.setCursor(4, 2 + 2 * line_height);
-    if (g_channel_screen_sel == 0) {
-        M5.Display.setTextColor(SF_BLACK, SF_YELLOW);
-    } else {
-        M5.Display.setTextColor(SF_WHITE, SF_BLACK);
-    }
+    M5.Display.setTextColor(SF_GRAY, SF_BLACK);
     M5.Display.printf(" Channel: %02d    ", espnow_get_channel());
 
-    // 行3: Device ID（選択中はハイライト）
+    // 行3: Device ID（変更可能、ハイライト）
     M5.Display.setCursor(4, 2 + 3 * line_height);
-    if (g_channel_screen_sel == 1) {
-        M5.Display.setTextColor(SF_BLACK, SF_YELLOW);
-    } else {
-        M5.Display.setTextColor(SF_WHITE, SF_BLACK);
-    }
+    M5.Display.setTextColor(SF_BLACK, SF_YELLOW);
     M5.Display.printf(" Device ID: %d   ", tdma_get_device_id());
 
-    // 行4: 空行
+    // 行4: チャンネル説明
     M5.Display.setCursor(4, 2 + 4 * line_height);
-    M5.Display.setTextColor(SF_WHITE, SF_BLACK);
-    M5.Display.printf("                ");
+    M5.Display.setTextColor(SF_GRAY, SF_BLACK);
+    M5.Display.printf("(CH from pairing)");
 
     // 行5: 操作説明1
     M5.Display.setCursor(4, 2 + 5 * line_height);
     M5.Display.setTextColor(SF_GREEN, SF_BLACK);
-    M5.Display.printf("Mode:Change     ");
+    M5.Display.printf("Mode:Change ID  ");
 
     // 行6: 操作説明2
     M5.Display.setCursor(4, 2 + 6 * line_height);
@@ -1461,29 +1388,11 @@ static void usb_hid_main_loop(void)
         }
     }
 
-    // Channel screen: スティック上下で選択、Modeボタンで値変更
-    // Channel screen: Stick up/down to select, Mode button to change value
+    // Channel screen: ModeボタンでDevice ID変更（チャンネルはペアリングで決定）
+    // Channel screen: Mode button changes Device ID (channel is set by pairing)
     if (menu_get_state() == SCREEN_STATE_CHANNEL) {
-        static uint32_t last_ch_nav = 0;
-        uint32_t now = millis_now();
-        int16_t stick_y = local_input.theta_raw - 2048;
-
-        if (now - last_ch_nav > 200) {
-            if (stick_y < -800) {
-                g_channel_screen_sel = 0;  // Channel
-                last_ch_nav = now;
-            } else if (stick_y > 800) {
-                g_channel_screen_sel = 1;  // Device ID
-                last_ch_nav = now;
-            }
-        }
-
         if (local_input.mode_changed == 1) {
-            if (g_channel_screen_sel == 0) {
-                on_channel_changed();
-            } else {
-                on_device_id_changed();
-            }
+            on_device_id_changed();
             if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
                 shared_inputdata.mode_changed = 0;
                 xSemaphoreGive(input_mutex);
@@ -1686,30 +1595,10 @@ static void udp_main_loop(void)
         }
     }
 
-    // Channel screen: スティック上下で選択、Modeボタンで値変更
+    // Channel screen: ModeボタンでDevice ID変更（チャンネルはペアリングで決定）
     if (menu_get_state() == SCREEN_STATE_CHANNEL) {
-        static uint32_t last_ch_nav = 0;
-        uint32_t now = millis_now();
-        int16_t stick_y = local_input.theta_raw - 2048;
-
-        // スティック上下でChannel/DeviceID選択切り替え
-        if (now - last_ch_nav > 200) {
-            if (stick_y < -800) {
-                g_channel_screen_sel = 0;  // Channel
-                last_ch_nav = now;
-            } else if (stick_y > 800) {
-                g_channel_screen_sel = 1;  // Device ID
-                last_ch_nav = now;
-            }
-        }
-
-        // Modeボタンで選択中の値を変更
         if (local_input.mode_changed == 1) {
-            if (g_channel_screen_sel == 0) {
-                on_channel_changed();
-            } else {
-                on_device_id_changed();
-            }
+            on_device_id_changed();
             if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
                 shared_inputdata.mode_changed = 0;
                 xSemaphoreGive(input_mutex);
@@ -1904,31 +1793,11 @@ static void main_loop(void)
         }
     }
 
-    // Channel screen: スティック上下で選択、Modeボタンで値変更
-    // Channel screen: stick up/down to select, Mode button to change value
+    // Channel screen: ModeボタンでDevice ID変更（チャンネルはペアリングで決定）
+    // Channel screen: Mode button changes Device ID (channel is set by pairing)
     if (menu_get_state() == SCREEN_STATE_CHANNEL) {
-        static uint32_t last_ch_nav = 0;
-        uint32_t now = millis_now();
-        int16_t stick_y = (int16_t)joy_get_stick_right_y() - 2048;
-
-        // スティック上下でChannel/DeviceID選択切り替え
-        if (now - last_ch_nav > 200) {
-            if (stick_y < -800) {
-                g_channel_screen_sel = 0;  // Channel
-                last_ch_nav = now;
-            } else if (stick_y > 800) {
-                g_channel_screen_sel = 1;  // Device ID
-                last_ch_nav = now;
-            }
-        }
-
-        // Modeボタンで選択中の値を変更
         if (local_input.mode_changed == 1) {
-            if (g_channel_screen_sel == 0) {
-                on_channel_changed();
-            } else {
-                on_device_id_changed();
-            }
+            on_device_id_changed();
             if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
                 shared_inputdata.mode_changed = 0;
                 xSemaphoreGive(input_mutex);
@@ -2119,11 +1988,8 @@ extern "C" void app_main(void)
     menu_register_deadband_callback(on_deadband_change);
     ESP_LOGI(TAG, "デッドバンド: %d%% (NVSより)", g_deadband);
 
-    // ESP-NOWチャンネルをNVSから読み込み
-    // Load ESP-NOW channel from NVS
-    uint8_t saved_channel = load_espnow_channel_from_nvs();
-    espnow_set_channel(saved_channel);
-    ESP_LOGI(TAG, "ESP-NOWチャンネル: %d (NVSより)", saved_channel);
+    // Note: ESP-NOWチャンネルはペアリング情報（SPIFFS）から読み込まれる
+    // Note: ESP-NOW channel is loaded from pairing info (SPIFFS) via peer_info_load()
 
     // TDMAデバイスIDをNVSから読み込み
     // Load TDMA device ID from NVS
