@@ -29,23 +29,29 @@ namespace stampfly {
 // =============================================================================
 
 /**
- * @brief Read a byte from stdin
+ * @brief Read a byte from stdin (blocking)
  * @param ctx Unused context
- * @return Byte read, or -1 on error
+ * @return Byte read, or -1 on permanent error
  *
- * stdin から 1 バイト読み取る
+ * stdin から 1 バイト読み取る（ブロッキング）
+ * USB CDC は VFS が適切に設定されていないと EOF を返すため、
+ * データが来るまでポーリングする
  */
 static int stdio_read_byte(void* ctx)
 {
     (void)ctx;
-    int c = getchar();
-    if (c == EOF) {
-        // EOF - wait a bit and try again (USB CDC may return EOF temporarily)
-        // EOF - 少し待って再試行（USB CDC は一時的に EOF を返すことがある）
+
+    // Poll until we get a character
+    // 文字が来るまでポーリング
+    while (true) {
+        int c = getchar();
+        if (c != EOF) {
+            return c;
+        }
+        // No data available, wait and retry
+        // データがない場合は待って再試行
         vTaskDelay(pdMS_TO_TICKS(10));
-        return -1;
     }
-    return c;
 }
 
 /**
