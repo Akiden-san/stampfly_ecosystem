@@ -1,67 +1,81 @@
-# コントローラ改造計画：メニューシステム＆USB HIDモード
+# コントローラ改造計画：メニューシステム＆マルチ通信モード
 
 > **Note:** [English version follows after the Japanese section.](#english) / 日本語の後に英語版があります。
+
+**ステータス: ✅ 主要機能完了**
+
+---
+
+## 完了サマリー
+
+### 実装状況
+
+| Phase | 内容 | 状態 |
+|-------|------|------|
+| Phase 1 | メニュー基盤 | ✅ 完了 (2025-01-06) |
+| Phase 2 | メニュー操作 | ✅ 完了 (2025-01-06) |
+| Phase 3 | メニュー項目実装 | ✅ 完了 |
+| Phase 4 | USB HIDモード | ✅ 完了 (2025-01-07) |
+| Phase 5 | WiFi UDPモード | ✅ 完了（追加実装） |
+| Phase 6 | 設定永続化 | ✅ 完了 |
+| Phase 7 | シミュレータ連携 | ⏳ 未着手 |
+
+### 実装済み機能
+
+| 機能 | 説明 |
+|------|------|
+| 3通信モード | ESP-NOW / WiFi UDP / USB HID |
+| メニューシステム | 9画面、10メニュー項目 |
+| NVS設定保存 | 通信モード、スティックモード、バッテリー警告、デッドバンド、キャリブレーション |
+| スティックキャリブレーション | 手動キャリブレーション機能 |
+| デッドバンド調整 | 0-5%可変 |
+| バッテリー警告 | 3.0V-4.0V閾値設定 |
+
+---
 
 ## 1. 概要
 
 ### 目標
+
 1. **メニューシステム**: M5ボタンでメニュー画面を表示、スティックで操作
-2. **デュアルモード**: ESP-NOW（実機制御）とUSB HID（シミュレータ）の切り替え
+2. **トリプルモード**: ESP-NOW / WiFi UDP / USB HID の3モード切り替え
 3. **拡張性**: 将来の設定・機能追加に対応できる設計
 
-### 現状分析
+### 現在の実装状態
 
-| 項目 | 現状 |
+| 項目 | 状態 |
 |------|------|
-| LCD | 7行固定表示、10Hz更新 |
-| ボタン | M5.BtnA（タイマー制御用） |
+| LCD | M5GFX、9画面状態、10Hz更新 |
+| ボタン | M5.BtnA（メニュー/ペアリング） |
 | スティックボタン | Arm, Flip, Mode, Option |
-| 通信 | ESP-NOW TDMA固定 |
-| USB | 未実装 |
-
-### 進捗状況
-
-| Phase | 内容 | 状態 |
-|-------|------|------|
-| Phase 1 | メニュー基盤 | **完了** (2025-01-06) |
-| Phase 2 | メニュー操作 | **完了** (2025-01-06) |
-| Phase 3 | メニュー項目実装 | 未着手 |
-| Phase 4 | USB HIDモード | **完了** (2025-01-07) |
-| Phase 5 | シミュレータ連携 | 未着手 |
-| Phase 6 | 設定永続化 | 一部完了（モード保存） |
+| 通信 | ESP-NOW TDMA / WiFi UDP / USB HID |
+| 設定保存 | NVS（5項目） |
 
 ## 2. アーキテクチャ
 
-### 状態遷移図
+### 通信モード遷移図
 
 ```
                     ┌─────────────────────────────────────────┐
                     │           起動時モード選択              │
-                    │  NVSから読込 → USB HID or ESP-NOW      │
-                    │  M5.BtnA押下 → ペアリング（ESP-NOW時） │
+                    │       NVSから読込 → 3モードのいずれか   │
                     └─────────────────────────────────────────┘
-                              │                    │
-              ┌───────────────┘                    └───────────────┐
-              ↓                                                    ↓
-┌─────────────────────────┐                        ┌─────────────────────────┐
-│     USB HID モード      │                        │    ESP-NOW モード       │
-│  ┌─────────────────┐   │                        │  ┌─────────────────┐    │
-│  │   飛行画面      │   │                        │  │   飛行画面      │    │
-│  │  (HID送信中)    │   │                        │  │  (TDMA送信中)   │    │
-│  └────────┬────────┘   │                        │  └────────┬────────┘    │
-│           │ M5.BtnA    │                        │           │ M5.BtnA     │
-│           ↓ 短押し     │                        │           ↓ 短押し      │
-│  ┌─────────────────┐   │                        │  ┌─────────────────┐    │
-│  │   メニュー画面  │   │                        │  │   メニュー画面  │    │
-│  │  スティック操作 │   │                        │  │  スティック操作 │    │
-│  └────────┬────────┘   │                        │  └────────┬────────┘    │
-│           │ USB Mode   │                        │           │ USB Mode    │
-│           ↓ 選択       │                        │           ↓ 選択        │
-│  ┌─────────────────┐   │                        │  ┌─────────────────┐    │
-│  │ NVS保存→再起動 │───┼────────────────────────┼──│ NVS保存→再起動 │    │
-│  │ ESP-NOWモードへ │   │                        │  │ USB HIDモードへ │    │
-│  └─────────────────┘   │                        │  └─────────────────┘    │
-└─────────────────────────┘                        └─────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ↓                   ↓                   ↓
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  ESP-NOW モード  │  │  WiFi UDP モード │  │  USB HID モード  │
+│   (実機制御)     │  │   (実機制御)     │  │  (シミュレータ)  │
+│                 │  │                 │  │                 │
+│  TDMA同期       │  │  Vehicle APに   │  │  PCにジョイ     │
+│  10台対応       │  │  自動接続       │  │  スティック認識  │
+│  50Hz送信       │  │  50Hz送信       │  │  100Hz送信      │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+          │                   │                   │
+          └───────────────────┼───────────────────┘
+                              ↓
+                    メニューから切り替え
+                    （USB HIDは再起動必要）
 ```
 
 ### タスク構成
@@ -69,36 +83,59 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ app_main                                                        │
-│   ├── 起動モード判定                                            │
-│   │      M5.BtnA → USB HID モード                              │
-│   │      else   → ESP-NOW モード                               │
+│   ├── 起動モード判定（NVSから読込）                              │
+│   │      COMM_MODE_ESPNOW (0)                                   │
+│   │      COMM_MODE_UDP (1)                                      │
+│   │      COMM_MODE_USB_HID (2)                                  │
 │   │                                                             │
 │   ├── 共通タスク                                                │
-│   │      input_task (100Hz) ← ジョイスティック＆ボタン読み取り │
-│   │      display_task (10Hz) ← LCD更新                         │
+│   │      input_task (100Hz, Core1) ← ジョイスティック読み取り   │
+│   │      display_task (10Hz, Core1) ← LCD更新                   │
 │   │                                                             │
 │   ├── ESP-NOWモード専用                                         │
 │   │      tdma_send_task                                         │
 │   │      beacon_task (Master時)                                 │
+│   │      main_loop() → 50Hz制御送信                            │
+│   │                                                             │
+│   ├── WiFi UDPモード専用                                        │
+│   │      udp_main_loop() → 50Hz UDP送信                        │
+│   │      Vehicle AP自動検出・接続                               │
 │   │                                                             │
 │   └── USB HIDモード専用                                         │
-│          usb_hid_task (100Hz) ← HIDレポート送信                │
+│          usb_hid_main_loop() → 100Hz HIDレポート送信           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 3. メニューシステム設計
+## 3. メニューシステム
 
-### 画面レイアウト
+### 画面状態
+
+| 状態 | 説明 |
+|------|------|
+| SCREEN_FLIGHT | 飛行画面（通常） |
+| SCREEN_MENU | メニュー一覧 |
+| SCREEN_SETTING | 設定変更画面 |
+| SCREEN_ABOUT | バージョン情報 |
+| SCREEN_BATTERY_WARN | バッテリー警告設定 |
+| SCREEN_CHANNEL | チャンネル表示 |
+| SCREEN_MAC | MACアドレス表示 |
+| SCREEN_CALIBRATION | キャリブレーション |
+| SCREEN_STICK_TEST | スティックテスト |
+
+### メニュー項目（実装済み）
 
 ```
 ┌────────────────────┐
-│ ▶ 1. Calibration  │  ← カーソル（▶）
-│   2. TDMA Setup   │
-│   3. Control Mode │
-│   4. USB/ESP Mode │
-│   5. Battery Warn │
-│   6. About        │
-│ [↑↓:選択 OK:決定] │
+│ ▶ Stick Mode: 2   │  ← Mode 2/3切り替え
+│   Comm: ESP-NOW   │  ← ESP-NOW/UDP/USB HID
+│   Batt Warn: 3.3V │  ← 3.0V-4.0V
+│   Deadband: 2%    │  ← 0-5%
+│   Stick Test      │  ← スティック動作確認
+│   Calibration     │  ← キャリブレーション
+│   Channel         │  ← TDMA CH表示
+│   MAC Address     │  ← MAC表示
+│   About           │  ← バージョン
+│   << Back         │  ← 飛行画面に戻る
 └────────────────────┘
 ```
 
@@ -107,609 +144,258 @@
 | 入力 | 動作 |
 |------|------|
 | M5.BtnA 短押し | メニュー ON/OFF |
+| M5.BtnA 長押し | ペアリング（ESP-NOW時） |
 | スティック ↑ | カーソル上移動 |
 | スティック ↓ | カーソル下移動 |
-| スティック → | 決定 / 値+1 |
-| スティック ← | 戻る / 値-1 |
-| Arm ボタン | 決定（代替） |
+| Mode ボタン | 決定 |
 
-### メニュー構造体
+## 4. 通信モード詳細
 
-```cpp
-// menu_system.hpp
+### ESP-NOW モード（デフォルト）
 
-typedef enum {
-    MENU_TYPE_SUBMENU,    // サブメニューへ遷移
-    MENU_TYPE_ACTION,     // アクション実行
-    MENU_TYPE_VALUE_INT,  // 整数値変更
-    MENU_TYPE_VALUE_BOOL, // ON/OFF切り替え
-    MENU_TYPE_BACK,       // 前の画面に戻る
-} MenuItemType;
-
-typedef struct MenuItem {
-    const char* label;           // 表示ラベル
-    MenuItemType type;           // 項目タイプ
-    union {
-        struct MenuItem* submenu; // サブメニューポインタ
-        void (*action)(void);     // アクション関数
-        struct {
-            int* value;           // 値へのポインタ
-            int min, max, step;   // 範囲
-        } value_int;
-        bool* value_bool;         // ON/OFF値へのポインタ
-    };
-    uint8_t submenu_count;        // サブメニュー項目数
-} MenuItem;
-
-// メニュー定義例
-static MenuItem main_menu[] = {
-    {"Calibration", MENU_TYPE_SUBMENU, .submenu = calib_menu, 3},
-    {"TDMA Setup",  MENU_TYPE_SUBMENU, .submenu = tdma_menu, 4},
-    {"Control",     MENU_TYPE_SUBMENU, .submenu = ctrl_menu, 3},
-    {"USB/ESP",     MENU_TYPE_ACTION,  .action = switch_comm_mode},
-    {"Battery",     MENU_TYPE_VALUE_INT, .value_int = {&batt_warn, 30, 100, 5}},
-    {"About",       MENU_TYPE_ACTION,  .action = show_about},
-    {"<< Back",     MENU_TYPE_BACK},
-};
-```
-
-### メニュー状態管理
-
-```cpp
-// menu_state.hpp
-
-typedef enum {
-    SCREEN_FLIGHT,   // 飛行画面（通常）
-    SCREEN_MENU,     // メニュー画面
-    SCREEN_SETTING,  // 設定変更画面
-    SCREEN_DIALOG,   // 確認ダイアログ
-} ScreenState;
-
-typedef struct {
-    ScreenState screen;        // 現在の画面
-    MenuItem* current_menu;    // 現在のメニュー
-    uint8_t menu_count;        // メニュー項目数
-    uint8_t cursor;            // カーソル位置
-    uint8_t scroll_offset;     // スクロール位置
-    MenuItem* menu_stack[4];   // メニュー階層スタック
-    uint8_t stack_depth;       // スタック深さ
-} MenuState;
-
-extern MenuState g_menu_state;
-```
-
-## 4. USB HIDモード詳細設計
-
-### HIDレポート仕様
-
-#### レポートディスクリプタ
-
-```
-Usage Page: Generic Desktop (0x01)
-Usage: Joystick (0x04)
-Collection: Application
-  - 4 Axes (X, Y, Z, Rx): 8-bit unsigned (0-255)
-  - 8 Buttons: 1-bit each
-End Collection
-```
-
-#### レポート構造（6バイト）
-
-| Offset | Size | 名前 | 説明 |
-|--------|------|------|------|
-| 0 | 1 | Throttle | スロットル (0-255) |
-| 1 | 1 | Roll | ロール (0-255) |
-| 2 | 1 | Pitch | ピッチ (0-255) |
-| 3 | 1 | Yaw | ヨー (0-255) |
-| 4 | 1 | Buttons | bit0:Arm, bit1:Flip, bit2:Mode, bit3:AltMode, bit4-7:予約 |
-| 5 | 1 | Reserved | 0x00 |
-
-#### 値マッピング
-
-- atoms3joy入力: 0-4095（12bit）→ HID出力: 0-255（8bit）
-- 変換式: `raw * 255 / 4095` または `raw >> 4`
-
-### HIDディスクリプタ実装
-
-```cpp
-// usb_hid_report.hpp
-
-#pragma pack(push, 1)
-typedef struct {
-    uint8_t throttle;    // 0-255 (12bit → 8bit)
-    uint8_t roll;        // 0-255
-    uint8_t pitch;       // 0-255
-    uint8_t yaw;         // 0-255
-    uint8_t buttons;     // bit0:Arm, bit1:Flip, bit2:Mode, bit3:AltMode
-    uint8_t reserved;
-} HIDJoystickReport;
-#pragma pack(pop)
-
-// HIDディスクリプタ（Joystick）
-static const uint8_t hid_report_descriptor[] = {
-    0x05, 0x01,        // USAGE_PAGE (Generic Desktop)
-    0x09, 0x04,        // USAGE (Joystick)
-    0xa1, 0x01,        // COLLECTION (Application)
-
-    // 4軸アナログ
-    // 4 analog axes
-    0x09, 0x30,        //   USAGE (X) - Throttle
-    0x09, 0x31,        //   USAGE (Y) - Roll
-    0x09, 0x32,        //   USAGE (Z) - Pitch
-    0x09, 0x33,        //   USAGE (Rx) - Yaw
-    0x15, 0x00,        //   LOGICAL_MINIMUM (0)
-    0x26, 0xff, 0x00,  //   LOGICAL_MAXIMUM (255)
-    0x75, 0x08,        //   REPORT_SIZE (8)
-    0x95, 0x04,        //   REPORT_COUNT (4)
-    0x81, 0x02,        //   INPUT (Data,Var,Abs)
-
-    // ボタン (8個)
-    // Buttons (8)
-    0x05, 0x09,        //   USAGE_PAGE (Button)
-    0x19, 0x01,        //   USAGE_MINIMUM (Button 1)
-    0x29, 0x08,        //   USAGE_MAXIMUM (Button 8)
-    0x15, 0x00,        //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,        //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,        //   REPORT_SIZE (1)
-    0x95, 0x08,        //   REPORT_COUNT (8)
-    0x81, 0x02,        //   INPUT (Data,Var,Abs)
-
-    0xc0               // END_COLLECTION
-};
-```
-
-### USB初期化・送信
-
-```cpp
-// usb_hid.cpp
-
-#include "tinyusb.h"
-#include "class/hid/hid_device.h"
-
-static bool usb_hid_initialized = false;
-
-esp_err_t usb_hid_init(void) {
-    const tinyusb_config_t tusb_cfg = {
-        .device_descriptor = NULL,  // Use default
-        .string_descriptor = NULL,
-        .external_phy = false,
-        .configuration_descriptor = NULL,
-    };
-
-    ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
-    usb_hid_initialized = true;
-    return ESP_OK;
-}
-
-void usb_hid_send_report(const HIDJoystickReport* report) {
-    if (!usb_hid_initialized) return;
-    if (!tud_hid_ready()) return;
-
-    tud_hid_report(0, report, sizeof(HIDJoystickReport));
-}
-```
-
-### TinyUSB設定
-
-#### idf_component.yml 追加
-
-```yaml
-dependencies:
-  espressif/esp_tinyusb: "^1.0.0"
-```
-
-#### sdkconfig.defaults 追加
-
-```
-CONFIG_TINYUSB_HID_ENABLED=y
-CONFIG_TINYUSB_DESC_CUSTOM_VID=0x303A
-CONFIG_TINYUSB_DESC_CUSTOM_PID=0x8001
-CONFIG_TINYUSB_DESC_MANUFACTURER_STRING="StampFly"
-CONFIG_TINYUSB_DESC_PRODUCT_STRING="Controller"
-```
-
-### USB HIDモード画面
-
-```
-┌─────────────────┐
-│  USB HID MODE   │
-│                 │
-│  T: XXX  R: XXX │
-│  P: XXX  Y: XXX │
-│                 │
-│ [A][F][M][O]    │
-│                 │
-│  Connected: Yes │
-└─────────────────┘
-```
-
-| 要素 | 説明 |
+| 項目 | 内容 |
 |------|------|
-| T/R/P/Y | Throttle/Roll/Pitch/Yaw の現在値（0-255） |
-| [A][F][M][O] | Arm/Flip/Mode/Option ボタン状態 |
-| Connected | USB接続状態 |
+| プロトコル | ESP-NOW + TDMA同期 |
+| 最大コントローラ数 | 10台 |
+| 送信レート | 50Hz |
+| ペアリング | M5.BtnA長押し |
+| 特徴 | 低遅延、マルチコントローラ対応 |
 
-### VID/PID設定
+### WiFi UDP モード
 
-| 項目 | 値 |
+| 項目 | 内容 |
 |------|------|
-| Vendor ID | 0x303A (Espressif) |
-| Product ID | 0x8001 (StampFly Controller) |
+| プロトコル | WiFi STA + UDP |
+| Vehicle AP | "StampFly_*" を自動検出 |
+| Vehicle IP | 192.168.4.1 |
+| 制御ポート | 8888 |
+| テレメトリポート | 8889 |
+| 送信レート | 50Hz |
+| 特徴 | 簡単接続、単一Vehicle |
 
-## 5. コンポーネント構成
+### USB HID モード
 
-### 新規コンポーネント
+| 項目 | 内容 |
+|------|------|
+| プロトコル | USB 2.0 HID Joystick |
+| VID/PID | 0x303A / 0x8001 |
+| レポートサイズ | 6バイト |
+| 送信レート | 100Hz |
+| 特徴 | PC/シミュレータ用 |
+
+**HIDレポート構造:**
+
+| Offset | 名前 | 説明 |
+|--------|------|------|
+| 0 | Throttle | スロットル (0-255) |
+| 1 | Roll | ロール (0-255) |
+| 2 | Pitch | ピッチ (0-255) |
+| 3 | Yaw | ヨー (0-255) |
+| 4 | Buttons | bit0:Arm, bit1:Flip, bit2:Mode, bit3:AltMode |
+| 5 | Reserved | 0x00 |
+
+## 5. NVS設定
+
+| キー | 型 | デフォルト | 範囲 | 説明 |
+|-----|------|---------|-------|---------|
+| `comm_mode` | u8 | 0 | 0-2 | 通信モード（ESP-NOW/UDP/USB HID） |
+| `stick_mode` | u8 | 2 | 2, 3 | スティックモード |
+| `batt_warn` | u8 | 33 | 30-40 | バッテリー警告閾値（×0.1V） |
+| `deadband` | u8 | 2 | 0-5 | デッドバンド（%） |
+| `stick_cal` | blob | {0,0,0,0} | 8B | キャリブレーションオフセット |
+
+## 6. コンポーネント構成
+
+### 実装済みコンポーネント
 
 ```
 firmware/controller/components/
-├── menu_system/              # メニューシステム（Phase 1で作成済み）
-│   ├── CMakeLists.txt
-│   ├── include/
-│   │   └── menu_system.hpp
-│   └── src/
-│       └── menu_system.cpp
-│
-└── usb_hid/                  # 新規：USB HID（Phase 4で作成）
-    ├── CMakeLists.txt
-    ├── include/
-    │   └── usb_hid.hpp
-    └── src/
-        └── usb_hid.cpp
+├── atoms3joy/          # ジョイスティックI2Cドライバ
+├── buzzer/             # PWMブザー制御
+├── espnow_tdma/        # ESP-NOW TDMAプロトコル
+├── menu_system/        # メニューUIシステム
+├── sf_udp_client/      # WiFi UDPクライアント
+└── usb_hid/            # USB HIDジョイスティック
 ```
 
-### 修正ファイル
+### 主要ファイル
 
-| ファイル | 変更内容 |
-|----------|----------|
-| `main/main.cpp` | 起動モード分岐、USBタスク追加 |
-| `main/CMakeLists.txt` | 新コンポーネント依存追加 |
-| `idf_component.yml` | esp_tinyusb依存追加 |
-| `sdkconfig.defaults` | TinyUSB有効化 |
-| `simulator/interfaces/joystick.py` | 自動検出、正規化 |
+| ファイル | 行数 | 説明 |
+|----------|------|------|
+| `main/main.cpp` | 2118 | メインエントリ、モードディスパッチャ |
+| `components/menu_system/` | 438 | メニューUI |
+| `components/usb_hid/` | 150+ | USB HID実装 |
+| `components/sf_udp_client/` | 180+ | UDP通信 |
+| `components/espnow_tdma/` | - | TDMA同期 |
 
-## 6. 実装フェーズ
+## 7. 残タスク
 
-### Phase 1: メニュー基盤 ✅ 完了
-
-```
-[x] menu_system コンポーネント作成
-[x] MenuState 状態管理実装
-[x] M5.BtnA をメニュートリガーに変更
-[x] 基本画面切り替え（FLIGHT ↔ MENU）
-```
-
-**成果物**: メニュー画面の表示・非表示が動作
-
-### Phase 2: メニュー操作 ✅ 完了
-
-```
-[x] スティックの方向検出実装
-    - デッドゾーン設定（中央±800）
-    - 方向判定（上下）
-    - デバウンス機能（200ms）
-[x] カーソル移動
-[x] 項目選択・決定（モードボタン）
-[ ] 値の増減（Phase 3で実装予定）
-```
-
-**成果物**: スティックでメニュー操作可能
-
-### Phase 3: メニュー項目実装
-
-```
-[ ] Calibration サブメニュー
-    - スティック MIN/MAX キャリブレーション
-    - バイアス自動設定
-[ ] TDMA Setup サブメニュー（ESP-NOWモード専用）
-    - Channel 選択 (1-14)
-    - Device ID 選択 (0-9)
-    - ※変更後は再起動必要
-[ ] Control サブメニュー（両モード共通）
-    - Stick Mode (2/3) ← USB HID/ESP-NOW両対応
-    - Rate/Angle デフォルト（ESP-NOWモード専用）
-[ ] Battery Warning 閾値設定
-[ ] About 画面（バージョン情報）
-```
-
-**注**: Stick Mode設定はUSB HIDモードでも使用可能にする
-- Mode 2: 左スロットル/ラダー、右エレベータ/エルロン
-- Mode 3: 左エレベータ/ラダー、右スロットル/エルロン
-- NVSに保存し、両モードで共有
-
-**成果物**: 実用的なメニューシステム
-
-### Phase 4: USB HID モード ✅ 完了
-
-```
-[x] usb_hid コンポーネント作成
-    - CMakeLists.txt
-    - usb_hid.hpp / usb_hid.cpp
-[x] TinyUSB 統合
-    - idf_component.yml に依存追加
-    - sdkconfig.defaults に設定追加
-[x] HID Joystick ディスクリプタ実装
-[x] レポート送信 (100Hz メインループ内)
-[x] NVSベースのモード選択ロジック
-    - 起動時にNVSからモード読込
-    - M5.BtnA押下はペアリング専用（ESP-NOW時）
-[x] USB HIDモード専用画面
-[x] メニューから USB/ESP 切り替え（NVS保存→再起動）
-```
-
-**成果物**: PCにジョイスティックとして認識、メニューでモード切替
-
-### Phase 5: シミュレータ連携
+### Phase 7: シミュレータ連携（未着手）
 
 ```
 [ ] simulator/interfaces/joystick.py 更新
     - 新VID/PID対応 (0x303A:0x8001)
     - 自動検出機能
     - read_normalized() 実装
-[ ] 動作確認・デバッグ
+[ ] Genesisシミュレータとの動作確認
 ```
 
-**成果物**: シミュレータがコントローラを認識
+### 将来の改善
 
-### Phase 6: 設定永続化（一部完了）
+| 項目 | 説明 |
+|------|------|
+| ESP-NOW ↔ UDP ホットスイッチ | 現在は再起動不要だが、改善の余地あり |
+| PLL同期 | TDMAドリフト補正の改善 |
+| マルチVehicle（UDP） | 現在は単一Vehicleのみ |
 
-```
-[x] NVS (Non-Volatile Storage) 統合
-[x] 通信モード保存・読み込み
-[ ] キャリブレーション値保存
-[ ] TDMA設定保存
-[ ] 工場出荷時リセット機能
-```
-
-**成果物**: 設定が再起動後も保持
-
-## 7. シミュレータ側の変更
-
-### joystick.py 更新
-
-```python
-# simulator/interfaces/joystick.py
-
-# StampFly Controller USB HID
-VENDOR_ID_STAMPFLY = 0x303a   # Espressif
-PRODUCT_ID_STAMPFLY = 0x8001  # StampFly Controller
-
-class Joystick:
-    def __init__(self, vendor_id=None, product_id=None):
-        # 自動検出
-        # Auto-detect
-        if vendor_id is None:
-            self.vendor_id, self.product_id = self._auto_detect()
-        else:
-            self.vendor_id = vendor_id
-            self.product_id = product_id
-
-    def _auto_detect(self):
-        """接続されているStampFlyコントローラを自動検出"""
-        """Auto-detect connected StampFly controller"""
-        for d in hid.enumerate():
-            if d['vendor_id'] == VENDOR_ID_STAMPFLY:
-                return d['vendor_id'], d['product_id']
-        # フォールバック
-        # Fallback
-        return VENDOR_ID, PRODUCT_ID
-
-    def read_normalized(self):
-        """正規化されたスティック値を取得 (-1.0 ~ 1.0)"""
-        """Get normalized stick values (-1.0 ~ 1.0)"""
-        data = self.read()
-        if data is None:
-            return None
-
-        return {
-            'throttle': (data[0] - 128) / 128.0,
-            'roll': (data[1] - 128) / 128.0,
-            'pitch': (data[2] - 128) / 128.0,
-            'yaw': (data[3] - 128) / 128.0,
-            'arm': bool(data[4] & 0x01),
-            'flip': bool(data[4] & 0x02),
-            'mode': bool(data[4] & 0x04),
-            'alt_mode': bool(data[4] & 0x08),
-        }
-```
-
-## 8. テスト計画
-
-### Phase 1-2 テスト
-
-- [x] M5.BtnA でメニュー表示/非表示
-- [ ] スティック上下でカーソル移動
-- [ ] スティック右で項目選択
-- [ ] スティック左で戻る
-
-### Phase 3 テスト
-
-- [ ] キャリブレーション実行・保存
-- [ ] TDMA設定変更・再起動確認
-- [ ] 各設定項目の動作確認
-
-### Phase 4-5 テスト
-
-- [ ] USB接続でPC認識（デバイスマネージャ/システム情報）
-- [ ] Windows ジョイスティックテスト（joy.cpl）
-- [ ] macOS Joystick Doctor等
-- [ ] シミュレータ連携テスト
-
-## 9. 制約・注意事項
-
-### ハードウェア制約
+## 8. 制約事項
 
 | 項目 | 内容 |
 |------|------|
 | LCD | 小型（128x128）→ 1画面6-7行が限界 |
 | ボタン | M5.BtnA 1個 → スティック併用必須 |
-| USB/ESP-NOW | 同時使用不可、起動時選択 |
-
-### ソフトウェア制約
-
-| 項目 | 内容 |
-|------|------|
-| TDMA設定変更 | 実行時変更不可、再起動必要 |
-| USB切り替え | 実行時変更不可、再起動必要 |
+| USB HIDモード切替 | 再起動必要 |
 | NVS容量 | 約4KB → 設定項目は最小限に |
-
-### 互換性
-
-| 項目 | 内容 |
-|------|------|
-| 既存ペアリング | 維持（Drone_mac保存形式変更なし） |
-| ESP-NOW プロトコル | 変更なし（14バイトパケット） |
-| シミュレータ | joystick.py更新必要 |
-| OS互換性 | Windows/macOS/Linux標準HIDドライバで動作 |
-
-## 10. 主要ファイル一覧
-
-### 新規作成
-
-| ファイル | Phase | 内容 |
-|----------|-------|------|
-| `components/menu_system/` | 1 | メニューシステム一式（完了） |
-| `components/usb_hid/CMakeLists.txt` | 4 | コンポーネント定義 |
-| `components/usb_hid/include/usb_hid.hpp` | 4 | API定義 |
-| `components/usb_hid/src/usb_hid.cpp` | 4 | TinyUSB HID実装 |
-
-### 修正
-
-| ファイル | Phase | 変更内容 |
-|----------|-------|----------|
-| `main/main.cpp` | 4 | 起動分岐、USBタスク追加 |
-| `idf_component.yml` | 4 | esp_tinyusb依存追加 |
-| `sdkconfig.defaults` | 4 | TinyUSB有効化 |
-| `simulator/interfaces/joystick.py` | 5 | 自動検出、正規化 |
-
-## 11. Phase 1 完了後のフィードバック
-
-### 実装済み（2025-01-06）
-
-- [x] menu_system コンポーネント作成 (`components/menu_system/`)
-- [x] ScreenState 状態管理（FLIGHT/MENU/SETTING）
-- [x] M5.BtnA 短押しでメニュー切り替え
-- [x] 基本画面切り替え（フライト画面 ↔ メニュー画面）
-- [x] スティック上下でメニューナビゲーション
-- [x] モードボタンでメニュー項目選択
-- [x] ビルド成功確認
-
-### 要改善項目
-
-#### UI/UX改善
-
-| 項目 | 現状 | 改善内容 | 優先度 |
-|------|------|----------|--------|
-| ナビゲーションスティック | 左スティック（スロットル） | **右スティック上下**に変更 | 高 |
-| 画面切り替え残像 | 文字・白背景が残る | `fillScreen()`で画面クリア | 高 |
-| 文字色 | メニュー用に変更 | **フライト画面はオリジナルの色設定を維持** | 高 |
-
-#### 操作音機能（新規）
-
-| 項目 | 内容 |
-|------|------|
-| メニュー操作音 | スティック移動・選択時にビープ音 |
-| 音量設定 | 設定メニューで ON/OFF 切り替え可能 |
-| 保存 | NVSに設定を永続化（Phase 6） |
-
-### 技術メモ
-
-#### 画面切り替え時の残像対策
-
-```cpp
-// 状態変更時に画面をクリア
-// Clear screen on state change
-void menu_set_state(screen_state_t state) {
-    if (current_state != state) {
-        M5.Display.fillScreen(TFT_BLACK);  // 画面クリア追加
-        current_state = state;
-        // ...
-    }
-}
-```
 
 ---
 
 <a id="english"></a>
 
-## 1. Overview
+# Controller Modification Plan: Menu System & Multi-Communication Modes
 
-### Goals
-1. **Menu System**: Display menu screen with M5 button, navigate with sticks
-2. **Dual Mode**: Switch between ESP-NOW (vehicle control) and USB HID (simulator)
-3. **Extensibility**: Design that supports future settings and feature additions
+**Status: ✅ Core Features Complete**
 
-### Progress Status
+---
+
+## Completion Summary
+
+### Implementation Status
 
 | Phase | Content | Status |
 |-------|---------|--------|
-| Phase 1 | Menu foundation | **Complete** (2025-01-06) |
-| Phase 2 | Menu operation | **Complete** (2025-01-06) |
-| Phase 3 | Menu items | Not started |
-| Phase 4 | USB HID mode | **Complete** (2025-01-07) |
-| Phase 5 | Simulator integration | Not started |
-| Phase 6 | Settings persistence | Partial (mode storage) |
+| Phase 1 | Menu foundation | ✅ Complete (2025-01-06) |
+| Phase 2 | Menu navigation | ✅ Complete (2025-01-06) |
+| Phase 3 | Menu items | ✅ Complete |
+| Phase 4 | USB HID mode | ✅ Complete (2025-01-07) |
+| Phase 5 | WiFi UDP mode | ✅ Complete (added) |
+| Phase 6 | Settings persistence | ✅ Complete |
+| Phase 7 | Simulator integration | ⏳ Not started |
 
-## 4. USB HID Mode Detailed Design
+### Implemented Features
 
-### HID Report Specification
+| Feature | Description |
+|---------|-------------|
+| 3 Communication Modes | ESP-NOW / WiFi UDP / USB HID |
+| Menu System | 9 screens, 10 menu items |
+| NVS Settings | Comm mode, stick mode, battery warning, deadband, calibration |
+| Stick Calibration | Manual calibration with averaging |
+| Deadband Adjustment | 0-5% variable |
+| Battery Warning | 3.0V-4.0V threshold setting |
 
-#### Report Descriptor
+## 1. Overview
+
+### Goals
+
+1. **Menu System**: Display menu with M5 button, navigate with sticks
+2. **Triple Mode**: ESP-NOW / WiFi UDP / USB HID switching
+3. **Extensibility**: Design for future settings and features
+
+## 2. Architecture
+
+### Communication Mode Diagram
 
 ```
-Usage Page: Generic Desktop (0x01)
-Usage: Joystick (0x04)
-Collection: Application
-  - 4 Axes (X, Y, Z, Rx): 8-bit unsigned (0-255)
-  - 8 Buttons: 1-bit each
-End Collection
+                    ┌─────────────────────────────────────────┐
+                    │        Boot Mode Selection              │
+                    │     Read from NVS → One of 3 modes      │
+                    └─────────────────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ↓                   ↓                   ↓
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   ESP-NOW Mode  │  │  WiFi UDP Mode  │  │  USB HID Mode   │
+│  (Vehicle Ctrl) │  │  (Vehicle Ctrl) │  │   (Simulator)   │
+│                 │  │                 │  │                 │
+│  TDMA sync      │  │  Auto-connect   │  │  PC recognizes  │
+│  10 controllers │  │  to Vehicle AP  │  │  as joystick    │
+│  50Hz TX        │  │  50Hz TX        │  │  100Hz TX       │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
-#### Report Structure (6 bytes)
+## 3. Menu System
 
-| Offset | Size | Name | Description |
-|--------|------|------|-------------|
-| 0 | 1 | Throttle | Throttle (0-255) |
-| 1 | 1 | Roll | Roll (0-255) |
-| 2 | 1 | Pitch | Pitch (0-255) |
-| 3 | 1 | Yaw | Yaw (0-255) |
-| 4 | 1 | Buttons | bit0:Arm, bit1:Flip, bit2:Mode, bit3:AltMode, bit4-7:reserved |
-| 5 | 1 | Reserved | 0x00 |
+### Screen States
 
-#### Value Mapping
+| State | Description |
+|-------|-------------|
+| SCREEN_FLIGHT | Flight screen (normal) |
+| SCREEN_MENU | Menu list |
+| SCREEN_SETTING | Setting change |
+| SCREEN_ABOUT | Version info |
+| SCREEN_BATTERY_WARN | Battery warning setting |
+| SCREEN_CHANNEL | Channel display |
+| SCREEN_MAC | MAC address display |
+| SCREEN_CALIBRATION | Calibration |
+| SCREEN_STICK_TEST | Stick test |
 
-- atoms3joy input: 0-4095 (12bit) → HID output: 0-255 (8bit)
-- Formula: `raw * 255 / 4095` or `raw >> 4`
+### Menu Items (Implemented)
 
-### VID/PID Settings
+- Stick Mode: 2/3
+- Comm: ESP-NOW/UDP/USB HID
+- Batt Warn: 3.0V-4.0V
+- Deadband: 0-5%
+- Stick Test
+- Calibration
+- Channel
+- MAC Address
+- About
+- << Back
 
-| Item | Value |
-|------|-------|
-| Vendor ID | 0x303A (Espressif) |
-| Product ID | 0x8001 (StampFly Controller) |
+## 4. Communication Mode Details
 
-## 9. Constraints and Notes
+### ESP-NOW Mode (Default)
 
-### Hardware Constraints
-
-| Item | Content |
+| Item | Details |
 |------|---------|
-| LCD | Small (128x128) → 6-7 lines per screen max |
-| Button | M5.BtnA only → Must use with sticks |
-| USB/ESP-NOW | Cannot use simultaneously, select at boot |
+| Protocol | ESP-NOW + TDMA sync |
+| Max Controllers | 10 |
+| TX Rate | 50Hz |
+| Pairing | M5.BtnA long press |
 
-### Software Constraints
+### WiFi UDP Mode
 
-| Item | Content |
+| Item | Details |
 |------|---------|
-| TDMA settings | Cannot change at runtime, requires reboot |
-| USB switch | Cannot change at runtime, requires reboot |
+| Protocol | WiFi STA + UDP |
+| Vehicle AP | Auto-detect "StampFly_*" |
+| Control Port | 8888 |
+| Telemetry Port | 8889 |
+| TX Rate | 50Hz |
+
+### USB HID Mode
+
+| Item | Details |
+|------|---------|
+| Protocol | USB 2.0 HID Joystick |
+| VID/PID | 0x303A / 0x8001 |
+| Report Size | 6 bytes |
+| TX Rate | 100Hz |
+
+## 5. Remaining Tasks
+
+### Phase 7: Simulator Integration (Not Started)
+
+- Update simulator/interfaces/joystick.py
+  - New VID/PID support (0x303A:0x8001)
+  - Auto-detection
+  - read_normalized() implementation
+- Test with Genesis simulator
+
+## 6. Constraints
+
+| Item | Details |
+|------|---------|
+| LCD | Small (128x128) → 6-7 lines max |
+| Button | Only M5.BtnA → Must use with sticks |
+| USB HID mode switch | Requires restart |
 | NVS capacity | ~4KB → Minimize settings |
-
-### Compatibility
-
-| Item | Content |
-|------|---------|
-| Existing pairing | Maintained (no change to Drone_mac format) |
-| ESP-NOW protocol | No change (14-byte packet) |
-| Simulator | joystick.py update required |
-| OS compatibility | Works with standard HID drivers on Windows/macOS/Linux |
