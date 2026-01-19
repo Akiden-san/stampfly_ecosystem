@@ -69,11 +69,13 @@ static int stdio_write_data(void* ctx, const void* data, size_t len)
     if (data == nullptr || len == 0) {
         return 0;
     }
-    // Use fwrite for binary-safe output
-    // バイナリセーフな出力のために fwrite を使用
-    size_t written = fwrite(data, 1, len, stdout);
-    fflush(stdout);
-    return static_cast<int>(written);
+    // Use putchar for each byte to ensure immediate output
+    // 即座に出力するため1バイトずつ putchar を使用
+    const char* p = static_cast<const char*>(data);
+    for (size_t i = 0; i < len; i++) {
+        putchar(p[i]);
+    }
+    return static_cast<int>(len);
 }
 
 // =============================================================================
@@ -158,13 +160,14 @@ esp_err_t SerialCLI::init()
     // =========================================================================
     // Note: VFS is set up automatically by esp_vfs_console component based on
     // sdkconfig (CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG or similar).
-    // We just need to disable stdin buffering for character-at-a-time input.
+    // Disable buffering on stdin and stdout for character-at-a-time I/O.
     //
     // esp_vfs_console コンポーネントが sdkconfig に基づいて
     // 自動的に VFS をセットアップする。
-    // ここでは1文字ずつ入力を受け取るため stdin バッファリングを無効化する。
+    // 1文字ずつのI/Oのため stdin と stdout のバッファリングを無効化する。
 
     setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
 
     // =========================================================================
     // Initialize esp_console (for command registration)
