@@ -1,20 +1,22 @@
 /**
  * @file cli_task.cpp
- * @brief CLI Task - Serial CLI using custom LineEditor
+ * @brief CLI Task - Serial CLI using ESP-IDF standard console
  *
- * CLIタスク - 独自 LineEditor を使用した Serial CLI
+ * CLIタスク - ESP-IDF 標準コンソールを使用した Serial CLI
  *
  * Features:
- * - Command history (up/down arrows)
+ * - Command history (up/down arrows) via linenoise
  * - Tab completion for registered commands
  * - Line editing (cursor movement, backspace, delete)
  *
- * Note: Binary logging moved to stampfly_logger component (400Hz via ESP Timer)
+ * Note: Uses esp_console_new_repl_usb_cdc() for reliable USB CDC operation
  */
 
 #include "tasks_common.hpp"
-#include "serial_cli.hpp"
 #include "console.hpp"
+
+#include "esp_console.h"
+#include "esp_vfs_dev.h"
 
 static const char* TAG = "CLITask";
 
@@ -25,34 +27,43 @@ void CLITask(void* pvParameters)
 {
     ESP_LOGI(TAG, "CLITask started");
 
-    // Get SerialCLI instance
-    // SerialCLI インスタンスを取得
-    auto& cli = stampfly::SerialCLI::getInstance();
+    // Configure USB CDC console
+    // USB CDC コンソールを設定
+    esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
+    repl_config.prompt = "stampfly> ";
+    repl_config.max_cmdline_length = 256;
 
-    // Initialize SerialCLI (initializes esp_console for command registration)
-    // SerialCLI を初期化（コマンド登録用に esp_console を初期化）
-    esp_err_t ret = cli.init();
+    esp_console_dev_usb_cdc_config_t cdc_config =
+        ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT();
+
+    // Create the console (this initializes esp_console and registers default help)
+    // コンソールを作成（esp_console を初期化し、デフォルト help を登録）
+    esp_console_repl_t* repl = nullptr;
+    esp_err_t ret = esp_console_new_repl_usb_cdc(&cdc_config, &repl_config, &repl);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize SerialCLI: %s", esp_err_to_name(ret));
-        // Fall back to simple loop if initialization fails
-        // 初期化に失敗した場合はシンプルなループにフォールバック
-        while (true) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        ESP_LOGE(TAG, "Failed to create USB CDC console: %s", esp_err_to_name(ret));
+        vTaskDelete(nullptr);
+        return;
     }
 
-    // Now that esp_console is initialized, register all commands
-    // esp_console が初期化されたので、全コマンドを登録
+    // Register all commands via Console AFTER REPL creation
+    // This overwrites the default help command with our custom one
+    // REPL 作成後にコマンドを登録（デフォルト help をカスタム版で上書き）
     auto& console = stampfly::Console::getInstance();
     console.registerAllCommands();
 
-    // Run the CLI loop (blocking)
-    // CLI ループを実行（ブロッキング）
-    ESP_LOGI(TAG, "Starting SerialCLI");
-    cli.run();
+    // Start the console
+    // コンソールを開始
+    ret = esp_console_start_repl(repl);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start console: %s", esp_err_to_name(ret));
+        vTaskDelete(nullptr);
+        return;
+    }
 
-    // Should not reach here unless CLI is stopped
-    // CLI が停止されない限りここには到達しない
-    ESP_LOGI(TAG, "CLITask ending");
-    vTaskDelete(NULL);
+    ESP_LOGI(TAG, "Serial CLI started (ESP-IDF console)");
+
+    // Console runs in its own task, so this task can be deleted
+    // コンソールは独自タスクで動作するため、このタスクは削除可能
+    vTaskDelete(nullptr);
 }
