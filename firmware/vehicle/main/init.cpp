@@ -580,6 +580,16 @@ esp_err_t communication()
         ESP_LOGI(TAG, "ControllerComm initialized");
     }
 
+    // Initialize Control Arbiter
+    // Control Arbiterを初期化
+    {
+        auto& arbiter = stampfly::ControlArbiter::getInstance();
+        esp_err_t ret = arbiter.init();
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "ControlArbiter init failed: %s", esp_err_to_name(ret));
+        }
+    }
+
     // Restore comm mode from NVS
     // NVSから通信モードを復元
     {
