@@ -63,6 +63,25 @@ def generate_launch_description():
         description='IMU frame ID'
     )
 
+    # Control parameters (Phase 2)
+    enable_control_arg = DeclareLaunchArgument(
+        'enable_control',
+        default_value='false',
+        description='Enable control (ROS2 -> StampFly)'
+    )
+
+    control_rate_arg = DeclareLaunchArgument(
+        'control_rate',
+        default_value='50.0',
+        description='Control send rate (Hz)'
+    )
+
+    max_throttle_arg = DeclareLaunchArgument(
+        'max_throttle',
+        default_value='0.8',
+        description='Maximum throttle (safety limit)'
+    )
+
     # Bridge node
     bridge_node = Node(
         package='stampfly_bridge',
@@ -78,6 +97,9 @@ def generate_launch_description():
             'odom_frame': LaunchConfiguration('odom_frame'),
             'base_frame': LaunchConfiguration('base_frame'),
             'imu_frame': LaunchConfiguration('imu_frame'),
+            'enable_control': LaunchConfiguration('enable_control'),
+            'control_rate': LaunchConfiguration('control_rate'),
+            'max_throttle': LaunchConfiguration('max_throttle'),
         }],
     )
 
@@ -90,5 +112,8 @@ def generate_launch_description():
         odom_frame_arg,
         base_frame_arg,
         imu_frame_arg,
+        enable_control_arg,
+        control_rate_arg,
+        max_throttle_arg,
         bridge_node,
     ])

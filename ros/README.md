@@ -96,6 +96,18 @@ ros2 topic echo /stampfly/pose
 odom → base_link (400Hz)
 ```
 
+### 制御トピック（Phase 2）
+
+| トピック | 型 | 方向 | 説明 |
+|---------|-----|------|------|
+| `/stampfly/cmd_vel` | geometry_msgs/Twist | Subscribe | 速度コマンド |
+
+### サービス
+
+| サービス | 型 | 説明 |
+|---------|-----|------|
+| `/stampfly/arm` | std_srvs/SetBool | ARM/DISARM |
+
 ## 5. パラメータ
 
 | パラメータ | 型 | デフォルト | 説明 |
@@ -108,6 +120,9 @@ odom → base_link (400Hz)
 | `odom_frame` | string | "odom" | オドメトリフレームID |
 | `base_frame` | string | "base_link" | ベースフレームID |
 | `imu_frame` | string | "imu_link" | IMUフレームID |
+| `enable_control` | bool | false | 制御機能有効化 |
+| `control_rate` | double | 50.0 | 制御送信レート (Hz) |
+| `max_throttle` | double | 0.8 | 最大スロットル（安全制限） |
 
 ## 6. 座標系
 
@@ -138,6 +153,43 @@ odom → base_link (400Hz)
 1. WiFi 信号強度を確認
 2. 他の WiFi クライアントを切断
 3. 距離を近づける
+
+## 8. 制御機能（Phase 2）
+
+### 制御モードの起動
+
+```bash
+ros2 launch stampfly_bridge bridge.launch.py enable_control:=true
+```
+
+### ARM/DISARM
+
+```bash
+# ARM（モーター有効化）
+ros2 service call /stampfly/arm std_srvs/srv/SetBool "{data: true}"
+
+# DISARM（モーター無効化）
+ros2 service call /stampfly/arm std_srvs/srv/SetBool "{data: false}"
+```
+
+### 速度コマンド送信
+
+```bash
+# Twistメッセージで制御
+# linear.z: スロットル (0.0-1.0)
+# angular.x: ロールレート (-1.0 to 1.0)
+# angular.y: ピッチレート (-1.0 to 1.0)
+# angular.z: ヨーレート (-1.0 to 1.0)
+
+ros2 topic pub /stampfly/cmd_vel geometry_msgs/Twist "{linear: {z: 0.3}, angular: {z: 0.1}}"
+```
+
+### 安全上の注意
+
+- `enable_control` はデフォルトで `false`（明示的に有効化が必要）
+- `max_throttle` で最大スロットルを制限（デフォルト 0.8）
+- シャットダウン時は自動でDISARM
+- 通信途絶時は StampFly 側で 500ms 後に自動停止
 
 ---
 

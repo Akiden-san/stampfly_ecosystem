@@ -2,7 +2,8 @@
 bridge_node.py - ROS2 node bridging StampFly WebSocket telemetry to ROS2 topics
 
 Main node that connects to StampFly's WebSocket and publishes telemetry to ROS2.
-StampFly WebSocket → ROS2 トピックのブリッジノード
+Also supports bidirectional control via UDP.
+StampFly WebSocket → ROS2 トピックのブリッジノード（双方向制御対応）
 
 Topics published:
 - /stampfly/imu/raw (stampfly_msgs/ImuRaw) - 400Hz
@@ -17,6 +18,12 @@ Topics published:
 - /stampfly/range/bottom (sensor_msgs/Range) - 400Hz
 - /stampfly/range/front (sensor_msgs/Range) - 400Hz
 
+Topics subscribed (Phase 2 - Control):
+- /stampfly/cmd_vel (geometry_msgs/Twist) - velocity command
+
+Services:
+- /stampfly/arm (std_srvs/SetBool) - ARM/DISARM
+
 TF2 broadcasts:
 - odom → base_link
 """
@@ -27,8 +34,9 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 
 from tf2_ros import TransformBroadcaster
 
-from geometry_msgs.msg import PoseStamped, TwistStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped, Twist
 from sensor_msgs.msg import Imu, Range
+from std_srvs.srv import SetBool
 
 from stampfly_msgs.msg import (
     ImuRaw, ImuCorrected, ESKFState, ControlInput,
@@ -36,6 +44,7 @@ from stampfly_msgs.msg import (
 )
 
 from .websocket_client import ThreadedWebSocketClient
+from .udp_client import UDPControlClient, ControlInput as UDPControlInput
 from .transforms import (
     sample_to_imu_raw, sample_to_imu_corrected, sample_to_eskf_state,
     sample_to_control_input, sample_to_range_sensors, sample_to_optical_flow,
@@ -45,7 +54,7 @@ from .transforms import (
 
 
 class StampFlyBridgeNode(Node):
-    """ROS2 Node for StampFly WebSocket telemetry bridge."""
+    """ROS2 Node for StampFly WebSocket telemetry bridge with control."""
 
     def __init__(self):
         super().__init__('stampfly_bridge')
@@ -61,6 +70,15 @@ class StampFlyBridgeNode(Node):
         self.declare_parameter('base_frame', 'base_link')
         self.declare_parameter('imu_frame', 'imu_link')
 
+        # Control parameters (Phase 2)
+        # 制御パラメータ
+        self.declare_parameter('enable_control', False)
+        self.declare_parameter('control_rate', 50.0)  # Hz
+        self.declare_parameter('max_throttle', 0.8)   # Safety limit
+        self.declare_parameter('max_roll_rate', 1.0)  # Normalized
+        self.declare_parameter('max_pitch_rate', 1.0)
+        self.declare_parameter('max_yaw_rate', 1.0)
+
         # Get parameters
         host = self.get_parameter('host').get_parameter_value().string_value
         port = self.get_parameter('port').get_parameter_value().integer_value
@@ -70,6 +88,14 @@ class StampFlyBridgeNode(Node):
         self.odom_frame = self.get_parameter('odom_frame').get_parameter_value().string_value
         self.base_frame = self.get_parameter('base_frame').get_parameter_value().string_value
         self.imu_frame = self.get_parameter('imu_frame').get_parameter_value().string_value
+
+        # Control parameters
+        self.enable_control = self.get_parameter('enable_control').get_parameter_value().bool_value
+        self.control_rate = self.get_parameter('control_rate').get_parameter_value().double_value
+        self.max_throttle = self.get_parameter('max_throttle').get_parameter_value().double_value
+        self.max_roll_rate = self.get_parameter('max_roll_rate').get_parameter_value().double_value
+        self.max_pitch_rate = self.get_parameter('max_pitch_rate').get_parameter_value().double_value
+        self.max_yaw_rate = self.get_parameter('max_yaw_rate').get_parameter_value().double_value
 
         # QoS profile for high-rate telemetry
         # 高頻度テレメトリ用QoSプロファイル
@@ -130,6 +156,40 @@ class StampFlyBridgeNode(Node):
 
         # Status timer (1Hz)
         self.status_timer = self.create_timer(1.0, self.status_callback)
+
+        # ====================================================================
+        # Phase 2: Control (ROS2 → StampFly)
+        # ====================================================================
+        self.armed = False
+        self.last_cmd_vel = Twist()
+        self.udp_client = None
+
+        if self.enable_control:
+            # Create UDP client for control
+            # 制御用UDPクライアント作成
+            self.udp_client = UDPControlClient(host=host)
+            self.udp_client.connect()
+
+            # cmd_vel subscriber
+            self.sub_cmd_vel = self.create_subscription(
+                Twist,
+                '/stampfly/cmd_vel',
+                self.cmd_vel_callback,
+                10
+            )
+
+            # ARM service
+            self.srv_arm = self.create_service(
+                SetBool,
+                '/stampfly/arm',
+                self.arm_callback
+            )
+
+            # Control send timer
+            control_period = 1.0 / self.control_rate
+            self.control_timer = self.create_timer(control_period, self.control_timer_callback)
+
+            self.get_logger().info(f'Control enabled at {self.control_rate} Hz')
 
         self.get_logger().info(f'StampFly Bridge starting, connecting to {host}:{port}{path}')
 
@@ -196,10 +256,78 @@ class StampFlyBridgeNode(Node):
         self.samples_published = 0
         self.last_stats_time = now
 
+    # ========================================================================
+    # Phase 2: Control Callbacks
+    # ========================================================================
+
+    def cmd_vel_callback(self, msg: Twist):
+        """Handle velocity command from ROS2.
+
+        Twist mapping:
+        - linear.z → throttle (0 to max_throttle)
+        - angular.x → roll rate (-max_roll_rate to max_roll_rate)
+        - angular.y → pitch rate
+        - angular.z → yaw rate
+        """
+        self.last_cmd_vel = msg
+
+    def arm_callback(self, request: SetBool.Request, response: SetBool.Response):
+        """Handle ARM/DISARM service request."""
+        self.armed = request.data
+
+        if self.armed:
+            self.get_logger().warn('ARMED! Motors will spin when throttle is applied.')
+            if self.udp_client:
+                self.udp_client.arm()
+        else:
+            self.get_logger().info('DISARMED')
+            if self.udp_client:
+                self.udp_client.disarm()
+
+        response.success = True
+        response.message = 'Armed' if self.armed else 'Disarmed'
+        return response
+
+    def control_timer_callback(self):
+        """Send control packet to StampFly at control_rate Hz."""
+        if not self.udp_client:
+            return
+
+        # Convert Twist to control input
+        # Twist → 制御入力変換
+        cmd = self.last_cmd_vel
+
+        # Clamp values to safety limits
+        throttle = max(0.0, min(self.max_throttle, cmd.linear.z))
+        roll = max(-self.max_roll_rate, min(self.max_roll_rate, cmd.angular.x))
+        pitch = max(-self.max_pitch_rate, min(self.max_pitch_rate, cmd.angular.y))
+        yaw = max(-self.max_yaw_rate, min(self.max_yaw_rate, cmd.angular.z))
+
+        # Send control
+        control = UDPControlInput(
+            throttle=throttle,
+            roll=roll,
+            pitch=pitch,
+            yaw=yaw,
+            armed=self.armed
+        )
+        self.udp_client.send_control(control)
+
     def destroy_node(self):
         """Cleanup on shutdown."""
         self.get_logger().info('Shutting down StampFly Bridge...')
+
+        # Disarm before shutdown
+        # シャットダウン前にDISARM
+        if self.udp_client and self.armed:
+            self.udp_client.disarm()
+            self.get_logger().info('Disarmed on shutdown')
+
+        # Close clients
+        if self.udp_client:
+            self.udp_client.disconnect()
         self.ws_client.stop()
+
         super().destroy_node()
 
 
