@@ -55,6 +55,41 @@ class OptimizationResult:
     results_per_file: List[dict] = field(default_factory=list)  # Per-file results
 
 
+@dataclass
+class GridSearchResult:
+    """Grid search result
+    グリッドサーチ結果
+
+    Contains parameter values, costs, and optionally 2D cost matrix for visualization.
+    """
+    param_name: str                           # Primary parameter name
+    values: List[float]                       # Primary parameter values
+    costs: List[float]                        # Costs for 1D search
+    best_value: float                         # Best primary parameter value
+    best_cost: float                          # Best cost found
+    param_name2: Optional[str] = None         # Secondary parameter name (2D)
+    values2: Optional[List[float]] = None     # Secondary parameter values (2D)
+    cost_matrix: Optional[List[List[float]]] = None  # 2D cost matrix [p1][p2]
+    best_value2: Optional[float] = None       # Best secondary parameter value (2D)
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON/YAML output"""
+        d = {
+            'param_name': self.param_name,
+            'values': self.values,
+            'best_value': self.best_value,
+            'best_cost': self.best_cost,
+        }
+        if self.param_name2:
+            d['param_name2'] = self.param_name2
+            d['values2'] = self.values2
+            d['best_value2'] = self.best_value2
+            d['cost_matrix'] = self.cost_matrix
+        else:
+            d['costs'] = self.costs
+        return d
+
+
 class ESKFOptimizer:
     """ESKF parameter optimizer
     ESKFパラメータ最適化器
@@ -378,6 +413,167 @@ class ESKFOptimizer:
                     log_params[name] = np.clip(log_params[name], log_min, log_max)
 
         return self.best_params
+
+    def optimize_grid(
+        self,
+        param_name: str,
+        steps: int = 20,
+        param_name2: Optional[str] = None,
+        steps2: int = 10,
+    ) -> Tuple[Optional[Dict[str, float]], 'GridSearchResult']:
+        """Grid Search optimization
+        グリッドサーチによる最適化
+
+        Single parameter or 2D grid search for parameter sensitivity analysis.
+
+        Args:
+            param_name: Primary parameter to search
+            steps: Number of steps for primary parameter
+            param_name2: Optional second parameter for 2D search
+            steps2: Number of steps for second parameter
+
+        Returns:
+            Tuple of (best_params, GridSearchResult)
+        """
+        if param_name not in PARAMS:
+            raise ValueError(f"Unknown parameter: {param_name}. Valid: {list(PARAMS.keys())}")
+
+        if param_name2 and param_name2 not in PARAMS:
+            raise ValueError(f"Unknown parameter: {param_name2}. Valid: {list(PARAMS.keys())}")
+
+        # Base parameters (defaults)
+        base_params = {name: info['default'] for name, info in PARAMS.items()}
+
+        # Generate grid values (log-spaced)
+        p1_min, p1_max = PARAMS[param_name]['min'], PARAMS[param_name]['max']
+        p1_values = np.logspace(np.log10(p1_min), np.log10(p1_max), steps)
+
+        if param_name2:
+            # 2D grid search
+            p2_min, p2_max = PARAMS[param_name2]['min'], PARAMS[param_name2]['max']
+            p2_values = np.logspace(np.log10(p2_min), np.log10(p2_max), steps2)
+            return self._grid_search_2d(base_params, param_name, p1_values, param_name2, p2_values)
+        else:
+            # 1D grid search
+            return self._grid_search_1d(base_params, param_name, p1_values)
+
+    def _grid_search_1d(
+        self,
+        base_params: Dict[str, float],
+        param_name: str,
+        values: np.ndarray,
+    ) -> Tuple[Optional[Dict[str, float]], 'GridSearchResult']:
+        """1D grid search"""
+        if not self.quiet:
+            print(f"\n=== Grid Search: {param_name} ===")
+            print(f"Datasets: {[d['name'] for d in self.datasets]}")
+            print(f"Range: {values[0]:.6f} - {values[-1]:.6f} ({len(values)} steps)")
+            print("-" * 50)
+
+        results = []
+        best_cost = float('inf')
+        best_value = values[0]
+
+        for i, value in enumerate(values):
+            params = base_params.copy()
+            params[param_name] = value
+
+            cost, file_results = self._compute_cost(params)
+            results.append({
+                'value': value,
+                'cost': cost,
+                'file_results': file_results,
+            })
+
+            if cost < best_cost:
+                best_cost = cost
+                best_value = value
+
+            if not self.quiet:
+                marker = " *" if cost == best_cost else ""
+                print(f"  [{i+1:3d}/{len(values)}] {param_name}={value:.6f} -> cost={cost:.4f}{marker}")
+
+        # Build best params
+        best_params = base_params.copy()
+        best_params[param_name] = best_value
+        self.best_params = best_params
+        self.best_cost = best_cost
+
+        grid_result = GridSearchResult(
+            param_name=param_name,
+            values=values.tolist(),
+            costs=[r['cost'] for r in results],
+            best_value=best_value,
+            best_cost=best_cost,
+        )
+
+        return best_params, grid_result
+
+    def _grid_search_2d(
+        self,
+        base_params: Dict[str, float],
+        param_name1: str,
+        values1: np.ndarray,
+        param_name2: str,
+        values2: np.ndarray,
+    ) -> Tuple[Optional[Dict[str, float]], 'GridSearchResult']:
+        """2D grid search"""
+        if not self.quiet:
+            print(f"\n=== 2D Grid Search: {param_name1} x {param_name2} ===")
+            print(f"Datasets: {[d['name'] for d in self.datasets]}")
+            print(f"{param_name1}: {values1[0]:.6f} - {values1[-1]:.6f} ({len(values1)} steps)")
+            print(f"{param_name2}: {values2[0]:.6f} - {values2[-1]:.6f} ({len(values2)} steps)")
+            print(f"Total evaluations: {len(values1) * len(values2)}")
+            print("-" * 50)
+
+        # Cost matrix
+        cost_matrix = np.zeros((len(values1), len(values2)))
+        best_cost = float('inf')
+        best_v1, best_v2 = values1[0], values2[0]
+
+        total = len(values1) * len(values2)
+        count = 0
+
+        for i, v1 in enumerate(values1):
+            for j, v2 in enumerate(values2):
+                params = base_params.copy()
+                params[param_name1] = v1
+                params[param_name2] = v2
+
+                cost, _ = self._compute_cost(params)
+                cost_matrix[i, j] = cost
+                count += 1
+
+                if cost < best_cost:
+                    best_cost = cost
+                    best_v1, best_v2 = v1, v2
+
+                if not self.quiet and count % 10 == 0:
+                    print(f"  [{count:4d}/{total}] best_cost={best_cost:.4f}")
+
+        if not self.quiet:
+            print(f"\nBest: {param_name1}={best_v1:.6f}, {param_name2}={best_v2:.6f} -> cost={best_cost:.4f}")
+
+        # Build best params
+        best_params = base_params.copy()
+        best_params[param_name1] = best_v1
+        best_params[param_name2] = best_v2
+        self.best_params = best_params
+        self.best_cost = best_cost
+
+        grid_result = GridSearchResult(
+            param_name=param_name1,
+            values=values1.tolist(),
+            costs=[],  # Not used for 2D
+            best_value=best_v1,
+            best_cost=best_cost,
+            param_name2=param_name2,
+            values2=values2.tolist(),
+            cost_matrix=cost_matrix.tolist(),
+            best_value2=best_v2,
+        )
+
+        return best_params, grid_result
 
     def print_results(self) -> None:
         """Print optimization results"""

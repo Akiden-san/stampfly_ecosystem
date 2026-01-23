@@ -213,6 +213,27 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Suppress progress output",
     )
+    # Grid search specific options
+    tune_parser.add_argument(
+        "--param",
+        help="Parameter name for grid search (e.g., gyro_noise)",
+    )
+    tune_parser.add_argument(
+        "--steps",
+        type=int,
+        default=20,
+        help="Number of steps for grid search (default: 20)",
+    )
+    tune_parser.add_argument(
+        "--param2",
+        help="Second parameter for 2D grid search",
+    )
+    tune_parser.add_argument(
+        "--steps2",
+        type=int,
+        default=10,
+        help="Steps for second parameter in 2D grid (default: 10)",
+    )
     tune_parser.set_defaults(func=run_tune)
 
     # --- plot ---
@@ -571,7 +592,7 @@ def run_tune(args: argparse.Namespace) -> int:
     """Run parameter optimization"""
     try:
         sys.path.insert(0, str(paths.root() / "tools"))
-        from eskf_sim.optimizer import ESKFOptimizer
+        from eskf_sim.optimizer import ESKFOptimizer, PARAM_NAMES
     except ImportError as e:
         console.error(f"Failed to import optimizer: {e}")
         console.print("Note: scipy is required for optimization.")
@@ -585,22 +606,42 @@ def run_tune(args: argparse.Namespace) -> int:
             console.error(f"File not found: {f}")
             return 1
 
+    # Grid search requires --param
+    if args.method == 'grid':
+        if not args.param:
+            console.error("Grid search requires --param to specify parameter name")
+            console.print(f"Available parameters: {', '.join(PARAM_NAMES)}")
+            return 1
+        if args.param not in PARAM_NAMES:
+            console.error(f"Unknown parameter: {args.param}")
+            console.print(f"Available parameters: {', '.join(PARAM_NAMES)}")
+            return 1
+        if args.param2 and args.param2 not in PARAM_NAMES:
+            console.error(f"Unknown parameter: {args.param2}")
+            console.print(f"Available parameters: {', '.join(PARAM_NAMES)}")
+            return 1
+
     # Default iterations
     max_iter = args.iter
     if max_iter is None:
         max_iter = 500 if args.method == 'sa' else 80
 
     # Create optimizer
-    optimizer = ESKFOptimizer(args.inputs, quiet=args.quiet)
+    optimizer = ESKFOptimizer(args.inputs, cost_fn=args.cost, quiet=args.quiet)
 
     # Run optimization
+    grid_result = None
     if args.method == 'sa':
         best_params = optimizer.optimize_sa(max_iter)
     elif args.method == 'gd':
         best_params = optimizer.optimize_gd(max_iter)
-    else:
-        console.error("Grid search not yet implemented")
-        return 1
+    else:  # grid
+        best_params, grid_result = optimizer.optimize_grid(
+            param_name=args.param,
+            steps=args.steps,
+            param_name2=args.param2,
+            steps2=args.steps2,
+        )
 
     if best_params is None:
         console.error("Optimization failed")
@@ -610,12 +651,27 @@ def run_tune(args: argparse.Namespace) -> int:
     if not args.quiet:
         optimizer.print_results()
 
+    # For grid search, output includes grid result
     if args.output:
         with open(args.output, 'w') as f:
-            yaml.dump(best_params, f, default_flow_style=False, sort_keys=False)
+            if grid_result:
+                output_data = {
+                    'best_params': best_params,
+                    'grid_result': grid_result.to_dict(),
+                }
+                yaml.dump(output_data, f, default_flow_style=False, sort_keys=False)
+            else:
+                yaml.dump(best_params, f, default_flow_style=False, sort_keys=False)
         console.success(f"Parameters saved to: {args.output}")
     else:
-        print(yaml.dump(best_params, default_flow_style=False, sort_keys=False))
+        if grid_result:
+            output_data = {
+                'best_params': best_params,
+                'grid_result': grid_result.to_dict(),
+            }
+            print(yaml.dump(output_data, default_flow_style=False, sort_keys=False))
+        else:
+            print(yaml.dump(best_params, default_flow_style=False, sort_keys=False))
 
     return 0
 
