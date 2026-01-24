@@ -1,0 +1,910 @@
+"""
+sf sysid - System identification commands
+sf sysid - システム同定コマンド
+
+Unix philosophy: Small tools that do one thing well and work together via pipes.
+
+Subcommands:
+    noise     - Sensor noise characterization (Allan variance)
+    inertia   - Moment of inertia estimation (step response)
+    motor     - Motor dynamics identification (Ct, Cq, τm)
+    drag      - Aerodynamic drag coefficient estimation
+    params    - Parameter management (show, diff, export)
+    validate  - Validation and consistency checks
+    plan      - Flight test plan generation
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Optional
+
+import yaml
+
+from ..utils import console, paths
+
+COMMAND_NAME = "sysid"
+COMMAND_HELP = "System identification from flight logs"
+
+
+def register(subparsers: argparse._SubParsersAction) -> None:
+    """Register command with CLI"""
+    parser = subparsers.add_parser(
+        COMMAND_NAME,
+        help=COMMAND_HELP,
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    # Create sub-subparsers for sysid subcommands
+    sysid_subparsers = parser.add_subparsers(
+        dest="sysid_command",
+        title="subcommands",
+        metavar="<subcommand>",
+    )
+
+    # --- noise ---
+    _register_noise(sysid_subparsers)
+
+    # --- inertia ---
+    _register_inertia(sysid_subparsers)
+
+    # --- motor ---
+    _register_motor(sysid_subparsers)
+
+    # --- drag ---
+    _register_drag(sysid_subparsers)
+
+    # --- params ---
+    _register_params(sysid_subparsers)
+
+    # --- validate ---
+    _register_validate(sysid_subparsers)
+
+    # --- plan ---
+    _register_plan(sysid_subparsers)
+
+    parser.set_defaults(func=run_help)
+
+
+def _register_noise(subparsers):
+    """Register noise subcommand"""
+    parser = subparsers.add_parser(
+        "noise",
+        help="Sensor noise characterization (Allan variance)",
+        description="Estimate sensor noise parameters using Allan variance analysis.",
+    )
+    parser.add_argument(
+        "input",
+        help="Input CSV file (static sensor data)",
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file (YAML/JSON)",
+    )
+    parser.add_argument(
+        "--sensor",
+        choices=["gyro", "accel", "baro", "tof", "all"],
+        default="all",
+        help="Sensor to analyze (default: all)",
+    )
+    parser.add_argument(
+        "--min-duration",
+        type=float,
+        default=10.0,
+        help="Minimum data duration in seconds (default: 10)",
+    )
+    parser.add_argument(
+        "--static-only",
+        action="store_true",
+        help="Only use static (stationary) segments",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Show Allan deviation plots",
+    )
+    parser.add_argument(
+        "--plot-output",
+        help="Save plot to file (PNG/PDF)",
+    )
+    parser.set_defaults(func=run_noise)
+
+
+def _register_inertia(subparsers):
+    """Register inertia subcommand"""
+    parser = subparsers.add_parser(
+        "inertia",
+        help="Moment of inertia estimation (step response)",
+        description="Estimate Ixx, Iyy, Izz from angular rate step responses.",
+    )
+    parser.add_argument(
+        "input",
+        help="Input CSV file (step response data)",
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file (YAML/JSON)",
+    )
+    parser.add_argument(
+        "--axis",
+        choices=["roll", "pitch", "yaw", "all"],
+        default="all",
+        help="Axis to analyze (default: all)",
+    )
+    parser.add_argument(
+        "--time-range",
+        nargs=2,
+        type=float,
+        metavar=("START", "END"),
+        help="Time range to analyze [seconds]",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Show identification plots",
+    )
+    parser.set_defaults(func=run_inertia)
+
+
+def _register_motor(subparsers):
+    """Register motor subcommand"""
+    parser = subparsers.add_parser(
+        "motor",
+        help="Motor dynamics identification",
+        description="Identify thrust coefficient (Ct), torque coefficient (Cq), and time constant (τm).",
+    )
+    parser.add_argument(
+        "input",
+        help="Input CSV file",
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file (YAML/JSON)",
+    )
+    parser.add_argument(
+        "--param",
+        choices=["Ct", "Cq", "tau", "all"],
+        default="all",
+        help="Parameter to identify (default: all)",
+    )
+    parser.add_argument(
+        "--mass",
+        type=float,
+        default=0.035,
+        help="Vehicle mass in kg (default: 0.035)",
+    )
+    parser.add_argument(
+        "--hover-only",
+        action="store_true",
+        help="Only use hover segments for Ct estimation",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Show identification plots",
+    )
+    parser.set_defaults(func=run_motor)
+
+
+def _register_drag(subparsers):
+    """Register drag subcommand"""
+    parser = subparsers.add_parser(
+        "drag",
+        help="Aerodynamic drag coefficient estimation",
+        description="Estimate drag coefficients from coastdown/decay data.",
+    )
+    parser.add_argument(
+        "input",
+        help="Input CSV file (coastdown data)",
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file (YAML/JSON)",
+    )
+    parser.add_argument(
+        "--type",
+        choices=["trans", "rot", "all"],
+        default="all",
+        help="Drag type: trans (translational), rot (rotational), all",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Show decay plots",
+    )
+    parser.set_defaults(func=run_drag)
+
+
+def _register_params(subparsers):
+    """Register params subcommand"""
+    parser = subparsers.add_parser(
+        "params",
+        help="Parameter management",
+        description="Show, compare, and export parameters.",
+    )
+    params_subparsers = parser.add_subparsers(
+        dest="params_command",
+        title="params subcommands",
+        metavar="<action>",
+    )
+
+    # params show
+    show_parser = params_subparsers.add_parser(
+        "show",
+        help="Show default or loaded parameters",
+    )
+    show_parser.add_argument(
+        "file",
+        nargs="?",
+        help="Parameter file to show (default: show defaults)",
+    )
+    show_parser.add_argument(
+        "--format",
+        choices=["yaml", "json"],
+        default="yaml",
+        help="Output format (default: yaml)",
+    )
+    show_parser.set_defaults(func=run_params_show)
+
+    # params diff
+    diff_parser = params_subparsers.add_parser(
+        "diff",
+        help="Compare two parameter files",
+    )
+    diff_parser.add_argument(
+        "file1",
+        help="First parameter file",
+    )
+    diff_parser.add_argument(
+        "file2",
+        help="Second parameter file",
+    )
+    diff_parser.set_defaults(func=run_params_diff)
+
+    # params export
+    export_parser = params_subparsers.add_parser(
+        "export",
+        help="Export parameters to C header",
+    )
+    export_parser.add_argument(
+        "file",
+        help="Parameter file to export",
+    )
+    export_parser.add_argument(
+        "-o", "--output",
+        required=True,
+        help="Output .h file",
+    )
+    export_parser.set_defaults(func=run_params_export)
+
+    parser.set_defaults(func=run_params_help)
+
+
+def _register_validate(subparsers):
+    """Register validate subcommand"""
+    parser = subparsers.add_parser(
+        "validate",
+        help="Validate identified parameters",
+        description="Check physical consistency of identified parameters.",
+    )
+    parser.add_argument(
+        "file",
+        help="Parameter file to validate",
+    )
+    parser.add_argument(
+        "--ref",
+        help="Reference parameter file for comparison",
+    )
+    parser.set_defaults(func=run_validate)
+
+
+def _register_plan(subparsers):
+    """Register plan subcommand"""
+    parser = subparsers.add_parser(
+        "plan",
+        help="Generate flight test plan",
+        description="Generate a test plan for system identification experiments.",
+    )
+    parser.add_argument(
+        "--type",
+        choices=["noise", "inertia", "motor", "drag", "all"],
+        default="all",
+        help="Test type (default: all)",
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file (Markdown)",
+    )
+    parser.set_defaults(func=run_plan)
+
+
+# =============================================================================
+# Command implementations
+# =============================================================================
+
+def run_help(args: argparse.Namespace) -> int:
+    """Show help when no subcommand specified"""
+    console.print("Usage: sf sysid <subcommand> [options]")
+    console.print()
+    console.print("Subcommands:")
+    console.print("  noise      Sensor noise characterization (Allan variance)")
+    console.print("  inertia    Moment of inertia estimation (step response)")
+    console.print("  motor      Motor dynamics identification")
+    console.print("  drag       Aerodynamic drag coefficient estimation")
+    console.print("  params     Parameter management")
+    console.print("  validate   Validation and consistency checks")
+    console.print("  plan       Flight test plan generation")
+    console.print()
+    console.print("Run 'sf sysid <subcommand> --help' for details.")
+    console.print()
+    console.print("Examples:")
+    console.print("  sf sysid noise static.csv --sensor all --plot")
+    console.print("  sf sysid inertia roll_step.csv --axis roll -o result.yaml")
+    console.print("  sf sysid params show")
+    console.print("  sf sysid validate identified.yaml --ref defaults.yaml")
+    return 0
+
+
+def run_noise(args: argparse.Namespace) -> int:
+    """Run noise characterization"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.noise import load_and_estimate
+        from sysid.visualizer import plot_noise_analysis
+    except ImportError as e:
+        console.error(f"Failed to import sysid module: {e}")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    # Check input file
+    if not Path(args.input).exists():
+        console.error(f"Input file not found: {args.input}")
+        return 1
+
+    console.info(f"Loading: {args.input}")
+
+    try:
+        result = load_and_estimate(
+            filepath=args.input,
+            sensor=args.sensor,
+            static_only=args.static_only,
+            min_duration=args.min_duration,
+        )
+    except Exception as e:
+        console.error(f"Analysis failed: {e}")
+        return 1
+
+    console.info(f"Samples: {result.samples}, Duration: {result.duration_s:.1f}s")
+
+    # Print summary
+    console.print()
+    console.print("=== Estimated Parameters ===")
+    console.print()
+    console.print("Process Noise (Q):")
+    console.print(f"  gyro_noise:       {float(result.gyro_arw.mean()):.6f} rad/s/√Hz")
+    console.print(f"  accel_noise:      {float(result.accel_vrw.mean()):.6f} m/s²/√Hz")
+    console.print(f"  gyro_bias_noise:  {float(result.gyro_bias_inst.mean()):.8f}")
+    console.print(f"  accel_bias_noise: {float(result.accel_bias_inst.mean()):.8f}")
+    console.print()
+    console.print("Measurement Noise (R):")
+    console.print(f"  baro_noise: {result.baro_std:.4f} m")
+    console.print(f"  tof_noise:  {result.tof_std:.4f} m")
+    console.print(f"  flow_noise: {result.flow_std:.2f}")
+
+    # Save output
+    if args.output:
+        output_path = Path(args.output)
+        data = result.to_dict()
+        data['_metadata'] = {
+            'method': 'allan_variance',
+            'source': str(args.input),
+            'sensor': args.sensor,
+        }
+
+        with open(output_path, 'w') as f:
+            if output_path.suffix == '.json':
+                json.dump(data, f, indent=2)
+            else:
+                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+        console.success(f"Saved: {args.output}")
+
+    # Plot
+    if args.plot or args.plot_output:
+        try:
+            plot_noise_analysis(
+                result,
+                output_path=args.plot_output,
+                show=args.plot,
+            )
+        except ImportError:
+            console.warning("matplotlib not available, skipping plot")
+
+    return 0
+
+
+def run_inertia(args: argparse.Namespace) -> int:
+    """Run inertia estimation"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.inertia import estimate_inertia, load_step_response
+    except ImportError as e:
+        console.error(f"Failed to import sysid.inertia: {e}")
+        console.print("Note: This module may not be implemented yet.")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    # Check input file
+    if not Path(args.input).exists():
+        console.error(f"Input file not found: {args.input}")
+        return 1
+
+    console.info(f"Loading: {args.input}")
+
+    try:
+        result = estimate_inertia(
+            filepath=args.input,
+            axis=args.axis,
+            time_range=args.time_range,
+        )
+    except Exception as e:
+        console.error(f"Estimation failed: {e}")
+        return 1
+
+    # Print results
+    console.print()
+    console.print("=== Estimated Inertia ===")
+    for key, val in result.get('estimated', {}).items():
+        console.print(f"  {key}: {val:.4e} kg·m²")
+
+    # Save output
+    if args.output:
+        output_path = Path(args.output)
+        with open(output_path, 'w') as f:
+            if output_path.suffix == '.json':
+                json.dump(result, f, indent=2)
+            else:
+                yaml.dump(result, f, default_flow_style=False, sort_keys=False)
+        console.success(f"Saved: {args.output}")
+
+    return 0
+
+
+def run_motor(args: argparse.Namespace) -> int:
+    """Run motor dynamics identification"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.motor import estimate_motor_params
+    except ImportError as e:
+        console.error(f"Failed to import sysid.motor: {e}")
+        console.print("Note: This module may not be implemented yet.")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    # Check input file
+    if not Path(args.input).exists():
+        console.error(f"Input file not found: {args.input}")
+        return 1
+
+    console.info(f"Loading: {args.input}")
+
+    try:
+        result = estimate_motor_params(
+            filepath=args.input,
+            param=args.param,
+            mass=args.mass,
+            hover_only=args.hover_only,
+        )
+    except Exception as e:
+        console.error(f"Estimation failed: {e}")
+        return 1
+
+    # Print results
+    console.print()
+    console.print("=== Estimated Motor Parameters ===")
+    for key, val in result.get('estimated', {}).items():
+        console.print(f"  {key}: {val:.4e}")
+
+    # Save output
+    if args.output:
+        output_path = Path(args.output)
+        with open(output_path, 'w') as f:
+            if output_path.suffix == '.json':
+                json.dump(result, f, indent=2)
+            else:
+                yaml.dump(result, f, default_flow_style=False, sort_keys=False)
+        console.success(f"Saved: {args.output}")
+
+    return 0
+
+
+def run_drag(args: argparse.Namespace) -> int:
+    """Run drag coefficient estimation"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.drag import estimate_drag
+    except ImportError as e:
+        console.error(f"Failed to import sysid.drag: {e}")
+        console.print("Note: This module may not be implemented yet.")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    # Check input file
+    if not Path(args.input).exists():
+        console.error(f"Input file not found: {args.input}")
+        return 1
+
+    console.info(f"Loading: {args.input}")
+
+    try:
+        result = estimate_drag(
+            filepath=args.input,
+            drag_type=args.type,
+        )
+    except Exception as e:
+        console.error(f"Estimation failed: {e}")
+        return 1
+
+    # Print results
+    console.print()
+    console.print("=== Estimated Drag Coefficients ===")
+    for key, val in result.get('estimated', {}).items():
+        console.print(f"  {key}: {val:.4e}")
+
+    # Save output
+    if args.output:
+        output_path = Path(args.output)
+        with open(output_path, 'w') as f:
+            if output_path.suffix == '.json':
+                json.dump(result, f, indent=2)
+            else:
+                yaml.dump(result, f, default_flow_style=False, sort_keys=False)
+        console.success(f"Saved: {args.output}")
+
+    return 0
+
+
+def run_params_help(args: argparse.Namespace) -> int:
+    """Show params help"""
+    console.print("Usage: sf sysid params <action> [options]")
+    console.print()
+    console.print("Actions:")
+    console.print("  show      Show default or loaded parameters")
+    console.print("  diff      Compare two parameter files")
+    console.print("  export    Export parameters to C header")
+    return 0
+
+
+def run_params_show(args: argparse.Namespace) -> int:
+    """Show parameters"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.defaults import get_flat_defaults
+        from sysid.params import load_params, flatten_params
+    except ImportError as e:
+        console.error(f"Failed to import sysid module: {e}")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    if args.file:
+        if not Path(args.file).exists():
+            console.error(f"File not found: {args.file}")
+            return 1
+        params = load_params(args.file)
+    else:
+        params = get_flat_defaults()
+
+    if args.format == 'yaml':
+        print(yaml.dump(params, default_flow_style=False, sort_keys=False))
+    else:
+        print(json.dumps(params, indent=2))
+
+    return 0
+
+
+def run_params_diff(args: argparse.Namespace) -> int:
+    """Compare two parameter files"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.params import load_params, diff_params, flatten_params
+    except ImportError as e:
+        console.error(f"Failed to import sysid module: {e}")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    for f in [args.file1, args.file2]:
+        if not Path(f).exists():
+            console.error(f"File not found: {f}")
+            return 1
+
+    params1 = load_params(args.file1)
+    params2 = load_params(args.file2)
+
+    diffs = diff_params(params1, params2)
+
+    console.print(f"Comparing: {args.file1} vs {args.file2}")
+    console.print()
+
+    if not diffs:
+        console.print("  No differences found.")
+    else:
+        for key, v1, v2 in diffs:
+            if v1 is None:
+                console.print(f"  + {key}: {v2}")
+            elif v2 is None:
+                console.print(f"  - {key}: {v1}")
+            else:
+                console.print(f"  ~ {key}: {v1} -> {v2}")
+
+    return 0
+
+
+def run_params_export(args: argparse.Namespace) -> int:
+    """Export parameters to C header"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.params import load_params, export_to_c_header
+    except ImportError as e:
+        console.error(f"Failed to import sysid module: {e}")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    if not Path(args.file).exists():
+        console.error(f"File not found: {args.file}")
+        return 1
+
+    params = load_params(args.file)
+
+    export_to_c_header(params, args.output)
+    console.success(f"Exported to: {args.output}")
+
+    return 0
+
+
+def run_validate(args: argparse.Namespace) -> int:
+    """Validate identified parameters"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.params import load_params, validate_params, diff_params
+        from sysid.defaults import get_flat_defaults
+    except ImportError as e:
+        console.error(f"Failed to import sysid module: {e}")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    if not Path(args.file).exists():
+        console.error(f"File not found: {args.file}")
+        return 1
+
+    params = load_params(args.file)
+
+    # Validate
+    warnings = validate_params(params)
+
+    console.print(f"Validating: {args.file}")
+    console.print()
+
+    if warnings:
+        console.print("Warnings:")
+        for w in warnings:
+            console.warning(f"  {w}")
+    else:
+        console.success("All consistency checks passed.")
+
+    # Compare with reference
+    if args.ref:
+        if not Path(args.ref).exists():
+            console.error(f"Reference file not found: {args.ref}")
+            return 1
+
+        ref_params = load_params(args.ref)
+        diffs = diff_params(params, ref_params)
+
+        console.print()
+        console.print(f"Comparison with reference: {args.ref}")
+
+        if diffs:
+            for key, v1, v2 in diffs:
+                if v1 is not None and v2 is not None:
+                    try:
+                        error_pct = abs(float(v1) - float(v2)) / abs(float(v2)) * 100
+                        status = "OK" if error_pct < 20 else "CHECK"
+                        console.print(f"  {key}: {v1} vs {v2} ({error_pct:.1f}% diff) [{status}]")
+                    except (ValueError, TypeError):
+                        console.print(f"  {key}: {v1} vs {v2}")
+
+    return 0 if not warnings else 1
+
+
+def run_plan(args: argparse.Namespace) -> int:
+    """Generate flight test plan"""
+    plans = {
+        "noise": """
+## Sensor Noise Characterization Test Plan
+
+### Purpose
+Characterize sensor noise parameters for ESKF tuning.
+
+### Equipment
+- StampFly with telemetry enabled
+- Stable surface (no vibrations)
+- Room-temperature environment
+
+### Procedure
+1. Place StampFly on stable, level surface
+2. Power on and wait 10 seconds for sensor warm-up
+3. Start data capture: `sf log wifi -d 60 -o static_noise.csv`
+4. Ensure vehicle is completely stationary during capture
+5. Run analysis: `sf sysid noise static_noise.csv --sensor all --plot`
+
+### Expected Duration
+- Data capture: 60 seconds minimum
+- Analysis: < 1 minute
+
+### Output Parameters
+- Gyroscope ARW (Angle Random Walk)
+- Gyroscope bias instability
+- Accelerometer VRW (Velocity Random Walk)
+- Accelerometer bias instability
+- Barometer altitude noise
+- ToF range noise
+""",
+        "inertia": """
+## Moment of Inertia Estimation Test Plan
+
+### Purpose
+Estimate roll, pitch, and yaw moments of inertia from step responses.
+
+### Equipment
+- StampFly in ACRO mode
+- Clear flight area (minimum 2m x 2m)
+- High-rate telemetry (400Hz)
+
+### Safety
+- Battery below 80% charge (reduced thrust margin)
+- Props guards recommended
+- Experienced pilot required
+
+### Procedure (Roll)
+1. Take off and hover at ~0.5m altitude
+2. Start data capture: `sf log wifi -d 20 -o roll_step.csv`
+3. Apply quick roll stick input (±50%) and release
+4. Wait for oscillation to settle
+5. Repeat 3-5 times
+6. Land and analyze: `sf sysid inertia roll_step.csv --axis roll --plot`
+
+### Procedure (Pitch)
+- Same as roll, using pitch stick
+
+### Procedure (Yaw)
+- Same as roll, using yaw stick
+- Note: Yaw response is typically slower
+
+### Expected Duration
+- Per axis: 2-3 minutes flight time
+- Total: ~10 minutes including setup
+
+### Output Parameters
+- Ixx (roll moment of inertia)
+- Iyy (pitch moment of inertia)
+- Izz (yaw moment of inertia)
+""",
+        "motor": """
+## Motor Dynamics Identification Test Plan
+
+### Purpose
+Identify thrust coefficient (Ct), torque coefficient (Cq), and motor time constant (τm).
+
+### Equipment
+- StampFly in hover mode
+- Clear flight area
+- High-rate telemetry (400Hz)
+- Known vehicle mass (default: 35g)
+
+### Procedure (Hover - for Ct)
+1. Take off and achieve stable hover
+2. Start data capture: `sf log wifi -d 30 -o hover.csv`
+3. Maintain hover for at least 20 seconds
+4. Land and analyze: `sf sysid motor hover.csv --param Ct`
+
+### Procedure (Throttle Step - for τm)
+1. Hover at ~0.3m altitude
+2. Start data capture: `sf log wifi -d 20 -o throttle_step.csv`
+3. Apply quick throttle increase (50% → 70%)
+4. Hold for 2 seconds, then return
+5. Repeat 3-5 times
+6. Analyze: `sf sysid motor throttle_step.csv --param tau --plot`
+
+### Expected Duration
+- Hover test: 2-3 minutes
+- Throttle step test: 5 minutes
+- Total: ~10 minutes
+
+### Output Parameters
+- Ct (thrust coefficient)
+- Cq (torque coefficient)
+- κ (torque/thrust ratio)
+- τm (motor time constant)
+""",
+        "drag": """
+## Aerodynamic Drag Estimation Test Plan
+
+### Purpose
+Estimate translational and rotational drag coefficients.
+
+### Equipment
+- StampFly with velocity estimation enabled
+- Open flight area (minimum 3m x 3m)
+- High-rate telemetry (400Hz)
+
+### Procedure (Translational Drag)
+1. Take off and hover at ~1m altitude
+2. Start data capture: `sf log wifi -d 30 -o coastdown.csv`
+3. Apply forward velocity (pitch forward)
+4. Cut throttle momentarily and observe deceleration
+5. Repeat for backward, left, right
+6. Analyze: `sf sysid drag coastdown.csv --type trans --plot`
+
+### Procedure (Rotational Drag)
+1. Hover at ~0.5m altitude
+2. Start data capture: `sf log wifi -d 20 -o yaw_decay.csv`
+3. Apply yaw rate input
+4. Release and observe yaw rate decay
+5. Repeat 3-5 times
+6. Analyze: `sf sysid drag yaw_decay.csv --type rot --plot`
+
+### Expected Duration
+- Translational: 5-10 minutes
+- Rotational: 5 minutes
+- Total: ~15 minutes
+
+### Output Parameters
+- Cd_trans (translational drag coefficient)
+- Cd_rot (rotational drag coefficient)
+""",
+    }
+
+    console.print("# StampFly System Identification Test Plans")
+    console.print()
+
+    if args.type == "all":
+        for name, plan in plans.items():
+            console.print(plan)
+            console.print()
+    elif args.type in plans:
+        console.print(plans[args.type])
+    else:
+        console.error(f"Unknown test type: {args.type}")
+        return 1
+
+    if args.output:
+        content = ""
+        if args.type == "all":
+            content = "# StampFly System Identification Test Plans\n\n"
+            for name, plan in plans.items():
+                content += plan + "\n\n"
+        else:
+            content = f"# StampFly System Identification Test Plans\n{plans[args.type]}"
+
+        Path(args.output).write_text(content)
+        console.success(f"Saved: {args.output}")
+
+    return 0

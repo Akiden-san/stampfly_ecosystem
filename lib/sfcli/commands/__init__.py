@@ -13,6 +13,7 @@ from . import log
 from . import sim
 from . import cal
 from . import setup
+from . import sysid
 
 __all__ = [
     "version",
@@ -24,4 +25,5 @@ __all__ = [
     "sim",
     "cal",
     "setup",
+    "sysid",
 ]
