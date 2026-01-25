@@ -17,6 +17,7 @@ idf_component_register(
         "tasks/telemetry_task.cpp"
     INCLUDE_DIRS "." "tasks"
     REQUIRES
+        esp_timer
         sf_hal_bmi270
         sf_hal_vl53l3cx
         sf_hal_pmw3901
@@ -40,4 +41,5 @@ idf_component_register(
         sf_svc_wifi_cli
         sf_svc_serial_cli
         sf_svc_led
+        sf_svc_flight_command
 )

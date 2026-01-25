@@ -2,8 +2,16 @@
 // 高レベル飛行コマンドサービス実装
 #include "flight_command.hpp"
 #include "control_arbiter.hpp"
-#include "globals.hpp"
+#include "sensor_fusion.hpp"
+#include "landing_handler.hpp"
 #include "esp_log.h"
+
+// Forward declarations for globals
+// グローバル変数の前方宣言
+namespace globals {
+    extern stampfly::LandingHandler g_landing_handler;
+    extern sf::SensorFusion g_fusion;
+}
 
 static const char* TAG = "FlightCmd";
 

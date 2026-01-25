@@ -217,7 +217,7 @@ static int cmd_flight(int argc, char** argv) {
 
 // Register flight commands
 // 飛行コマンドを登録
-void register_flight_commands() {
+extern "C" void register_flight_commands() {
     const esp_console_cmd_t jump_cmd = {
         .command = "jump",
         .help = "Jump (takeoff, hover, land) [jump <altitude_m> <hover_sec>]",

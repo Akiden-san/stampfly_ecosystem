@@ -5,6 +5,7 @@ idf_component_register(
         "include"
     REQUIRES
         freertos
+        esp_timer
         sf_svc_state
         sf_svc_control_arbiter
         sf_algo_fusion
