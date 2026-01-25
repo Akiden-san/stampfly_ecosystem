@@ -4,6 +4,7 @@
 #include "control_arbiter.hpp"
 #include "sensor_fusion.hpp"
 #include "landing_handler.hpp"
+#include "stampfly_state.hpp"
 #include "esp_log.h"
 
 // Forward declarations for globals
@@ -49,6 +50,37 @@ bool FlightCommandService::executeCommand(FlightCommandType type, const FlightCo
     if (isRunning()) {
         ESP_LOGW(TAG, "Another command is already running");
         return false;
+    }
+
+    // Auto-ARM for WiFi commands
+    // WiFiコマンド用の自動ARM機能
+    auto& state_mgr = StampFlyState::getInstance();
+    FlightState current_state = state_mgr.getFlightState();
+
+    // Enable debug mode to allow ARM even with errors (WiFi user responsibility)
+    // デバッグモードを有効化してエラー状態でもARMを許可（WiFiユーザーの責任）
+    state_mgr.setDebugMode(true);
+
+    if (current_state != FlightState::ARMED && current_state != FlightState::FLYING) {
+        // Need to ARM first
+        // まずARMする必要がある
+
+        // If not IDLE or ERROR, transition to IDLE first
+        // IDLEまたはERROR状態でない場合、まずIDLEに遷移
+        if (current_state != FlightState::IDLE && current_state != FlightState::ERROR) {
+            ESP_LOGW(TAG, "Cannot ARM from state %d, transitioning to IDLE", static_cast<int>(current_state));
+            state_mgr.setFlightState(FlightState::IDLE);
+        }
+
+        // Request ARM
+        // ARM要求
+        if (!state_mgr.requestArm()) {
+            ESP_LOGE(TAG, "Failed to ARM vehicle for WiFi command");
+            state_mgr.setDebugMode(false);
+            return false;
+        }
+
+        ESP_LOGI(TAG, "Auto-ARMed for WiFi command");
     }
 
     // Save command and parameters
@@ -136,20 +168,24 @@ bool FlightCommandService::canExecute() const {
     // Check landing status
     // 着陸状態をチェック
     if (!globals::g_landing_handler.isLanded()) {
-        ESP_LOGW(TAG, "Cannot execute: vehicle not landed");
-        return false;
+        ESP_LOGW(TAG, "Warning: vehicle not landed (allowing for WiFi commands)");
+        // Don't block - allow WiFi commands even when not landed
+        // WiFiコマンドのために許可（着陸検出なしでも実行可能）
     }
 
     // Check calibration status
     // キャリブレーション状態をチェック
     if (!globals::g_landing_handler.canArm()) {
-        ESP_LOGW(TAG, "Cannot execute: calibration not completed");
-        return false;
+        ESP_LOGW(TAG, "Warning: calibration not completed (allowing for WiFi commands)");
+        // Don't block - allow WiFi commands even without calibration
+        // WiFiコマンドのために許可（キャリブレーションなしでも実行可能）
     }
 
     // TODO: Add battery voltage check
     // バッテリー電圧チェックを追加
 
+    // For WiFi commands, always allow execution (user responsibility)
+    // WiFiコマンドは常に実行許可（ユーザーの責任）
     return true;
 }
 
