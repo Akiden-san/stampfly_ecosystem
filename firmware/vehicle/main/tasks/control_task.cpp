@@ -18,6 +18,7 @@
 #include "motor_model.hpp"
 #include "controller_comm.hpp"  // for CTRL_FLAG_MODE
 #include "led_manager.hpp"      // for flight mode LED indication
+#include "flight_command.hpp"   // for high-level flight commands
 #include <algorithm>            // for std::clamp
 
 // Trim values (defined in cli.cpp)
@@ -303,6 +304,14 @@ void ControlTask(void* pvParameters)
                          is_stabilize ? "STABILIZE" : "ACRO");
             }
         }
+
+        // =====================================================================
+        // High-Level Flight Commands Update
+        // 高レベル飛行コマンド更新
+        // =====================================================================
+        // Update flight command service (runs at 400Hz)
+        // フライトコマンドサービスを更新（400Hzで実行）
+        stampfly::FlightCommandService::getInstance().update(IMU_DT);
 
         // Only run control when ARMED or FLYING
         if (flight_state != stampfly::FlightState::ARMED &&

@@ -12,6 +12,19 @@
 
 static const char* TAG = "Console";
 
+// External command registration functions
+// 外部コマンド登録関数
+extern "C" {
+void register_system_commands();
+void register_sensor_commands();
+void register_motor_commands();
+void register_control_commands();
+void register_comm_commands();
+void register_calib_commands();
+void register_misc_commands();
+void register_flight_commands();
+}
+
 namespace stampfly {
 
 // =============================================================================
@@ -76,6 +89,7 @@ void Console::registerAllCommands()
     register_comm_commands();
     register_calib_commands();
     register_misc_commands();
+    register_flight_commands();
 
     ESP_LOGI(TAG, "All commands registered");
 }

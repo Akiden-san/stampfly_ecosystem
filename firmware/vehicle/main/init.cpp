@@ -39,6 +39,7 @@
 #include "control_arbiter.hpp"
 #include "udp_server.hpp"
 #include "wifi_cli.hpp"
+#include "flight_command.hpp"
 
 // NVS
 #include "nvs_flash.h"
@@ -587,6 +588,16 @@ esp_err_t communication()
         esp_err_t ret = arbiter.init();
         if (ret != ESP_OK) {
             ESP_LOGW(TAG, "ControlArbiter init failed: %s", esp_err_to_name(ret));
+        }
+    }
+
+    // Initialize FlightCommandService
+    // FlightCommandService を初期化
+    {
+        auto& flight_cmd = stampfly::FlightCommandService::getInstance();
+        esp_err_t ret = flight_cmd.init();
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "FlightCommandService init failed: %s", esp_err_to_name(ret));
         }
     }
 

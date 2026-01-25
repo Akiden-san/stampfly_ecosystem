@@ -1,0 +1,370 @@
+// High-Level Flight Command Service Implementation
+// 高レベル飛行コマンドサービス実装
+#include "flight_command.hpp"
+#include "control_arbiter.hpp"
+#include "globals.hpp"
+#include "esp_log.h"
+
+static const char* TAG = "FlightCmd";
+
+namespace stampfly {
+
+// Get singleton instance
+// シングルトンインスタンスを取得
+FlightCommandService& FlightCommandService::getInstance() {
+    static FlightCommandService instance;
+    return instance;
+}
+
+// Initialize the service
+// サービスの初期化
+esp_err_t FlightCommandService::init() {
+    ESP_LOGI(TAG, "Initializing Flight Command Service");
+
+    state_ = FlightCommandState::IDLE;
+    current_command_ = FlightCommandType::NONE;
+    phase_ = ExecutionPhase::INIT;
+    elapsed_time_ = 0.0f;
+    hover_timer_ = 0.0f;
+
+    return ESP_OK;
+}
+
+// Execute command (non-blocking)
+// コマンド実行（非ブロッキング）
+bool FlightCommandService::executeCommand(FlightCommandType type, const FlightCommandParams& params) {
+    if (!canExecute()) {
+        ESP_LOGW(TAG, "Cannot execute command: preconditions not met");
+        return false;
+    }
+
+    if (isRunning()) {
+        ESP_LOGW(TAG, "Another command is already running");
+        return false;
+    }
+
+    // Save command and parameters
+    // コマンドとパラメータを保存
+    current_command_ = type;
+    params_ = params;
+    state_ = FlightCommandState::RUNNING;
+    phase_ = ExecutionPhase::INIT;
+    elapsed_time_ = 0.0f;
+    hover_timer_ = 0.0f;
+
+    ESP_LOGI(TAG, "Starting command: %d", static_cast<int>(type));
+
+    return true;
+}
+
+// Cancel current command
+// 現在のコマンドをキャンセル
+void FlightCommandService::cancel() {
+    if (isRunning()) {
+        ESP_LOGI(TAG, "Cancelling command: %d", static_cast<int>(current_command_));
+        state_ = FlightCommandState::IDLE;
+        current_command_ = FlightCommandType::NONE;
+        phase_ = ExecutionPhase::INIT;
+
+        // Send zero throttle to stop
+        // ゼロスロットルで停止
+        sendControlInput(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+}
+
+// Update command execution (called from control task at 400Hz)
+// 定期更新（制御タスクから400Hzで呼ばれる）
+void FlightCommandService::update(float dt) {
+    if (!isRunning()) {
+        return;
+    }
+
+    elapsed_time_ += dt;
+
+    // Get current altitude
+    // 現在の高度を取得
+    float current_altitude = getCurrentAltitude();
+
+    // Command-specific state machine
+    // コマンド固有の状態マシン
+    switch (current_command_) {
+        case FlightCommandType::JUMP:
+            updateJumpCommand(dt, current_altitude);
+            break;
+
+        case FlightCommandType::TAKEOFF:
+            updateTakeoffCommand(dt, current_altitude);
+            break;
+
+        case FlightCommandType::LAND:
+            updateLandCommand(dt, current_altitude);
+            break;
+
+        case FlightCommandType::HOVER:
+            updateHoverCommand(dt, current_altitude);
+            break;
+
+        default:
+            // Unknown command, fail
+            // 未知のコマンド、失敗
+            ESP_LOGW(TAG, "Unknown command type: %d", static_cast<int>(current_command_));
+            state_ = FlightCommandState::FAILED;
+            break;
+    }
+
+    // Safety timeout - fail if command takes too long
+    // 安全タイムアウト - コマンドが長時間かかる場合は失敗
+    const float MAX_COMMAND_TIME = 30.0f;  // 30 seconds
+    if (elapsed_time_ > MAX_COMMAND_TIME) {
+        ESP_LOGW(TAG, "Command timeout after %.1f seconds", elapsed_time_);
+        state_ = FlightCommandState::FAILED;
+        sendControlInput(0.0f, 0.0f, 0.0f, 0.0f);  // Stop motors
+    }
+}
+
+// Check if command can be executed
+// 実行可能かチェック
+bool FlightCommandService::canExecute() const {
+    // Check landing status
+    // 着陸状態をチェック
+    if (!globals::g_landing_handler.isLanded()) {
+        ESP_LOGW(TAG, "Cannot execute: vehicle not landed");
+        return false;
+    }
+
+    // Check calibration status
+    // キャリブレーション状態をチェック
+    if (!globals::g_landing_handler.canArm()) {
+        ESP_LOGW(TAG, "Cannot execute: calibration not completed");
+        return false;
+    }
+
+    // TODO: Add battery voltage check
+    // バッテリー電圧チェックを追加
+
+    return true;
+}
+
+// Send control input to ControlArbiter
+// 制御出力を ControlArbiter に送る
+void FlightCommandService::sendControlInput(float throttle, float roll, float pitch, float yaw) {
+    // Send to ControlArbiter via WebSocket source
+    // WebSocketソース経由でControlArbiterに送信
+    auto& arbiter = ControlArbiter::getInstance();
+    arbiter.updateFromWebSocket(throttle, roll, pitch, yaw, 0);
+
+    ESP_LOGD(TAG, "Control input: T=%.2f R=%.2f P=%.2f Y=%.2f", throttle, roll, pitch, yaw);
+}
+
+// Get current altitude estimate
+// 現在の高度推定値を取得
+float FlightCommandService::getCurrentAltitude() const {
+    // Get altitude from sensor fusion (NED frame, so negative = up)
+    // センサーフュージョンから高度を取得（NEDフレームなので負の値が上方向）
+    auto state = globals::g_fusion.getState();
+
+    // Return positive altitude (negate Z in NED frame)
+    // 正の高度を返す（NEDフレームのZを反転）
+    return -state.position.z;
+}
+
+// ============================================================================
+// Command-specific update functions
+// コマンド固有の更新関数
+// ============================================================================
+
+void FlightCommandService::updateJumpCommand(float dt, float current_altitude) {
+    // JUMP command state machine: INIT → CLIMBING → HOVERING → DESCENDING → DONE
+    // JUMPコマンド状態マシン: INIT → CLIMBING → HOVERING → DESCENDING → DONE
+
+    switch (phase_) {
+        case ExecutionPhase::INIT:
+            // Start climbing
+            // 上昇開始
+            ESP_LOGI(TAG, "JUMP: Starting climb to %.2f m", params_.target_altitude);
+            phase_ = ExecutionPhase::CLIMBING;
+            break;
+
+        case ExecutionPhase::CLIMBING:
+            // Climb until target altitude reached
+            // 目標高度に到達するまで上昇
+            {
+                float altitude_error = params_.target_altitude - current_altitude;
+
+                if (altitude_error < 0.05f) {  // Within 5cm of target
+                    // Reached target, start hovering
+                    // 目標到達、ホバリング開始
+                    ESP_LOGI(TAG, "JUMP: Reached %.2f m, hovering for %.1f s",
+                             current_altitude, params_.duration_s);
+                    phase_ = ExecutionPhase::HOVERING;
+                    hover_timer_ = 0.0f;
+                } else {
+                    // Continue climbing with throttle based on climb rate
+                    // 上昇速度に基づいたスロットルで上昇継続
+                    // Simple proportional control: higher throttle for larger error
+                    // シンプルな比例制御：誤差が大きいほど高いスロットル
+                    float throttle = 0.55f + (altitude_error * 0.2f);
+                    throttle = constrain(throttle, 0.5f, 0.75f);  // Limit range
+
+                    sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
+                }
+            }
+            break;
+
+        case ExecutionPhase::HOVERING:
+            // Hover at target altitude for specified duration
+            // 指定時間、目標高度でホバリング
+            hover_timer_ += dt;
+
+            if (hover_timer_ >= params_.duration_s) {
+                // Hover complete, start descending
+                // ホバリング完了、降下開始
+                ESP_LOGI(TAG, "JUMP: Hover complete, descending");
+                phase_ = ExecutionPhase::DESCENDING;
+            } else {
+                // Maintain altitude with proportional control
+                // 比例制御で高度維持
+                float altitude_error = params_.target_altitude - current_altitude;
+                float throttle = 0.5f + (altitude_error * 0.3f);
+                throttle = constrain(throttle, 0.4f, 0.6f);
+
+                sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
+            }
+            break;
+
+        case ExecutionPhase::DESCENDING:
+            // Descend until landed
+            // 着陸するまで降下
+            if (current_altitude < 0.05f) {  // Below 5cm = landed
+                // Landed, command complete
+                // 着陸、コマンド完了
+                ESP_LOGI(TAG, "JUMP: Landed, command complete");
+                phase_ = ExecutionPhase::DONE;
+                sendControlInput(0.0f, 0.0f, 0.0f, 0.0f);  // Stop motors
+            } else {
+                // Continue descending with gentle throttle
+                // 穏やかなスロットルで降下継続
+                float throttle = 0.35f + (current_altitude * 0.05f);
+                throttle = constrain(throttle, 0.25f, 0.45f);
+
+                sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
+            }
+            break;
+
+        case ExecutionPhase::DONE:
+            // Mark command as completed
+            // コマンド完了とマーク
+            state_ = FlightCommandState::COMPLETED;
+            current_command_ = FlightCommandType::NONE;
+            break;
+    }
+}
+
+void FlightCommandService::updateTakeoffCommand(float dt, float current_altitude) {
+    // TAKEOFF: INIT → CLIMBING → DONE
+    switch (phase_) {
+        case ExecutionPhase::INIT:
+            ESP_LOGI(TAG, "TAKEOFF: Starting climb to %.2f m", params_.target_altitude);
+            phase_ = ExecutionPhase::CLIMBING;
+            break;
+
+        case ExecutionPhase::CLIMBING:
+            {
+                float altitude_error = params_.target_altitude - current_altitude;
+                if (altitude_error < 0.05f) {
+                    ESP_LOGI(TAG, "TAKEOFF: Reached %.2f m", current_altitude);
+                    phase_ = ExecutionPhase::DONE;
+                } else {
+                    float throttle = 0.55f + (altitude_error * 0.2f);
+                    throttle = constrain(throttle, 0.5f, 0.75f);
+                    sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
+                }
+            }
+            break;
+
+        case ExecutionPhase::DONE:
+            state_ = FlightCommandState::COMPLETED;
+            current_command_ = FlightCommandType::NONE;
+            // Keep motors running at hover throttle
+            // ホバースロットルでモーター継続
+            sendControlInput(0.5f, 0.0f, 0.0f, 0.0f);
+            break;
+
+        default:
+            break;
+    }
+}
+
+void FlightCommandService::updateLandCommand(float dt, float current_altitude) {
+    // LAND: INIT → DESCENDING → DONE
+    switch (phase_) {
+        case ExecutionPhase::INIT:
+            ESP_LOGI(TAG, "LAND: Starting descent");
+            phase_ = ExecutionPhase::DESCENDING;
+            break;
+
+        case ExecutionPhase::DESCENDING:
+            if (current_altitude < 0.05f) {
+                ESP_LOGI(TAG, "LAND: Landed");
+                phase_ = ExecutionPhase::DONE;
+                sendControlInput(0.0f, 0.0f, 0.0f, 0.0f);
+            } else {
+                float throttle = 0.35f + (current_altitude * 0.05f);
+                throttle = constrain(throttle, 0.25f, 0.45f);
+                sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
+            }
+            break;
+
+        case ExecutionPhase::DONE:
+            state_ = FlightCommandState::COMPLETED;
+            current_command_ = FlightCommandType::NONE;
+            break;
+
+        default:
+            break;
+    }
+}
+
+void FlightCommandService::updateHoverCommand(float dt, float current_altitude) {
+    // HOVER: INIT → HOVERING → DONE
+    switch (phase_) {
+        case ExecutionPhase::INIT:
+            ESP_LOGI(TAG, "HOVER: Hovering at %.2f m for %.1f s",
+                     params_.target_altitude, params_.duration_s);
+            phase_ = ExecutionPhase::HOVERING;
+            hover_timer_ = 0.0f;
+            break;
+
+        case ExecutionPhase::HOVERING:
+            hover_timer_ += dt;
+            if (hover_timer_ >= params_.duration_s) {
+                ESP_LOGI(TAG, "HOVER: Duration complete");
+                phase_ = ExecutionPhase::DONE;
+            } else {
+                float altitude_error = params_.target_altitude - current_altitude;
+                float throttle = 0.5f + (altitude_error * 0.3f);
+                throttle = constrain(throttle, 0.4f, 0.6f);
+                sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
+            }
+            break;
+
+        case ExecutionPhase::DONE:
+            state_ = FlightCommandState::COMPLETED;
+            current_command_ = FlightCommandType::NONE;
+            sendControlInput(0.5f, 0.0f, 0.0f, 0.0f);  // Keep hovering
+            break;
+
+        default:
+            break;
+    }
+}
+
+// Constrain helper function
+// 制約ヘルパー関数
+float FlightCommandService::constrain(float value, float min, float max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+} // namespace stampfly

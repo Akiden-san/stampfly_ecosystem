@@ -8,6 +8,7 @@ idf_component_register(
         "commands/cmd_comm.cpp"
         "commands/cmd_calib.cpp"
         "commands/cmd_misc.cpp"
+        "commands/cmd_flight.cpp"
     INCLUDE_DIRS
         "include"
     REQUIRES
@@ -27,6 +28,7 @@ idf_component_register(
         sf_svc_control_arbiter
         sf_algo_control
         sf_algo_pid
+        sf_svc_flight_command
 )
 
 # main/rate_controller.hpp へのアクセス（コンソールからゲイン調整用）
