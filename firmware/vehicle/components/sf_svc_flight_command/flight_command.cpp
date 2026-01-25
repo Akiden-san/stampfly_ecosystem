@@ -262,8 +262,8 @@ void FlightCommandService::updateJumpCommand(float dt, float current_altitude) {
                     // 上昇速度に基づいたスロットルで上昇継続
                     // Simple proportional control: higher throttle for larger error
                     // シンプルな比例制御：誤差が大きいほど高いスロットル
-                    float throttle = 0.55f + (altitude_error * 0.2f);
-                    throttle = constrain(throttle, 0.5f, 0.75f);  // Limit range
+                    float throttle = 0.65f + (altitude_error * 0.5f);
+                    throttle = constrain(throttle, 0.60f, 0.85f);  // Limit range
 
                     // Debug log every 100 cycles (~250ms @ 400Hz)
                     static int log_counter = 0;
@@ -292,8 +292,8 @@ void FlightCommandService::updateJumpCommand(float dt, float current_altitude) {
                 // Maintain altitude with proportional control
                 // 比例制御で高度維持
                 float altitude_error = params_.target_altitude - current_altitude;
-                float throttle = 0.5f + (altitude_error * 0.3f);
-                throttle = constrain(throttle, 0.4f, 0.6f);
+                float throttle = 0.6f + (altitude_error * 0.5f);
+                throttle = constrain(throttle, 0.50f, 0.75f);
 
                 sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
             }
@@ -342,8 +342,8 @@ void FlightCommandService::updateTakeoffCommand(float dt, float current_altitude
                     ESP_LOGI(TAG, "TAKEOFF: Reached %.2f m", current_altitude);
                     phase_ = ExecutionPhase::DONE;
                 } else {
-                    float throttle = 0.55f + (altitude_error * 0.2f);
-                    throttle = constrain(throttle, 0.5f, 0.75f);
+                    float throttle = 0.65f + (altitude_error * 0.5f);
+                    throttle = constrain(throttle, 0.60f, 0.85f);
                     sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
                 }
             }
@@ -354,7 +354,7 @@ void FlightCommandService::updateTakeoffCommand(float dt, float current_altitude
             current_command_ = FlightCommandType::NONE;
             // Keep motors running at hover throttle
             // ホバースロットルでモーター継続
-            sendControlInput(0.5f, 0.0f, 0.0f, 0.0f);
+            sendControlInput(0.6f, 0.0f, 0.0f, 0.0f);
             break;
 
         default:
@@ -409,8 +409,8 @@ void FlightCommandService::updateHoverCommand(float dt, float current_altitude) 
                 phase_ = ExecutionPhase::DONE;
             } else {
                 float altitude_error = params_.target_altitude - current_altitude;
-                float throttle = 0.5f + (altitude_error * 0.3f);
-                throttle = constrain(throttle, 0.4f, 0.6f);
+                float throttle = 0.6f + (altitude_error * 0.5f);
+                throttle = constrain(throttle, 0.50f, 0.75f);
                 sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
             }
             break;
@@ -418,7 +418,7 @@ void FlightCommandService::updateHoverCommand(float dt, float current_altitude) 
         case ExecutionPhase::DONE:
             state_ = FlightCommandState::COMPLETED;
             current_command_ = FlightCommandType::NONE;
-            sendControlInput(0.5f, 0.0f, 0.0f, 0.0f);  // Keep hovering
+            sendControlInput(0.6f, 0.0f, 0.0f, 0.0f);  // Keep hovering
             break;
 
         default:
