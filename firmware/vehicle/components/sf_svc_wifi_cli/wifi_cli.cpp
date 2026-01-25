@@ -383,6 +383,7 @@ static void wifiCompletionCallback(const char* buf, LineCompletions* lc)
         "trim",
         "gain",
         "comm",
+        "wifi",
         "pair",
         "unpair",
         "calib",

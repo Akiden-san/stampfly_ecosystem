@@ -146,6 +146,7 @@ static int cmd_help(int argc, char** argv)
     console.print("  trim      - Trim adjust [roll|pitch|yaw <val>|save|reset]\r\n");
     console.print("  gain      - Rate control gains [axis param value]\r\n");
     console.print("  comm      - Comm mode [espnow|udp|status]\r\n");
+    console.print("  wifi      - WiFi settings [sta|ap|off|scan|status]\r\n");
     console.print("  pair      - Pairing control [start|stop|channel]\r\n");
     console.print("  unpair    - Clear pairing\r\n");
     console.print("  calib     - Sensor calibration [gyro|accel|status]\r\n");
