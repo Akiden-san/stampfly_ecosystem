@@ -6,27 +6,30 @@ Usage:
     python tools/stampfly_cli.py [--ip IP] COMMAND [ARGS...]
 
 Commands:
-    jump [altitude] [hover_duration]
-    takeoff [altitude]
-    land
-    hover [altitude] [duration]
-    flight status
-    flight cancel
+    jump [altitude]              - Jump to altitude and descend (no hovering)
+    takeoff [altitude]           - Takeoff and hover at altitude
+    land                         - Land gently from current altitude
+    hover [altitude] [duration]  - Hover at altitude for duration
+    flight status                - Show flight command status
+    flight cancel                - Cancel current flight command
 
 Options:
     --ip IP    StampFly IP address (default: 192.168.4.1 for AP mode)
                Use STAMPFLY_IP environment variable or --ip for STA mode
 
 Examples:
-    # AP mode (default)
-    python tools/stampfly_cli.py jump 0.15 0.5
+    # AP mode (default) - Jump to 15cm and descend
+    python tools/stampfly_cli.py jump 0.15
 
     # STA mode (specify IP)
-    python tools/stampfly_cli.py --ip 192.168.1.100 jump 0.15 0.5
+    python tools/stampfly_cli.py --ip 192.168.1.100 jump 0.15
 
     # STA mode (environment variable)
     export STAMPFLY_IP=192.168.1.100
-    python tools/stampfly_cli.py jump 0.15 0.5
+    python tools/stampfly_cli.py takeoff 0.3
+
+    # Hover at 20cm for 2 seconds
+    python tools/stampfly_cli.py hover 0.2 2.0
 """
 
 import socket
@@ -107,26 +110,29 @@ def main():
         print("  python tools/stampfly_cli.py [--ip IP] COMMAND [ARGS...]")
         print("")
         print("Commands:")
-        print("  jump [altitude] [hover_duration]")
-        print("  takeoff [altitude]")
-        print("  land")
-        print("  hover [altitude] [duration]")
-        print("  flight status")
-        print("  flight cancel")
+        print("  jump [altitude]              - Jump to altitude and descend (no hovering)")
+        print("  takeoff [altitude]           - Takeoff and hover at altitude")
+        print("  land                         - Land gently from current altitude")
+        print("  hover [altitude] [duration]  - Hover at altitude for duration")
+        print("  flight status                - Show flight command status")
+        print("  flight cancel                - Cancel current flight command")
         print("")
         print("Options:")
         print("  --ip IP    StampFly IP address (default: 192.168.4.1 for AP mode)")
         print("")
         print("Examples:")
-        print("  # AP mode (default)")
-        print("  python tools/stampfly_cli.py jump 0.15 0.5")
+        print("  # AP mode (default) - Jump to 15cm and descend")
+        print("  python tools/stampfly_cli.py jump 0.15")
         print("")
         print("  # STA mode (specify IP)")
-        print("  python tools/stampfly_cli.py --ip 192.168.1.100 jump 0.15 0.5")
+        print("  python tools/stampfly_cli.py --ip 192.168.1.100 jump 0.15")
         print("")
         print("  # STA mode (environment variable)")
         print("  export STAMPFLY_IP=192.168.1.100")
-        print("  python tools/stampfly_cli.py jump 0.15 0.5")
+        print("  python tools/stampfly_cli.py takeoff 0.3")
+        print("")
+        print("  # Hover at 20cm for 2 seconds")
+        print("  python tools/stampfly_cli.py hover 0.2 2.0")
         sys.exit(1)
 
     # Build command from remaining arguments
