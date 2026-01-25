@@ -308,12 +308,9 @@ void FlightCommandService::updateJumpCommand(float dt, float current_altitude) {
                 phase_ = ExecutionPhase::DONE;
                 sendControlInput(0.0f, 0.0f, 0.0f, 0.0f);  // Stop motors
             } else {
-                // Continue descending with gentle throttle
-                // 穏やかなスロットルで降下継続
-                float throttle = 0.35f + (current_altitude * 0.05f);
-                throttle = constrain(throttle, 0.25f, 0.45f);
-
-                sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
+                // Rapid descent with zero throttle (free fall)
+                // ゼロスロットルで急降下（自由落下）
+                sendControlInput(0.0f, 0.0f, 0.0f, 0.0f);
             }
             break;
 
@@ -375,9 +372,9 @@ void FlightCommandService::updateLandCommand(float dt, float current_altitude) {
                 phase_ = ExecutionPhase::DONE;
                 sendControlInput(0.0f, 0.0f, 0.0f, 0.0f);
             } else {
-                float throttle = 0.35f + (current_altitude * 0.05f);
-                throttle = constrain(throttle, 0.25f, 0.45f);
-                sendControlInput(throttle, 0.0f, 0.0f, 0.0f);
+                // Rapid descent with zero throttle (free fall)
+                // ゼロスロットルで急降下（自由落下）
+                sendControlInput(0.0f, 0.0f, 0.0f, 0.0f);
             }
             break;
 
