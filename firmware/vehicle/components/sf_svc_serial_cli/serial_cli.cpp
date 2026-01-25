@@ -13,11 +13,15 @@
 #include "esp_log.h"
 #include "esp_console.h"
 #include "esp_vfs_dev.h"
+#include "esp_vfs_cdcacm.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 #include <cstdio>
 #include <cstring>
+#include <cerrno>
+#include <unistd.h>
+#include <fcntl.h>
 
 static const char* TAG = "SerialCLI";
 
@@ -33,19 +37,32 @@ namespace stampfly {
  * @return Byte read, or -1 on error/disconnect
  *
  * stdinから1バイト読み取り
+ *
+ * Uses read() instead of getchar() to ensure blocking behavior on USB CDC.
+ * USB CDCではgetchar()がノンブロッキングのため、read()を使用してブロッキング動作を保証。
  */
 static int stdio_read_byte(void* ctx)
 {
     (void)ctx;  // Unused
 
-    int c = getchar();
-    if (c == EOF) {
-        // USB CDC may temporarily disconnect
-        // USB CDCが一時的に切断される可能性がある
+    uint8_t c;
+    ssize_t ret = read(STDIN_FILENO, &c, 1);
+
+    if (ret == 1) {
+        return static_cast<int>(c);
+    } else if (ret == 0) {
+        // EOF (shouldn't happen with blocking read)
+        ESP_LOGW(TAG, "read() returned 0 (EOF)");
+        vTaskDelay(pdMS_TO_TICKS(100));
+        return -1;
+    } else {
+        // Error
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            ESP_LOGE(TAG, "read() error: %d (%s)", errno, strerror(errno));
+        }
         vTaskDelay(pdMS_TO_TICKS(10));
         return -1;
     }
-    return c;
 }
 
 /**
@@ -56,6 +73,9 @@ static int stdio_read_byte(void* ctx)
  * @return Number of bytes written
  *
  * stdoutにデータを書き込む
+ *
+ * Uses write() instead of fwrite() for consistency with read().
+ * 一貫性のためfwrite()ではなくwrite()を使用。
  */
 static int stdio_write_data(void* ctx, const void* data, size_t len)
 {
@@ -65,8 +85,16 @@ static int stdio_write_data(void* ctx, const void* data, size_t len)
         return 0;
     }
 
-    size_t written = fwrite(data, 1, len, stdout);
-    fflush(stdout);
+    ssize_t written = write(STDOUT_FILENO, data, len);
+    if (written < 0) {
+        ESP_LOGE(TAG, "write() error: %d (%s)", errno, strerror(errno));
+        return 0;
+    }
+
+    // Flush stdout to ensure data is sent immediately
+    // stdoutをフラッシュしてデータを即座に送信
+    fsync(STDOUT_FILENO);
+
     return static_cast<int>(written);
 }
 
@@ -143,10 +171,36 @@ int SerialCLI::init()
 
     ESP_LOGI(TAG, "Initializing Serial CLI");
 
+    // USB CDC VFS is already registered by ESP-IDF during boot (CONFIG_ESP_CONSOLE_USB_CDC=y)
+    // ESP-IDFが起動時に既にUSB CDC VFSを登録済み（CONFIG_ESP_CONSOLE_USB_CDC=y）
+    // Do NOT call esp_vfs_dev_cdcacm_register() again to avoid conflicts
+    // 競合を避けるため、esp_vfs_dev_cdcacm_register()を再度呼ばない
+
     // Disable buffering on stdin/stdout for immediate character reception
     // stdin/stdoutのバッファリングを無効化（文字を即座に受信）
     setvbuf(stdin, nullptr, _IONBF, 0);
     setvbuf(stdout, nullptr, _IONBF, 0);
+
+    ESP_LOGI(TAG, "stdin/stdout buffering disabled");
+
+    // Set stdin to blocking mode (remove O_NONBLOCK flag)
+    // stdinをブロッキングモードに設定（O_NONBLOCKフラグを削除）
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    ESP_LOGI(TAG, "stdin flags before: 0x%x (O_NONBLOCK=%s)", flags,
+             (flags & O_NONBLOCK) ? "YES" : "NO");
+
+    if (flags & O_NONBLOCK) {
+        flags &= ~O_NONBLOCK;
+        if (fcntl(STDIN_FILENO, F_SETFL, flags) < 0) {
+            ESP_LOGE(TAG, "Failed to set stdin to blocking mode");
+        } else {
+            ESP_LOGI(TAG, "stdin set to blocking mode");
+        }
+    }
+
+    flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    ESP_LOGI(TAG, "stdin flags after: 0x%x (O_NONBLOCK=%s)", flags,
+             (flags & O_NONBLOCK) ? "YES" : "NO");
 
     // Initialize ESP-IDF console (for command registration)
     // ESP-IDFコンソールを初期化（コマンド登録用）
@@ -180,6 +234,10 @@ void SerialCLI::run()
 
     ESP_LOGI(TAG, "Starting Serial CLI");
 
+    // Wait for other tasks to finish initialization logging
+    // 他のタスクの初期化ログが出力されるのを待つ
+    vTaskDelay(pdMS_TO_TICKS(500));
+
     // Create LineEditor with stdio I/O callbacks
     // stdioI/Oコールバックを使用してLineEditorを作成
     LineEditorIO io = {
@@ -211,6 +269,7 @@ void SerialCLI::run()
 
     // REPL loop
     // REPLループ
+    int null_count = 0;
     while (true) {
         // Get line using LineEditor (handles history, editing, completion)
         // LineEditorを使って行を取得（履歴、編集、補完を処理）
@@ -219,9 +278,14 @@ void SerialCLI::run()
         if (line == nullptr) {
             // Error or disconnect
             // エラーまたは切断
-            vTaskDelay(pdMS_TO_TICKS(10));
+            null_count++;
+            if (null_count == 1 || (null_count % 100 == 0)) {
+                ESP_LOGW(TAG, "getLine() returned nullptr (count: %d)", null_count);
+            }
+            vTaskDelay(pdMS_TO_TICKS(100));  // Longer delay to prevent flooding
             continue;
         }
+        null_count = 0;
 
         // Skip empty lines
         // 空行をスキップ
