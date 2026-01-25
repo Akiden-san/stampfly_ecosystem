@@ -83,11 +83,6 @@ bool FlightCommandService::executeCommand(FlightCommandType type, const FlightCo
         ESP_LOGI(TAG, "Auto-ARMed for WiFi command");
     }
 
-    // Reset position/velocity for clean altitude control
-    // 高度制御のために位置・速度をリセット
-    globals::g_fusion.resetPositionVelocity();
-    ESP_LOGI(TAG, "Reset SensorFusion position/velocity for WiFi command");
-
     // Save command and parameters
     // コマンドとパラメータを保存
     current_command_ = type;

@@ -199,7 +199,19 @@ void IMUTask(void* pvParameters)
 
                         // 接地状態の更新（連続条件付きヒステリシス）
                         bool prev_grounded = is_grounded;
-                        if (tof_bottom_now < eskf::LANDING_ALT_THRESHOLD) {
+
+                        // ARM状態（モーター制御可能）の時は強制的に離陸状態とする
+                        // WiFiコマンド実行中の位置更新を許可
+                        stampfly::FlightState current_flight_state = state.getFlightState();
+                        bool is_armed = (current_flight_state == stampfly::FlightState::ARMED ||
+                                         current_flight_state == stampfly::FlightState::FLYING);
+
+                        if (is_armed) {
+                            // ARM中は強制的に離陸状態（位置更新を許可）
+                            is_grounded = false;
+                            landing_counter = 0;
+                            takeoff_counter = GROUNDED_TRANSITION_COUNT;  // 離陸済みとマーク
+                        } else if (tof_bottom_now < eskf::LANDING_ALT_THRESHOLD) {
                             landing_counter++;
                             takeoff_counter = 0;
                             if (landing_counter >= GROUNDED_TRANSITION_COUNT) {
