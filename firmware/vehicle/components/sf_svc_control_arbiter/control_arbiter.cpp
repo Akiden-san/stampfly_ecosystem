@@ -131,26 +131,30 @@ bool ControlArbiter::getActiveControl(ControlInput& input) const {
         // 通信モードに基づいて入力を取得
         const ControlInput* active_input = nullptr;
 
-        switch (comm_mode_) {
-            case CommMode::ESPNOW:
-                if (espnow_input_.source == ControlSource::ESPNOW &&
-                    (now - espnow_input_.timestamp_ms) < timeout_ms_) {
-                    active_input = &espnow_input_;
-                }
-                break;
+        // WebSocket has highest priority (WiFi CLI commands, always active)
+        // WebSocketは最高優先度（WiFi CLIコマンド、常にアクティブ）
+        if (ws_input_.source == ControlSource::WEBSOCKET &&
+            (now - ws_input_.timestamp_ms) < timeout_ms_) {
+            active_input = &ws_input_;
+        }
+        // Otherwise, use communication mode
+        // それ以外は通信モードに従う
+        else {
+            switch (comm_mode_) {
+                case CommMode::ESPNOW:
+                    if (espnow_input_.source == ControlSource::ESPNOW &&
+                        (now - espnow_input_.timestamp_ms) < timeout_ms_) {
+                        active_input = &espnow_input_;
+                    }
+                    break;
 
-            case CommMode::UDP:
-                if (udp_input_.source == ControlSource::UDP &&
-                    (now - udp_input_.timestamp_ms) < timeout_ms_) {
-                    active_input = &udp_input_;
-                }
-                // WebSocket can also be active in UDP mode (for GCS control)
-                // UDPモードでもWebSocketはアクティブ可（GCS制御用）
-                else if (ws_input_.source == ControlSource::WEBSOCKET &&
-                         (now - ws_input_.timestamp_ms) < timeout_ms_) {
-                    active_input = &ws_input_;
-                }
-                break;
+                case CommMode::UDP:
+                    if (udp_input_.source == ControlSource::UDP &&
+                        (now - udp_input_.timestamp_ms) < timeout_ms_) {
+                        active_input = &udp_input_;
+                    }
+                    break;
+            }
         }
 
         if (active_input != nullptr) {
@@ -173,23 +177,30 @@ ControlSource ControlArbiter::getActiveSource() const {
     ControlSource source = ControlSource::NONE;
 
     if (xSemaphoreTake(mutex_, pdMS_TO_TICKS(10)) == pdTRUE) {
-        switch (comm_mode_) {
-            case CommMode::ESPNOW:
-                if (espnow_input_.source == ControlSource::ESPNOW &&
-                    (now - espnow_input_.timestamp_ms) < timeout_ms_) {
-                    source = ControlSource::ESPNOW;
-                }
-                break;
+        // WebSocket has highest priority (always active)
+        // WebSocketは最高優先度（常にアクティブ）
+        if (ws_input_.source == ControlSource::WEBSOCKET &&
+            (now - ws_input_.timestamp_ms) < timeout_ms_) {
+            source = ControlSource::WEBSOCKET;
+        }
+        // Otherwise, use communication mode
+        // それ以外は通信モードに従う
+        else {
+            switch (comm_mode_) {
+                case CommMode::ESPNOW:
+                    if (espnow_input_.source == ControlSource::ESPNOW &&
+                        (now - espnow_input_.timestamp_ms) < timeout_ms_) {
+                        source = ControlSource::ESPNOW;
+                    }
+                    break;
 
-            case CommMode::UDP:
-                if (udp_input_.source == ControlSource::UDP &&
-                    (now - udp_input_.timestamp_ms) < timeout_ms_) {
-                    source = ControlSource::UDP;
-                } else if (ws_input_.source == ControlSource::WEBSOCKET &&
-                           (now - ws_input_.timestamp_ms) < timeout_ms_) {
-                    source = ControlSource::WEBSOCKET;
-                }
-                break;
+                case CommMode::UDP:
+                    if (udp_input_.source == ControlSource::UDP &&
+                        (now - udp_input_.timestamp_ms) < timeout_ms_) {
+                        source = ControlSource::UDP;
+                    }
+                    break;
+            }
         }
         xSemaphoreGive(mutex_);
     }
@@ -210,19 +221,24 @@ uint32_t ControlArbiter::getTimeSinceLastInput() const {
     uint32_t min_time = UINT32_MAX;
 
     if (xSemaphoreTake(mutex_, pdMS_TO_TICKS(10)) == pdTRUE) {
+        // WebSocket is always checked (highest priority)
+        // WebSocketは常にチェック（最高優先度）
+        if (ws_input_.source == ControlSource::WEBSOCKET) {
+            min_time = std::min(min_time, now - ws_input_.timestamp_ms);
+        }
+
+        // Also check communication mode sources
+        // 通信モードのソースもチェック
         switch (comm_mode_) {
             case CommMode::ESPNOW:
                 if (espnow_input_.source == ControlSource::ESPNOW) {
-                    min_time = now - espnow_input_.timestamp_ms;
+                    min_time = std::min(min_time, now - espnow_input_.timestamp_ms);
                 }
                 break;
 
             case CommMode::UDP:
                 if (udp_input_.source == ControlSource::UDP) {
                     min_time = std::min(min_time, now - udp_input_.timestamp_ms);
-                }
-                if (ws_input_.source == ControlSource::WEBSOCKET) {
-                    min_time = std::min(min_time, now - ws_input_.timestamp_ms);
                 }
                 break;
         }
@@ -259,11 +275,19 @@ uint32_t ControlArbiter::getCurrentTimeMs() {
 }
 
 bool ControlArbiter::isSourceAllowed(ControlSource source) const {
+    // WebSocket is always allowed (WiFi CLI commands)
+    // WebSocketは常に許可（WiFi CLIコマンド）
+    if (source == ControlSource::WEBSOCKET) {
+        return true;
+    }
+
+    // Other sources depend on communication mode
+    // その他のソースは通信モードに依存
     switch (comm_mode_) {
         case CommMode::ESPNOW:
             return source == ControlSource::ESPNOW;
         case CommMode::UDP:
-            return source == ControlSource::UDP || source == ControlSource::WEBSOCKET;
+            return source == ControlSource::UDP;
         default:
             return false;
     }
