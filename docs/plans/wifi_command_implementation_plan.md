@@ -20,7 +20,7 @@
 - ✅ Hooksジョークアプリ（git commit時に自動ジャンプ 🎉）
   - Claude Code PostToolUse hooks（`.claude/settings.local.json`）
   - git post-commitフックも利用可能（`.git/hooks/post-commit`）
-- ✅ 実機テスト・デバッグ完了
+- ✅ 実機テスト・デバッグ完了（プッシュ後も動作確認済み）
 - ✅ Jump仕様変更対応（ホバリングフェーズ削除）完了 (2026-01-26)
 - ✅ 状態リセット問題修正（連続コマンド実行時の競合解消）(2026-01-26)
 
