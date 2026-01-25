@@ -185,9 +185,10 @@ bool FlightCommandService::canExecute() const {
     // Check calibration status
     // キャリブレーション状態をチェック
     if (!globals::g_landing_handler.canArm()) {
-        ESP_LOGW(TAG, "Warning: calibration not completed (allowing for WiFi commands)");
-        // Don't block - allow WiFi commands even without calibration
-        // WiFiコマンドのために許可（キャリブレーションなしでも実行可能）
+        ESP_LOGW(TAG, "Calibration not completed - command rejected");
+        // Block execution - calibration is required for safe flight
+        // キャリブレーション必須（安全な飛行のため）
+        return false;
     }
 
     // TODO: Add battery voltage check

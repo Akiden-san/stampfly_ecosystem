@@ -18,7 +18,7 @@ static int cmd_jump(int argc, char** argv) {
     auto& flight = FlightCommandService::getInstance();
 
     if (!flight.canExecute()) {
-        console.print("Error: Cannot execute. Check landing/calibration status.\r\n");
+        console.print("Error: Calibration not completed. Wait for green LED before flight.\r\n");
         return 1;
     }
 
@@ -59,7 +59,7 @@ static int cmd_takeoff(int argc, char** argv) {
     auto& flight = FlightCommandService::getInstance();
 
     if (!flight.canExecute()) {
-        console.print("Error: Cannot execute. Check landing/calibration status.\r\n");
+        console.print("Error: Calibration not completed. Wait for green LED before flight.\r\n");
         return 1;
     }
 
