@@ -318,6 +318,13 @@ esp_err_t ControllerComm::setChannel(int channel, bool save_to_nvs)
         return ESP_ERR_INVALID_ARG;
     }
 
+    // STA接続中の警告
+    // Warn if STA is connected - channel change may affect AP
+    if (sta_connected_) {
+        ESP_LOGW(TAG, "STA is connected - channel change may disconnect AP");
+        ESP_LOGW(TAG, "STA will override this channel when reconnected");
+    }
+
     ESP_LOGI(TAG, "Setting WiFi channel to %d", channel);
 
     esp_err_t ret = esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
