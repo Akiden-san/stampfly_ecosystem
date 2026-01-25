@@ -1,5 +1,23 @@
 # StampFly WiFi STA+APモード共存実装計画
 
+## 実装ステータス
+
+**✅ 実装完了 (2026-01-25)**
+
+| Phase | ステータス | コミット |
+|-------|----------|---------|
+| Phase 1: STA基盤 | ✅ 完了 | 5dce7df, 9f2aefa |
+| Phase 2: CLIコマンド | ✅ 完了 | 0928969 |
+| Phase 3: 警告とエラーハンドリング | ✅ 完了 | 8c15f92 |
+| ドキュメント整備 | ✅ 完了 | 3e861e2 |
+| 実機テスト | ✅ 完了 | - |
+
+**成果物:**
+- `controller_comm.hpp/cpp` - Multi-AP対応WiFi STA実装
+- `cmd_comm.cpp` - `wifi sta` CLIコマンド（6つのサブコマンド）
+- `docs/wifi-sta-setup.md` - ユーザー向けセットアップガイド
+- `docs/plans/WIFI_COMM_PLAN.md` - Phase 3追加
+
 ## 概要
 
 StampFlyドローンにWiFi STAモードを追加し、既存のAPモードと共存させる。これにより、WiFiルーター経由でのROS2開発、インターネットアクセス、複数ドローン群制御、デバッグの利便性向上を実現する。
