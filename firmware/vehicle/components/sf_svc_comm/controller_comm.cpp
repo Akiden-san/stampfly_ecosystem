@@ -26,6 +26,12 @@ static constexpr const char* NVS_NAMESPACE = "stampfly";
 static constexpr const char* NVS_KEY_PAIRING = "ctrl_mac";
 static constexpr const char* NVS_KEY_CHANNEL = "wifi_ch";
 
+// WiFi STA NVS keys (multi-AP support)
+static constexpr const char* NVS_KEY_STA_COUNT = "sta_count";      // u8
+static constexpr const char* NVS_KEY_STA_AUTO  = "sta_auto";       // u8
+static constexpr const char* NVS_KEY_STA_SSID_FMT = "sta_%d_ssid"; // string (index 0-4)
+static constexpr const char* NVS_KEY_STA_PASS_FMT = "sta_%d_pass"; // string (index 0-4)
+
 // Global instance pointer for callback access
 static ControllerComm* s_instance = nullptr;
 
@@ -77,6 +83,40 @@ static void espnow_send_cb(const esp_now_send_info_t* send_info, esp_now_send_st
     }
 }
 
+// WiFi event handler for STA mode
+// WiFi STAモード用イベントハンドラ
+static void wifi_event_handler(void* arg, esp_event_base_t event_base,
+                               int32_t event_id, void* event_data)
+{
+    ControllerComm* self = static_cast<ControllerComm*>(arg);
+
+    switch (event_id) {
+        case WIFI_EVENT_STA_START:
+            ESP_LOGI(TAG, "STA started");
+            break;
+
+        case WIFI_EVENT_STA_CONNECTED:
+            self->onSTAConnected(event_data);
+            break;
+
+        case WIFI_EVENT_STA_DISCONNECTED:
+            self->onSTADisconnected(event_data);
+            break;
+    }
+}
+
+// IP event handler for STA mode
+// WiFi STAモード用IPイベントハンドラ
+static void ip_event_handler(void* arg, esp_event_base_t event_base,
+                             int32_t event_id, void* event_data)
+{
+    ControllerComm* self = static_cast<ControllerComm*>(arg);
+
+    if (event_id == IP_EVENT_STA_GOT_IP) {
+        self->onSTAGotIP(event_data);
+    }
+}
+
 esp_err_t ControllerComm::init(const Config& config)
 {
     if (initialized_) {
@@ -89,6 +129,10 @@ esp_err_t ControllerComm::init(const Config& config)
     config_ = config;
     s_instance = this;
 
+    // ネットワークインターフェース作成（STAモード用）
+    // Create network interface for STA mode
+    sta_netif_ = esp_netif_create_default_wifi_sta();
+
     // ネットワークインターフェース作成（APモード用）
     esp_netif_create_default_wifi_ap();
 
@@ -99,6 +143,29 @@ esp_err_t ControllerComm::init(const Config& config)
         ESP_LOGE(TAG, "Failed to init WiFi: %s", esp_err_to_name(ret));
         return ret;
     }
+
+    // WiFi/IPイベントハンドラ登録
+    // Register WiFi/IP event handlers
+    esp_event_handler_instance_t wifi_handler;
+    esp_event_handler_instance_t ip_handler;
+
+    ret = esp_event_handler_instance_register(
+        WIFI_EVENT, ESP_EVENT_ANY_ID,
+        &wifi_event_handler, this, &wifi_handler);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register WiFi event handler: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    wifi_event_handler_ = wifi_handler;
+
+    ret = esp_event_handler_instance_register(
+        IP_EVENT, IP_EVENT_STA_GOT_IP,
+        &ip_event_handler, this, &ip_handler);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register IP event handler: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    ip_event_handler_ = ip_handler;
 
     ret = esp_wifi_set_mode(WIFI_MODE_APSTA);
     if (ret != ESP_OK) {
@@ -132,6 +199,21 @@ esp_err_t ControllerComm::init(const Config& config)
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set WiFi channel: %s", esp_err_to_name(ret));
         return ret;
+    }
+
+    // STA設定リスト読み込み（NVSから）
+    // Load STA configuration list from NVS
+    loadSTAConfigsFromNVS();
+
+    // 自動接続フラグ読み込み（デフォルトON）
+    // Load auto-connect flag (default: ON)
+    sta_auto_connect_ = loadSTAAutoConnectFromNVS();
+
+    // 自動接続有効かつSTA設定済みなら接続試行
+    // Auto-connect if enabled and STA configured
+    if (sta_auto_connect_ && sta_config_count_ > 0) {
+        ESP_LOGI(TAG, "Auto-connecting to STA (%d APs configured)...", sta_config_count_);
+        connectSTA();  // 優先順位順に自動接続 / Auto-connect in priority order
     }
 
     // ESP-NOW初期化

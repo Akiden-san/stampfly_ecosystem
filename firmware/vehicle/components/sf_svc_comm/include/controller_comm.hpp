@@ -206,6 +206,12 @@ public:
     void onControlPacketReceived(const ControlPacket& packet, const uint8_t* mac);
     void onPairingComplete(const uint8_t* mac);
 
+    // Internal callbacks (called from static WiFi/IP event handlers)
+    // WiFi/IPイベントハンドラから呼び出される内部コールバック
+    void onSTAConnected(void* event_data);
+    void onSTADisconnected(void* event_data);
+    void onSTAGotIP(void* event_data);
+
     /**
      * @brief Send pairing packet (called periodically during pairing mode)
      */
@@ -215,6 +221,144 @@ public:
      * @brief Check if pairing broadcast is active
      */
     bool isPairingBroadcastActive() const { return pairing_broadcast_active_; }
+
+    // WiFi STA (Station mode) management for multi-AP support
+    // WiFi STAモード管理（複数AP対応）
+
+    /**
+     * @brief STA configuration structure
+     * STA設定構造体
+     */
+    struct STAConfig {
+        char ssid[32];
+        char password[64];
+        bool is_valid;
+    };
+
+    /**
+     * @brief Add STA configuration to the list
+     * STA設定をリストに追加
+     * @param ssid SSID
+     * @param password Password
+     * @return ESP_OK on success, ESP_ERR_NO_MEM if list is full
+     */
+    esp_err_t addSTAConfig(const char* ssid, const char* password);
+
+    /**
+     * @brief Remove STA configuration by index
+     * インデックスでSTA設定を削除
+     * @param index Index (0-4)
+     * @return ESP_OK on success
+     */
+    esp_err_t removeSTAConfig(int index);
+
+    /**
+     * @brief Remove STA configuration by SSID
+     * SSIDでSTA設定を削除
+     * @param ssid SSID
+     * @return ESP_OK on success, ESP_ERR_NOT_FOUND if not found
+     */
+    esp_err_t removeSTAConfig(const char* ssid);
+
+    /**
+     * @brief Get number of saved STA configurations
+     * 保存されているSTA設定数を取得
+     * @return Number of configurations
+     */
+    int getSTAConfigCount() const { return sta_config_count_; }
+
+    /**
+     * @brief Get STA configuration by index
+     * インデックスでSTA設定を取得
+     * @param index Index (0-4)
+     * @return Pointer to configuration, or nullptr if invalid
+     */
+    const STAConfig* getSTAConfig(int index) const;
+
+    /**
+     * @brief Connect to WiFi AP (auto-priority)
+     * WiFi APに接続（優先順位順に自動試行）
+     * @return ESP_OK on success
+     */
+    esp_err_t connectSTA();
+
+    /**
+     * @brief Connect to WiFi AP by index
+     * インデックス指定でWiFi APに接続
+     * @param index Index (0-4)
+     * @return ESP_OK on success
+     */
+    esp_err_t connectSTA(int index);
+
+    /**
+     * @brief Disconnect from WiFi AP
+     * WiFi APから切断
+     * @return ESP_OK on success
+     */
+    esp_err_t disconnectSTA();
+
+    /**
+     * @brief Check if connected to WiFi AP
+     * WiFi APに接続しているか確認
+     * @return true if connected
+     */
+    bool isSTAConnected() const { return sta_connected_; }
+
+    /**
+     * @brief Get STA IP address
+     * STA IPアドレスを取得
+     * @return IP address string
+     */
+    const char* getSTAIPAddress() const { return sta_ip_addr_; }
+
+    /**
+     * @brief Get currently connected AP index
+     * 現在接続中のAP indexを取得
+     * @return Index, or -1 if not connected
+     */
+    int getCurrentSTAIndex() const { return current_sta_index_; }
+
+    /**
+     * @brief Get currently connected AP SSID
+     * 現在接続中のAP SSIDを取得
+     * @return SSID, or nullptr if not connected
+     */
+    const char* getCurrentSTASSID() const;
+
+    /**
+     * @brief Set auto-connect on boot
+     * 起動時の自動接続を設定
+     * @param enable true to enable
+     */
+    void setSTAAutoConnect(bool enable) { sta_auto_connect_ = enable; }
+
+    /**
+     * @brief Check if auto-connect is enabled
+     * 自動接続が有効か確認
+     * @return true if enabled
+     */
+    bool isSTAAutoConnect() const { return sta_auto_connect_; }
+
+    /**
+     * @brief Save STA configurations to NVS
+     * STA設定をNVSに保存
+     * @return ESP_OK on success
+     */
+    esp_err_t saveSTAConfigsToNVS();
+
+    /**
+     * @brief Load STA configurations from NVS
+     * STA設定をNVSから読み込み
+     * @return ESP_OK on success
+     */
+    esp_err_t loadSTAConfigsFromNVS();
+
+    /**
+     * @brief Load auto-connect flag from NVS
+     * 自動接続フラグをNVSから読み込み
+     * @return true if auto-connect enabled (default: true)
+     */
+    bool loadSTAAutoConnectFromNVS();
 
 private:
     void addControllerPeer();
@@ -229,6 +373,29 @@ private:
     uint8_t controller_mac_[6] = {0};
     uint8_t telemetry_sequence_ = 0;
     uint32_t last_recv_time_ = 0;
+
+    // WiFi STA mode members
+    // WiFi STAモードのメンバー変数
+    static constexpr int MAX_STA_CONFIGS = 5;  // Maximum 5 AP configurations / 最大5個のAP設定
+
+    STAConfig sta_configs_[MAX_STA_CONFIGS] = {};
+    int sta_config_count_ = 0;
+    int current_sta_index_ = -1;  // Currently connected AP index (-1: not connected)
+
+    bool sta_auto_connect_ = true;  // Auto-connect on boot (default: ON)
+    bool sta_connected_ = false;
+    char sta_ip_addr_[16] = {0};
+
+    // Connection attempt management
+    // 接続試行管理
+    int connection_attempt_index_ = 0;  // Next AP index to try
+    bool is_connecting_ = false;
+
+    // Event handlers
+    // イベントハンドラ
+    void* sta_netif_ = nullptr;  // esp_netif_t* (void* to avoid header dependency)
+    void* wifi_event_handler_ = nullptr;  // esp_event_handler_instance_t*
+    void* ip_event_handler_ = nullptr;    // esp_event_handler_instance_t*
 };
 
 }  // namespace stampfly
