@@ -186,11 +186,27 @@ static int cmd_wifi(int argc, char** argv)
         // Show usage
         console.print("WiFi Configuration:\r\n");
         if (g_comm_ptr != nullptr) {
+            console.print("  Mode: AP+STA\r\n");
             console.print("  Channel: %d\r\n", g_comm_ptr->getChannel());
+            console.print("  AP SSID: StampFly\r\n");
+            console.print("  AP IP: 192.168.4.1\r\n");
+            console.print("  STA Status: %s\r\n",
+                         g_comm_ptr->isSTAConnected() ? "Connected" : "Disconnected");
+            if (g_comm_ptr->isSTAConnected()) {
+                console.print("  STA IP: %s\r\n", g_comm_ptr->getSTAIPAddress());
+                console.print("  Connected to: %s\r\n", g_comm_ptr->getCurrentSTASSID());
+            }
+            console.print("  Saved APs: %d\r\n", g_comm_ptr->getSTAConfigCount());
         }
         console.print("\r\nUsage:\r\n");
-        console.print("  wifi channel [1-13] - Get/set WiFi channel\r\n");
-        console.print("  wifi status         - Show WiFi status\r\n");
+        console.print("  wifi status              - Show WiFi status\r\n");
+        console.print("  wifi channel [1-13]      - Get/set WiFi channel\r\n");
+        console.print("  wifi sta list            - List saved APs\r\n");
+        console.print("  wifi sta add <ssid> <password> - Add AP config\r\n");
+        console.print("  wifi sta remove <index>  - Remove AP config\r\n");
+        console.print("  wifi sta connect [index] - Connect to AP (auto or specific)\r\n");
+        console.print("  wifi sta disconnect      - Disconnect from AP\r\n");
+        console.print("  wifi sta auto [on|off]   - Auto-connect on boot\r\n");
         return 0;
     }
 
@@ -258,6 +274,137 @@ static int cmd_wifi(int argc, char** argv)
         if (esp_wifi_get_mac(WIFI_IF_STA, mac) == ESP_OK) {
             console.print("STA MAC: %02X:%02X:%02X:%02X:%02X:%02X\r\n",
                          mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        }
+
+        // STA status
+        if (g_comm_ptr != nullptr) {
+            console.print("\r\n=== STA Status ===\r\n");
+            console.print("Status: %s\r\n",
+                         g_comm_ptr->isSTAConnected() ? "Connected" : "Disconnected");
+            if (g_comm_ptr->isSTAConnected()) {
+                console.print("IP Address: %s\r\n", g_comm_ptr->getSTAIPAddress());
+                console.print("Connected to: %s\r\n", g_comm_ptr->getCurrentSTASSID());
+            }
+            console.print("Auto-connect: %s\r\n",
+                         g_comm_ptr->isSTAAutoConnect() ? "ON" : "OFF");
+            console.print("Saved APs: %d\r\n", g_comm_ptr->getSTAConfigCount());
+        }
+    } else if (strcmp(cmd, "sta") == 0) {
+        // WiFi STA subcommands
+        if (g_comm_ptr == nullptr) {
+            console.print("ControllerComm not available\r\n");
+            return 1;
+        }
+
+        if (argc < 3) {
+            console.print("Usage: wifi sta <list|add|remove|connect|disconnect|auto>\r\n");
+            return 1;
+        }
+
+        const char* subcmd = argv[2];
+
+        if (strcmp(subcmd, "list") == 0) {
+            // AP設定一覧表示 / List saved APs
+            int count = g_comm_ptr->getSTAConfigCount();
+            if (count == 0) {
+                console.print("No APs configured\r\n");
+                return 0;
+            }
+
+            console.print("Saved APs (priority order):\r\n");
+            for (int i = 0; i < count; i++) {
+                const auto* cfg = g_comm_ptr->getSTAConfig(i);
+                if (cfg) {
+                    console.print("  [%d] %s", i, cfg->ssid);
+                    if (g_comm_ptr->isSTAConnected() && g_comm_ptr->getCurrentSTAIndex() == i) {
+                        console.print(" (connected)");
+                    }
+                    console.print("\r\n");
+                }
+            }
+
+        } else if (strcmp(subcmd, "add") == 0) {
+            // AP設定追加 / Add AP config
+            if (argc < 5) {
+                console.print("Usage: wifi sta add <ssid> <password>\r\n");
+                return 1;
+            }
+
+            const char* ssid = argv[3];
+            const char* password = argv[4];
+
+            esp_err_t ret = g_comm_ptr->addSTAConfig(ssid, password);
+            if (ret == ESP_OK) {
+                ret = g_comm_ptr->saveSTAConfigsToNVS();
+                console.print("Added AP: SSID=%s (priority %d)\r\n",
+                             ssid, g_comm_ptr->getSTAConfigCount());
+            } else if (ret == ESP_ERR_NO_MEM) {
+                console.print("AP list full (max 5)\r\n");
+                return 1;
+            } else if (ret == ESP_ERR_INVALID_STATE) {
+                console.print("AP already exists\r\n");
+                return 1;
+            } else {
+                console.print("Failed to add AP: %s\r\n", esp_err_to_name(ret));
+                return 1;
+            }
+
+        } else if (strcmp(subcmd, "remove") == 0) {
+            // AP設定削除 / Remove AP config
+            if (argc < 4) {
+                console.print("Usage: wifi sta remove <index>\r\n");
+                return 1;
+            }
+
+            int index = atoi(argv[3]);
+            esp_err_t ret = g_comm_ptr->removeSTAConfig(index);
+            if (ret == ESP_OK) {
+                ret = g_comm_ptr->saveSTAConfigsToNVS();
+                console.print("Removed AP #%d\r\n", index);
+            } else {
+                console.print("Failed to remove AP: %s\r\n", esp_err_to_name(ret));
+                return 1;
+            }
+
+        } else if (strcmp(subcmd, "connect") == 0) {
+            // AP接続 / Connect to AP
+            esp_err_t ret;
+            if (argc >= 4) {
+                // 指定indexに接続 / Connect to specific index
+                int index = atoi(argv[3]);
+                ret = g_comm_ptr->connectSTA(index);
+                console.print("Connecting to AP #%d...\r\n", index);
+            } else {
+                // 優先順位順に自動接続 / Auto-connect in priority order
+                ret = g_comm_ptr->connectSTA();
+                console.print("Auto-connecting to saved APs...\r\n");
+            }
+
+            if (ret != ESP_OK) {
+                console.print("Failed to connect: %s\r\n", esp_err_to_name(ret));
+                return 1;
+            }
+
+        } else if (strcmp(subcmd, "disconnect") == 0) {
+            // AP切断 / Disconnect from AP
+            g_comm_ptr->disconnectSTA();
+            console.print("Disconnected from AP\r\n");
+
+        } else if (strcmp(subcmd, "auto") == 0) {
+            // 自動接続設定 / Auto-connect setting
+            if (argc < 4) {
+                console.print("Auto-connect: %s\r\n",
+                             g_comm_ptr->isSTAAutoConnect() ? "ON" : "OFF");
+            } else {
+                bool enable = (strcmp(argv[3], "on") == 0);
+                g_comm_ptr->setSTAAutoConnect(enable);
+                g_comm_ptr->saveSTAConfigsToNVS();
+                console.print("Auto-connect: %s\r\n", enable ? "ON" : "OFF");
+            }
+
+        } else {
+            console.print("Unknown subcommand: %s\r\n", subcmd);
+            return 1;
         }
     } else {
         console.print("Unknown subcommand: %s\r\n", cmd);
