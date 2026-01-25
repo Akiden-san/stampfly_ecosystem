@@ -638,4 +638,311 @@ void ControllerComm::addControllerPeer()
     }
 }
 
+// ============================================================================
+// WiFi STA Mode Implementation (Multi-AP Support)
+// WiFi STAモード実装（複数AP対応）
+// ============================================================================
+
+void ControllerComm::onSTAConnected(void* event_data)
+{
+    wifi_event_sta_connected_t* event = (wifi_event_sta_connected_t*)event_data;
+    ESP_LOGI(TAG, "STA connected to SSID:%s, Channel:%d",
+             event->ssid, event->channel);
+
+    // チャンネル変更を検出・ログ
+    // Detect and log channel change
+    if (event->channel != config_.wifi_channel) {
+        ESP_LOGW(TAG, "Channel changed: %d -> %d (AP follows STA)",
+                 config_.wifi_channel, event->channel);
+        config_.wifi_channel = event->channel;
+    }
+}
+
+void ControllerComm::onSTADisconnected(void* event_data)
+{
+    wifi_event_sta_disconnected_t* event = (wifi_event_sta_disconnected_t*)event_data;
+    const char* ssid = (current_sta_index_ >= 0 && current_sta_index_ < sta_config_count_) ?
+                       sta_configs_[current_sta_index_].ssid : "unknown";
+
+    ESP_LOGW(TAG, "STA disconnected from '%s' (reason:%d)", ssid, event->reason);
+    sta_connected_ = false;
+    is_connecting_ = false;
+
+    // 自動再接続: 次のAPを試行
+    // Auto-reconnect: try next AP
+    if (sta_auto_connect_ && sta_config_count_ > 0) {
+        connection_attempt_index_++;
+        if (connection_attempt_index_ >= sta_config_count_) {
+            connection_attempt_index_ = 0;  // 最初に戻る / Loop back
+            ESP_LOGI(TAG, "All APs tried, retrying from first AP...");
+            vTaskDelay(pdMS_TO_TICKS(5000));  // 5秒待機 / Wait 5 sec
+        }
+        ESP_LOGI(TAG, "Trying next AP (index %d)...", connection_attempt_index_);
+        connectSTA(connection_attempt_index_);
+    }
+}
+
+void ControllerComm::onSTAGotIP(void* event_data)
+{
+    ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
+    const char* ssid = (current_sta_index_ >= 0 && current_sta_index_ < sta_config_count_) ?
+                       sta_configs_[current_sta_index_].ssid : "unknown";
+
+    ESP_LOGI(TAG, "STA got IP: " IPSTR " (connected to '%s')",
+             IP2STR(&event->ip_info.ip), ssid);
+
+    snprintf(sta_ip_addr_, sizeof(sta_ip_addr_),
+             IPSTR, IP2STR(&event->ip_info.ip));
+    sta_connected_ = true;
+    is_connecting_ = false;
+
+    // 接続成功したら、次回の試行は最初のAPから
+    // On success, reset attempt index to start from first AP
+    connection_attempt_index_ = 0;
+}
+
+esp_err_t ControllerComm::addSTAConfig(const char* ssid, const char* password)
+{
+    if (ssid == nullptr || password == nullptr) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (sta_config_count_ >= MAX_STA_CONFIGS) {
+        ESP_LOGE(TAG, "STA config list full (max %d)", MAX_STA_CONFIGS);
+        return ESP_ERR_NO_MEM;
+    }
+
+    // 重複チェック / Check for duplicates
+    for (int i = 0; i < sta_config_count_; i++) {
+        if (strcmp(sta_configs_[i].ssid, ssid) == 0) {
+            ESP_LOGW(TAG, "SSID '%s' already exists at index %d", ssid, i);
+            return ESP_ERR_INVALID_STATE;
+        }
+    }
+
+    // 新しいAPを追加 / Add new AP
+    STAConfig& cfg = sta_configs_[sta_config_count_];
+    strncpy(cfg.ssid, ssid, sizeof(cfg.ssid) - 1);
+    strncpy(cfg.password, password, sizeof(cfg.password) - 1);
+    cfg.is_valid = true;
+
+    sta_config_count_++;
+    ESP_LOGI(TAG, "Added STA config #%d: SSID=%s", sta_config_count_, ssid);
+    return ESP_OK;
+}
+
+esp_err_t ControllerComm::removeSTAConfig(int index)
+{
+    if (index < 0 || index >= sta_config_count_) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // 配列を詰める / Shift array
+    for (int i = index; i < sta_config_count_ - 1; i++) {
+        sta_configs_[i] = sta_configs_[i + 1];
+    }
+    sta_config_count_--;
+
+    // 現在接続中のindexを調整 / Adjust current index
+    if (current_sta_index_ == index) {
+        current_sta_index_ = -1;
+        sta_connected_ = false;
+    } else if (current_sta_index_ > index) {
+        current_sta_index_--;
+    }
+
+    ESP_LOGI(TAG, "Removed STA config #%d", index);
+    return ESP_OK;
+}
+
+esp_err_t ControllerComm::removeSTAConfig(const char* ssid)
+{
+    for (int i = 0; i < sta_config_count_; i++) {
+        if (strcmp(sta_configs_[i].ssid, ssid) == 0) {
+            return removeSTAConfig(i);
+        }
+    }
+    ESP_LOGW(TAG, "SSID '%s' not found", ssid);
+    return ESP_ERR_NOT_FOUND;
+}
+
+const ControllerComm::STAConfig* ControllerComm::getSTAConfig(int index) const
+{
+    if (index < 0 || index >= sta_config_count_) {
+        return nullptr;
+    }
+    return &sta_configs_[index];
+}
+
+const char* ControllerComm::getCurrentSTASSID() const
+{
+    if (current_sta_index_ >= 0 && current_sta_index_ < sta_config_count_) {
+        return sta_configs_[current_sta_index_].ssid;
+    }
+    return nullptr;
+}
+
+esp_err_t ControllerComm::connectSTA()
+{
+    // 優先順位順（index 0から）に接続試行
+    // Try to connect in priority order (from index 0)
+    if (sta_config_count_ == 0) {
+        ESP_LOGE(TAG, "No STA configs available");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    connection_attempt_index_ = 0;
+    return connectSTA(0);
+}
+
+esp_err_t ControllerComm::connectSTA(int index)
+{
+    if (index < 0 || index >= sta_config_count_) {
+        ESP_LOGE(TAG, "Invalid STA config index: %d", index);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (is_connecting_) {
+        ESP_LOGW(TAG, "Already connecting, skipping...");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    const STAConfig& cfg = sta_configs_[index];
+    if (!cfg.is_valid) {
+        ESP_LOGE(TAG, "STA config #%d is invalid", index);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    wifi_config_t sta_config = {};
+    strncpy((char*)sta_config.sta.ssid, cfg.ssid, 32);
+    strncpy((char*)sta_config.sta.password, cfg.password, 64);
+    sta_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
+    esp_err_t ret = esp_wifi_set_config(WIFI_IF_STA, &sta_config);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set STA config: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "Connecting to SSID '%s' (priority %d/%d)...",
+             cfg.ssid, index + 1, sta_config_count_);
+
+    current_sta_index_ = index;
+    connection_attempt_index_ = index;
+    is_connecting_ = true;
+
+    return esp_wifi_connect();
+}
+
+esp_err_t ControllerComm::disconnectSTA()
+{
+    sta_connected_ = false;
+    current_sta_index_ = -1;
+    is_connecting_ = false;
+    return esp_wifi_disconnect();
+}
+
+esp_err_t ControllerComm::saveSTAConfigsToNVS()
+{
+    nvs_handle_t handle;
+    esp_err_t ret = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
+    if (ret != ESP_OK) return ret;
+
+    // AP設定数を保存 / Save AP count
+    nvs_set_u8(handle, NVS_KEY_STA_COUNT, sta_config_count_);
+
+    // 自動接続フラグを保存 / Save auto-connect flag
+    nvs_set_u8(handle, NVS_KEY_STA_AUTO, sta_auto_connect_ ? 1 : 0);
+
+    // 各AP設定を保存 / Save each AP config
+    char key[32];
+    for (int i = 0; i < sta_config_count_; i++) {
+        snprintf(key, sizeof(key), NVS_KEY_STA_SSID_FMT, i);
+        nvs_set_str(handle, key, sta_configs_[i].ssid);
+
+        snprintf(key, sizeof(key), NVS_KEY_STA_PASS_FMT, i);
+        nvs_set_str(handle, key, sta_configs_[i].password);
+    }
+
+    // 削除されたAP設定のキーをクリア / Clear deleted AP config keys
+    for (int i = sta_config_count_; i < MAX_STA_CONFIGS; i++) {
+        snprintf(key, sizeof(key), NVS_KEY_STA_SSID_FMT, i);
+        nvs_erase_key(handle, key);
+
+        snprintf(key, sizeof(key), NVS_KEY_STA_PASS_FMT, i);
+        nvs_erase_key(handle, key);
+    }
+
+    nvs_commit(handle);
+    nvs_close(handle);
+
+    ESP_LOGI(TAG, "Saved %d STA configs to NVS", sta_config_count_);
+    return ESP_OK;
+}
+
+esp_err_t ControllerComm::loadSTAConfigsFromNVS()
+{
+    nvs_handle_t handle;
+    esp_err_t ret = nvs_open(NVS_NAMESPACE, NVS_READONLY, &handle);
+    if (ret != ESP_OK) {
+        ESP_LOGI(TAG, "No STA configs in NVS (first boot)");
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    // AP設定数を読み込み / Load AP count
+    uint8_t count = 0;
+    ret = nvs_get_u8(handle, NVS_KEY_STA_COUNT, &count);
+    if (ret != ESP_OK || count > MAX_STA_CONFIGS) {
+        nvs_close(handle);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    sta_config_count_ = count;
+
+    // 各AP設定を読み込み / Load each AP config
+    char key[32];
+    for (int i = 0; i < sta_config_count_; i++) {
+        size_t len;
+
+        snprintf(key, sizeof(key), NVS_KEY_STA_SSID_FMT, i);
+        len = sizeof(sta_configs_[i].ssid);
+        ret = nvs_get_str(handle, key, sta_configs_[i].ssid, &len);
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to load SSID #%d", i);
+            sta_configs_[i].is_valid = false;
+            continue;
+        }
+
+        snprintf(key, sizeof(key), NVS_KEY_STA_PASS_FMT, i);
+        len = sizeof(sta_configs_[i].password);
+        ret = nvs_get_str(handle, key, sta_configs_[i].password, &len);
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to load password #%d", i);
+            sta_configs_[i].is_valid = false;
+            continue;
+        }
+
+        sta_configs_[i].is_valid = true;
+        ESP_LOGI(TAG, "Loaded STA config #%d: SSID=%s", i, sta_configs_[i].ssid);
+    }
+
+    nvs_close(handle);
+    return ESP_OK;
+}
+
+bool ControllerComm::loadSTAAutoConnectFromNVS()
+{
+    nvs_handle_t handle;
+    esp_err_t ret = nvs_open(NVS_NAMESPACE, NVS_READONLY, &handle);
+    if (ret != ESP_OK) {
+        return true;  // デフォルトON / Default: ON
+    }
+
+    uint8_t auto_conn = 1;  // デフォルトON / Default: ON
+    nvs_get_u8(handle, NVS_KEY_STA_AUTO, &auto_conn);
+    nvs_close(handle);
+
+    return auto_conn == 1;
+}
+
 }  // namespace stampfly
