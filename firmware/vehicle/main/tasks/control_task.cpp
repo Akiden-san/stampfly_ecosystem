@@ -530,6 +530,14 @@ void ControlTask(void* pvParameters)
         float duties[4];
         g_rate_controller.allocator.thrustsToDuties(thrusts, duties);
 
+        // Debug log every 100 cycles (~250ms @ 400Hz) when throttle > 0
+        static int motor_log_counter = 0;
+        if (throttle > 0.01f && ++motor_log_counter >= 100) {
+            ESP_LOGI(TAG, "MOTOR: throttle=%.2f -> total_thrust=%.3fN -> duties[FR=%.2f RR=%.2f RL=%.2f FL=%.2f]",
+                     throttle, total_thrust, duties[0], duties[1], duties[2], duties[3]);
+            motor_log_counter = 0;
+        }
+
         // モータ出力設定
         // Set motor outputs
         g_motor.setMotorDuties(duties);
@@ -540,6 +548,15 @@ void ControlTask(void* pvParameters)
         // X-quad mixer: setMixerOutput handles the motor mixing
         // thrust: 0.0 ~ 1.0
         // roll/pitch/yaw: ±3.7V (already limited by PID output limits)
+
+        // Debug log every 100 cycles (~250ms @ 400Hz) when throttle > 0
+        static int motor_log_counter_legacy = 0;
+        if (throttle > 0.01f && ++motor_log_counter_legacy >= 100) {
+            ESP_LOGI(TAG, "MOTOR (legacy): throttle=%.2f roll=%.2f pitch=%.2f yaw=%.2f",
+                     throttle, roll_out, pitch_out, yaw_out);
+            motor_log_counter_legacy = 0;
+        }
+
         g_motor.setMixerOutput(throttle, roll_out, pitch_out, yaw_out);
 #endif
     }
