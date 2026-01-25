@@ -315,10 +315,12 @@ void FlightCommandService::updateJumpCommand(float dt, float current_altitude) {
             break;
 
         case ExecutionPhase::DONE:
-            // Mark command as completed
-            // コマンド完了とマーク
-            state_ = FlightCommandState::COMPLETED;
+            // Command complete, reset to IDLE
+            // コマンド完了、IDLE状態にリセット
+            ESP_LOGI(TAG, "JUMP: Command complete, returning to IDLE");
+            state_ = FlightCommandState::IDLE;
             current_command_ = FlightCommandType::NONE;
+            phase_ = ExecutionPhase::INIT;
             break;
     }
 }
@@ -381,8 +383,12 @@ void FlightCommandService::updateLandCommand(float dt, float current_altitude) {
             break;
 
         case ExecutionPhase::DONE:
-            state_ = FlightCommandState::COMPLETED;
+            // Command complete, reset to IDLE
+            // コマンド完了、IDLE状態にリセット
+            ESP_LOGI(TAG, "LAND: Command complete, returning to IDLE");
+            state_ = FlightCommandState::IDLE;
             current_command_ = FlightCommandType::NONE;
+            phase_ = ExecutionPhase::INIT;
             break;
 
         default:
