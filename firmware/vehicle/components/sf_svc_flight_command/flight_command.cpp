@@ -251,12 +251,11 @@ void FlightCommandService::updateJumpCommand(float dt, float current_altitude) {
                 float altitude_error = params_.target_altitude - current_altitude;
 
                 if (altitude_error < 0.05f) {  // Within 5cm of target
-                    // Reached target, start hovering
-                    // 目標到達、ホバリング開始
-                    ESP_LOGI(TAG, "JUMP: Reached %.2f m, hovering for %.1f s",
-                             current_altitude, params_.duration_s);
-                    phase_ = ExecutionPhase::HOVERING;
-                    hover_timer_ = 0.0f;
+                    // Reached target, start descending (skip hovering to prevent overshoot)
+                    // 目標到達、降下開始（オーバーシュート防止のためホバリングスキップ）
+                    ESP_LOGI(TAG, "JUMP: Reached %.2f m, starting descent",
+                             current_altitude);
+                    phase_ = ExecutionPhase::DESCENDING;
                 } else {
                     // Continue climbing with throttle based on climb rate
                     // 上昇速度に基づいたスロットルで上昇継続
