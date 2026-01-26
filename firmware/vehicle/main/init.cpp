@@ -42,6 +42,7 @@
 #include "udp_server.hpp"
 #include "wifi_cli.hpp"
 #include "flight_command.hpp"
+#include "command_queue.hpp"
 
 // NVS
 #include "nvs_flash.h"
@@ -261,21 +262,8 @@ esp_err_t actuators()
         }
     }
 
-    // Register LED state callback with SystemStateManager
-    // SystemStateManagerにLED状態コールバックを登録
-    {
-        auto& sys_state = stampfly::SystemStateManager::getInstance();
-        sys_state.subscribeStateChange([](const stampfly::StateTransitionEvent& event) {
-            // Update LED when FlightState changes
-            // FlightState変更時にLEDを更新
-            stampfly::LEDManager::getInstance().onFlightStateChanged(event.to_state);
-            ESP_LOGI("StateCallback", "LED updated for state transition: %d -> %d (%s)",
-                     static_cast<int>(event.from_state),
-                     static_cast<int>(event.to_state),
-                     event.reason ? event.reason : "");
-        });
-        ESP_LOGI(TAG, "LED state callback registered with SystemStateManager");
-    }
+    // LED state callback will be registered after SystemStateManager::init()
+    // LED状態コールバックはSystemStateManager::init()の後に登録
 
     // Legacy g_led は削除済み - LEDManager を使用
     // CLI用ポインタはLEDManager経由で提供予定
@@ -606,6 +594,43 @@ esp_err_t communication()
         esp_err_t ret = arbiter.init();
         if (ret != ESP_OK) {
             ESP_LOGW(TAG, "ControlArbiter init failed: %s", esp_err_to_name(ret));
+        }
+    }
+
+    // Initialize SystemStateManager (must be before FlightCommandService)
+    // SystemStateManager を初期化（FlightCommandServiceより前）
+    {
+        auto& sys_state = stampfly::SystemStateManager::getInstance();
+        esp_err_t ret = sys_state.init();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "SystemStateManager init failed: %s", esp_err_to_name(ret));
+        } else {
+            ESP_LOGI(TAG, "SystemStateManager initialized");
+        }
+
+        // Register LED state callback (after init)
+        // LED状態コールバックを登録（init後）
+        sys_state.subscribeStateChange([](const stampfly::StateTransitionEvent& event) {
+            // Update LED when FlightState changes
+            // FlightState変更時にLEDを更新
+            stampfly::LEDManager::getInstance().onFlightStateChanged(event.to_state);
+            ESP_LOGI("StateCallback", "LED updated for state transition: %d -> %d (%s)",
+                     static_cast<int>(event.from_state),
+                     static_cast<int>(event.to_state),
+                     event.reason ? event.reason : "");
+        });
+        ESP_LOGI(TAG, "LED state callback registered with SystemStateManager");
+    }
+
+    // Initialize CommandQueue (must be before FlightCommandService)
+    // CommandQueue を初期化（FlightCommandServiceより前）
+    {
+        auto& cmd_queue = stampfly::CommandQueue::getInstance();
+        esp_err_t ret = cmd_queue.init();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "CommandQueue init failed: %s", esp_err_to_name(ret));
+        } else {
+            ESP_LOGI(TAG, "CommandQueue initialized");
         }
     }
 
