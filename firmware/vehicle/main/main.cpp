@@ -36,6 +36,7 @@
 
 // State management and estimation
 #include "stampfly_state.hpp"
+#include "system_state.hpp"
 #include "system_manager.hpp"
 #include "eskf.hpp"
 #include "sensor_fusion.hpp"
@@ -496,6 +497,18 @@ extern "C" void app_main(void)
     // Initialize I2C bus first (required for I2C sensors)
     ESP_LOGI(TAG, "Initializing I2C...");
     init::i2c();
+
+    // Initialize SystemStateManager first (required by other components)
+    // SystemStateManager を最初に初期化（他のコンポーネントが依存）
+    {
+        auto& sys_state = stampfly::SystemStateManager::getInstance();
+        esp_err_t ret = sys_state.init();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "SystemStateManager init failed: %s", esp_err_to_name(ret));
+        } else {
+            ESP_LOGI(TAG, "SystemStateManager initialized");
+        }
+    }
 
     // Initialize actuators first (for buzzer feedback)
     ESP_LOGI(TAG, "Initializing actuators...");

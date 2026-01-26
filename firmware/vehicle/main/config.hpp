@@ -74,7 +74,7 @@ inline constexpr uint32_t STACK_SIZE_POWER = 4096;
 inline constexpr uint32_t STACK_SIZE_LED = 4096;
 inline constexpr uint32_t STACK_SIZE_BUTTON = 4096;
 inline constexpr uint32_t STACK_SIZE_COMM = 4096;
-inline constexpr uint32_t STACK_SIZE_CLI = 4096;
+inline constexpr uint32_t STACK_SIZE_CLI = 8192;  // Increased for WiFi command output
 inline constexpr uint32_t STACK_SIZE_TELEMETRY = 4096;
 
 // =============================================================================

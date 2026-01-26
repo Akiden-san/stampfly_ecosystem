@@ -597,19 +597,13 @@ esp_err_t communication()
         }
     }
 
-    // Initialize SystemStateManager (must be before FlightCommandService)
-    // SystemStateManager を初期化（FlightCommandServiceより前）
+    // SystemStateManager is already initialized in main.cpp before all other components
+    // SystemStateManagerは既にmain.cppで全コンポーネント前に初期化済み
+
+    // Register LED state callback
+    // LED状態コールバックを登録
     {
         auto& sys_state = stampfly::SystemStateManager::getInstance();
-        esp_err_t ret = sys_state.init();
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "SystemStateManager init failed: %s", esp_err_to_name(ret));
-        } else {
-            ESP_LOGI(TAG, "SystemStateManager initialized");
-        }
-
-        // Register LED state callback (after init)
-        // LED状態コールバックを登録（init後）
         sys_state.subscribeStateChange([](const stampfly::StateTransitionEvent& event) {
             // Update LED when FlightState changes
             // FlightState変更時にLEDを更新
