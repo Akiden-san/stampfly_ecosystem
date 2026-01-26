@@ -4,6 +4,7 @@
  */
 
 #include "tasks_common.hpp"
+#include "flight_command.hpp"
 
 static const char* TAG = "IMUTask";
 
@@ -207,6 +208,10 @@ void IMUTask(void* pvParameters)
                         // 接地状態更新（ヒステリシス：0.05m～0.10mの不感帯）
                         bool prev_grounded = is_grounded;
 
+                        // WiFiコマンド実行中は即座に離陸遷移（チャタリング防止不要）
+                        // During WiFi command execution, skip counter delay for immediate takeoff
+                        bool wifi_command_active = stampfly::FlightCommandService::getInstance().isRunning();
+
                         if (tof_bottom_now < eskf::LANDING_ALT_THRESHOLD) {
                             landing_counter++;
                             takeoff_counter = 0;
@@ -216,7 +221,9 @@ void IMUTask(void* pvParameters)
                         } else if (tof_bottom_now > eskf::LANDING_ALT_THRESHOLD * 2.0f) {
                             takeoff_counter++;
                             landing_counter = 0;
-                            if (takeoff_counter >= GROUNDED_TRANSITION_COUNT) {
+                            // WiFiコマンド実行中は即座に遷移、通常飛行は連続20回で遷移
+                            int required_count = wifi_command_active ? 1 : GROUNDED_TRANSITION_COUNT;
+                            if (takeoff_counter >= required_count) {
                                 is_grounded = false;
                             }
                         }
