@@ -6,6 +6,8 @@
 
 #include "console.hpp"
 #include "flight_command.hpp"
+#include "command_queue.hpp"
+#include "system_state.hpp"
 #include <cstdlib>
 #include <cstring>
 
@@ -16,16 +18,6 @@ using namespace stampfly;
 static int cmd_jump(int argc, char** argv) {
     auto& console = Console::getInstance();
     auto& flight = FlightCommandService::getInstance();
-
-    if (!flight.canExecute()) {
-        console.print("Error: Calibration not completed. Wait for green LED before flight.\r\n");
-        return 1;
-    }
-
-    if (flight.isRunning()) {
-        console.print("Error: Another command is running. Use 'flight cancel' first.\r\n");
-        return 1;
-    }
 
     float altitude = 0.15f;  // Default 0.15m (15cm)
     if (argc >= 2) {
@@ -43,11 +35,22 @@ static int cmd_jump(int argc, char** argv) {
     params.descent_rate = 0.3f;    // 0.3 m/s descent
 
     if (flight.executeCommand(FlightCommandType::JUMP, params)) {
-        console.print("Jump command started: climb to %.2f m then descend\r\n",
-                     altitude);
+        // Command successfully enqueued
+        // コマンドがキューに登録された
+        auto& sys_state = SystemStateManager::getInstance();
+
+        CalibrationState calib_state = sys_state.getCalibrationState();
+
+        if (calib_state == CalibrationState::COMPLETED) {
+            console.print("Jump command enqueued: climb to %.2f m then descend\r\n", altitude);
+        } else {
+            console.print("Jump command queued (waiting for calibration to complete)\r\n");
+            console.print("  Target altitude: %.2f m\r\n", altitude);
+            console.print("  Watch for GREEN LED before execution starts\r\n");
+        }
         return 0;
     } else {
-        console.print("Failed to start jump command\r\n");
+        console.print("Failed to enqueue jump command (queue full)\r\n");
         return 1;
     }
 }
@@ -57,16 +60,6 @@ static int cmd_jump(int argc, char** argv) {
 static int cmd_takeoff(int argc, char** argv) {
     auto& console = Console::getInstance();
     auto& flight = FlightCommandService::getInstance();
-
-    if (!flight.canExecute()) {
-        console.print("Error: Calibration not completed. Wait for green LED before flight.\r\n");
-        return 1;
-    }
-
-    if (flight.isRunning()) {
-        console.print("Error: Another command is running. Use 'flight cancel' first.\r\n");
-        return 1;
-    }
 
     float altitude = 0.5f;  // Default 0.5m
     if (argc >= 2) {
@@ -82,10 +75,18 @@ static int cmd_takeoff(int argc, char** argv) {
     params.climb_rate = 0.3f;  // 0.3 m/s
 
     if (flight.executeCommand(FlightCommandType::TAKEOFF, params)) {
-        console.print("Takeoff command started (target: %.2f m)\r\n", altitude);
+        auto& sys_state = SystemStateManager::getInstance();
+        CalibrationState calib_state = sys_state.getCalibrationState();
+
+        if (calib_state == CalibrationState::COMPLETED) {
+            console.print("Takeoff command enqueued (target: %.2f m)\r\n", altitude);
+        } else {
+            console.print("Takeoff command queued (waiting for calibration)\r\n");
+            console.print("  Target altitude: %.2f m\r\n", altitude);
+        }
         return 0;
     } else {
-        console.print("Failed to start takeoff command\r\n");
+        console.print("Failed to enqueue takeoff command\r\n");
         return 1;
     }
 }
@@ -96,19 +97,14 @@ static int cmd_land(int argc, char** argv) {
     auto& console = Console::getInstance();
     auto& flight = FlightCommandService::getInstance();
 
-    if (flight.isRunning()) {
-        console.print("Error: Another command is running. Use 'flight cancel' first.\r\n");
-        return 1;
-    }
-
     FlightCommandParams params;
     params.descent_rate = 0.3f;  // 0.3 m/s
 
     if (flight.executeCommand(FlightCommandType::LAND, params)) {
-        console.print("Land command started\r\n");
+        console.print("Land command enqueued\r\n");
         return 0;
     } else {
-        console.print("Failed to start land command\r\n");
+        console.print("Failed to enqueue land command\r\n");
         return 1;
     }
 }
@@ -118,11 +114,6 @@ static int cmd_land(int argc, char** argv) {
 static int cmd_hover(int argc, char** argv) {
     auto& console = Console::getInstance();
     auto& flight = FlightCommandService::getInstance();
-
-    if (flight.isRunning()) {
-        console.print("Error: Another command is running. Use 'flight cancel' first.\r\n");
-        return 1;
-    }
 
     float altitude = 0.5f;  // Default 0.5m
     if (argc >= 2) {
@@ -147,11 +138,20 @@ static int cmd_hover(int argc, char** argv) {
     params.duration_s = duration;
 
     if (flight.executeCommand(FlightCommandType::HOVER, params)) {
-        console.print("Hover command started (alt: %.2f m, duration: %.1f s)\r\n",
-                     altitude, duration);
+        auto& sys_state = SystemStateManager::getInstance();
+        CalibrationState calib_state = sys_state.getCalibrationState();
+
+        if (calib_state == CalibrationState::COMPLETED) {
+            console.print("Hover command enqueued (alt: %.2f m, duration: %.1f s)\r\n",
+                         altitude, duration);
+        } else {
+            console.print("Hover command queued (waiting for calibration)\r\n");
+            console.print("  Target altitude: %.2f m, duration: %.1f s\r\n", altitude, duration);
+            console.print("  Watch for GREEN LED before execution starts\r\n");
+        }
         return 0;
     } else {
-        console.print("Failed to start hover command\r\n");
+        console.print("Failed to enqueue hover command (queue full)\r\n");
         return 1;
     }
 }

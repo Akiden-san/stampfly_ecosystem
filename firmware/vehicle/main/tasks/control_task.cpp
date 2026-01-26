@@ -19,6 +19,7 @@
 #include "controller_comm.hpp"  // for CTRL_FLAG_MODE
 #include "led_manager.hpp"      // for flight mode LED indication
 #include "flight_command.hpp"   // for high-level flight commands
+#include "command_queue.hpp"    // for command queue processing
 #include "control_arbiter.hpp"  // for multi-source control input arbitration
 #include <algorithm>            // for std::clamp
 
@@ -329,6 +330,21 @@ void ControlTask(void* pvParameters)
                 ESP_LOGI(TAG, "Mode changed to %s",
                          is_stabilize ? "STABILIZE" : "ACRO");
             }
+        }
+
+        // =====================================================================
+        // Command Queue Processing (10Hz)
+        // コマンドキュー処理（10Hz）
+        // =====================================================================
+        // Process command queue every 100ms (40 cycles @ 400Hz)
+        // コマンドキューを100msごとに処理（400Hzで40サイクルごと）
+        static int queue_process_counter = 0;
+        if (++queue_process_counter >= 40) {
+            bool command_started = stampfly::CommandQueue::getInstance().processQueue();
+            if (command_started) {
+                ESP_LOGI(TAG, "Command started from queue");
+            }
+            queue_process_counter = 0;
         }
 
         // =====================================================================
