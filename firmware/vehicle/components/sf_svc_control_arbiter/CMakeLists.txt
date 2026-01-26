@@ -10,4 +10,6 @@ idf_component_register(
         freertos
         esp_common
         log
+    PRIV_REQUIRES
+        sf_svc_state
 )

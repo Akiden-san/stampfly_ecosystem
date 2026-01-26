@@ -5,6 +5,7 @@
  */
 
 #include "control_arbiter.hpp"
+#include "system_state.hpp"
 #include "esp_log.h"
 #include <algorithm>
 
@@ -81,6 +82,10 @@ void ControlArbiter::updateFromESPNOW(uint16_t throttle, uint16_t roll,
         espnow_input_.timestamp_ms = getCurrentTimeMs();
         espnow_count_++;
         xSemaphoreGive(mutex_);
+
+        // Update SystemStateManager with active control source
+        // SystemStateManagerにアクティブ制御ソースを通知
+        SystemStateManager::getInstance().updateControlSource(ControlSource::ESPNOW);
     }
 }
 
@@ -98,6 +103,10 @@ void ControlArbiter::updateFromUDP(uint16_t throttle, uint16_t roll,
         udp_input_.timestamp_ms = getCurrentTimeMs();
         udp_count_++;
         xSemaphoreGive(mutex_);
+
+        // Update SystemStateManager with active control source
+        // SystemStateManagerにアクティブ制御ソースを通知
+        SystemStateManager::getInstance().updateControlSource(ControlSource::UDP);
     }
 }
 
@@ -115,6 +124,10 @@ void ControlArbiter::updateFromWebSocket(float throttle, float roll,
         ws_input_.timestamp_ms = getCurrentTimeMs();
         ws_count_++;
         xSemaphoreGive(mutex_);
+
+        // Update SystemStateManager with active control source
+        // SystemStateManagerにアクティブ制御ソースを通知
+        SystemStateManager::getInstance().updateControlSource(ControlSource::WEBSOCKET);
     }
 }
 
