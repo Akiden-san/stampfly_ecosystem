@@ -35,6 +35,7 @@
 
 // State and estimation
 #include "stampfly_state.hpp"
+#include "system_state.hpp"
 #include "system_manager.hpp"
 #include "sensor_fusion.hpp"
 #include "sensor_health.hpp"

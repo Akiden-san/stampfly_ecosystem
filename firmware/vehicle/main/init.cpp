@@ -11,6 +11,8 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "driver/i2c_master.h"
+#include "system_state.hpp"
+#include "led_manager.hpp"
 
 // Sensor drivers
 #include "bmi270_wrapper.hpp"
@@ -257,6 +259,22 @@ esp_err_t actuators()
         } else {
             ESP_LOGI(TAG, "LEDManager initialized (MCU=GPIO21, BODY=GPIO39x2)");
         }
+    }
+
+    // Register LED state callback with SystemStateManager
+    // SystemStateManagerにLED状態コールバックを登録
+    {
+        auto& sys_state = stampfly::SystemStateManager::getInstance();
+        sys_state.subscribeStateChange([](const stampfly::StateTransitionEvent& event) {
+            // Update LED when FlightState changes
+            // FlightState変更時にLEDを更新
+            stampfly::LEDManager::getInstance().onFlightStateChanged(event.to_state);
+            ESP_LOGI("StateCallback", "LED updated for state transition: %d -> %d (%s)",
+                     static_cast<int>(event.from_state),
+                     static_cast<int>(event.to_state),
+                     event.reason ? event.reason : "");
+        });
+        ESP_LOGI(TAG, "LED state callback registered with SystemStateManager");
     }
 
     // Legacy g_led は削除済み - LEDManager を使用

@@ -151,20 +151,25 @@ void IMUTask(void* pvParameters)
                         ESP_LOGI(TAG, "Level calibration complete - attitude reference set");
                     }
 
-                    // Update LED state based on calibration
+                    // Update FlightState based on calibration (LED updates automatically via callback)
+                    // キャリブレーション状態に基づいてFlightStateを更新（LEDはコールバック経由で自動更新）
                     static stampfly::CalibrationState last_cal_state =
                         stampfly::CalibrationState::NOT_STARTED;
                     auto cal_state = g_landing_handler.getCalibrationState();
 
                     if (cal_state != last_cal_state) {
+                        auto& sys_state_mgr = stampfly::SystemStateManager::getInstance();
                         if (cal_state == stampfly::CalibrationState::CALIBRATING) {
-                            state.setFlightState(stampfly::FlightState::CALIBRATING);
-                            stampfly::LEDManager::getInstance().onFlightStateChanged(stampfly::FlightState::CALIBRATING);
+                            // Transition to CALIBRATING state
+                            // CALIBRATING状態に遷移
+                            sys_state_mgr.setFlightState(stampfly::FlightState::CALIBRATING);
+                            state.setFlightState(stampfly::FlightState::CALIBRATING);  // Legacy compatibility
                         } else if (cal_state == stampfly::CalibrationState::COMPLETED) {
                             // If still disarmed, go back to IDLE
-                            if (is_disarmed && state.getFlightState() == stampfly::FlightState::CALIBRATING) {
-                                state.setFlightState(stampfly::FlightState::IDLE);
-                                stampfly::LEDManager::getInstance().onFlightStateChanged(stampfly::FlightState::IDLE);
+                            // まだdisarmならIDLEに戻る
+                            if (is_disarmed && sys_state_mgr.getFlightState() == stampfly::FlightState::CALIBRATING) {
+                                sys_state_mgr.setFlightState(stampfly::FlightState::IDLE);
+                                state.setFlightState(stampfly::FlightState::IDLE);  // Legacy compatibility
                             }
                         }
                         last_cal_state = cal_state;
