@@ -107,7 +107,10 @@ bool FlightCommandService::executeCommand(FlightCommandType type, const FlightCo
         return false;
     }
 
-    current_command_id_ = cmd_id;
+    // Note: Do NOT set current_command_id_ here - it will be set in update()
+    // when CommandQueue actually starts the command
+    // 注意: ここではcurrent_command_id_を設定しない - CommandQueueが実際に
+    // コマンドを開始したときにupdate()で設定される
     ESP_LOGI(TAG, "Command enqueued: ID=%d, type=%d", cmd_id, static_cast<int>(type));
 
     return true;
