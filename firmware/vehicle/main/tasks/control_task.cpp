@@ -14,13 +14,15 @@
 #include "tasks_common.hpp"
 #include "../rate_controller.hpp"
 #include "../attitude_controller.hpp"
+#include "../altitude_controller.hpp"
 #include "control_allocation.hpp"
 #include "motor_model.hpp"
-#include "controller_comm.hpp"  // for CTRL_FLAG_MODE
+#include "controller_comm.hpp"  // for CTRL_FLAG_MODE, CTRL_FLAG_ALT_MODE
 #include "led_manager.hpp"      // for flight mode LED indication
 #include "flight_command.hpp"   // for high-level flight commands
 #include "command_queue.hpp"    // for command queue processing
 #include "control_arbiter.hpp"  // for multi-source control input arbitration
+#include "sensor_fusion.hpp"    // for g_fusion state access (altitude/velocity)
 #include <algorithm>            // for std::clamp
 
 // Trim values (defined in cli.cpp)
@@ -202,6 +204,10 @@ void AttitudeController::update(
 // Global attitude controller
 AttitudeController g_attitude_controller;
 
+// グローバル高度コントローラ
+// Global altitude controller
+AltitudeController g_altitude_controller;
+
 /**
  * @brief Control Task - 400Hz (2.5ms period)
  *
@@ -243,12 +249,12 @@ void ControlTask(void* pvParameters)
     // Initialize controllers
     g_rate_controller.init();
     g_attitude_controller.init();
+    g_altitude_controller.init();
 
     // 初期フライトモードをLEDに反映（デフォルト: ACRO=青）
     // Set initial flight mode LED (default: ACRO=blue)
     // Note: led_task will also monitor this, but set initial state here for immediate feedback
-    stampfly::LEDManager::getInstance().onFlightModeChanged(
-        state.getFlightMode() == stampfly::FlightMode::STABILIZE);
+    stampfly::LEDManager::getInstance().onFlightModeChanged(state.getFlightMode());
 
     // 前回のフライト状態（ARMED遷移時にPIDリセット用）
     stampfly::FlightState prev_flight_state = stampfly::FlightState::INIT;
@@ -267,6 +273,7 @@ void ControlTask(void* pvParameters)
             prev_flight_state != stampfly::FlightState::ARMED) {
             g_rate_controller.reset();
             g_attitude_controller.reset();
+            g_altitude_controller.reset();
             ESP_LOGI(TAG, "PID reset on ARM");
         }
 
@@ -297,18 +304,40 @@ void ControlTask(void* pvParameters)
         prev_flight_state = flight_state;
 
         // =====================================================================
+        // バッテリー電圧によるリアルタイムVbat更新（全モード共通）
+        // Real-time Vbat update for accurate duty calculation (all modes)
+        // =====================================================================
+        {
+            static int vbat_update_counter = 0;
+            if (++vbat_update_counter >= 40) {  // 10Hz (400Hz / 40)
+                vbat_update_counter = 0;
+                float measured_vbat = state.getVoltage();
+                if (measured_vbat > 2.5f && measured_vbat < 4.5f) {
+                    stampfly::MotorParams params = g_rate_controller.allocator.getMotorParams();
+                    params.Vbat = measured_vbat;
+                    g_rate_controller.allocator.setMotorParams(params);
+                }
+            }
+        }
+
+        // =====================================================================
         // フライトモード判定（Disarm中も実行 - LED更新のため）
         // Flight mode detection (runs even when disarmed - for LED update)
         // =====================================================================
-        // コントローラのMODEビットから取得（デバウンス処理付き）
-        // Controller MODE bit definition:
-        //   MODE = 0 (CTRL_FLAG_MODE not set) → ANGLECONTROL (STABILIZE)
-        //   MODE = 1 (CTRL_FLAG_MODE set)     → RATECONTROL (ACRO)
+        // Controller flag definitions:
+        //   CTRL_FLAG_ALT_MODE set            → ALTITUDE_HOLD
+        //   CTRL_FLAG_MODE set (no ALT_MODE)  → ACRO
+        //   Neither set                       → STABILIZE
         {
             uint8_t ctrl_flags = state.getControlFlags();
-            stampfly::FlightMode requested_mode = (ctrl_flags & stampfly::CTRL_FLAG_MODE)
-                                        ? stampfly::FlightMode::ACRO
-                                        : stampfly::FlightMode::STABILIZE;
+            stampfly::FlightMode requested_mode;
+            if (ctrl_flags & stampfly::CTRL_FLAG_ALT_MODE) {
+                requested_mode = stampfly::FlightMode::ALTITUDE_HOLD;
+            } else if (ctrl_flags & stampfly::CTRL_FLAG_MODE) {
+                requested_mode = stampfly::FlightMode::ACRO;
+            } else {
+                requested_mode = stampfly::FlightMode::STABILIZE;
+            }
 
             // デバウンス処理：連続N回同じモードを検出したら切替
             if (requested_mode == g_pending_mode) {
@@ -323,12 +352,30 @@ void ControlTask(void* pvParameters)
             // デバウンス閾値に達したらモード切替
             if (g_mode_switch_counter >= MODE_SWITCH_DEBOUNCE_COUNT &&
                 state.getFlightMode() != g_pending_mode) {
+                stampfly::FlightMode prev_mode = state.getFlightMode();
                 state.setFlightMode(g_pending_mode);
                 g_attitude_controller.reset();
 
-                bool is_stabilize = (g_pending_mode == stampfly::FlightMode::STABILIZE);
-                ESP_LOGI(TAG, "Mode changed to %s",
-                         is_stabilize ? "STABILIZE" : "ACRO");
+                // ALTITUDE_HOLD突入時: 現在高度をキャプチャ
+                // Capture current altitude when entering ALTITUDE_HOLD
+                if (g_pending_mode == stampfly::FlightMode::ALTITUDE_HOLD) {
+                    auto fused_state = g_fusion.getState();
+                    float alt = -fused_state.position.z;  // NED -> altitude (positive up)
+                    g_altitude_controller.captureAltitude(alt);
+                    ESP_LOGI(TAG, "ALTITUDE_HOLD: captured alt=%.2fm", alt);
+                }
+
+                // ALTITUDE_HOLD離脱時: PIDリセット
+                // Reset altitude PID when leaving ALTITUDE_HOLD
+                if (prev_mode == stampfly::FlightMode::ALTITUDE_HOLD) {
+                    g_altitude_controller.reset();
+                    ESP_LOGI(TAG, "ALTITUDE_HOLD: PID reset on exit");
+                }
+
+                const char* mode_name = "ACRO";
+                if (g_pending_mode == stampfly::FlightMode::STABILIZE) mode_name = "STABILIZE";
+                else if (g_pending_mode == stampfly::FlightMode::ALTITUDE_HOLD) mode_name = "ALTITUDE_HOLD";
+                ESP_LOGI(TAG, "Mode changed to %s", mode_name);
             }
         }
 
@@ -411,12 +458,17 @@ void ControlTask(void* pvParameters)
         // =====================================================================
         float roll_rate_target, pitch_rate_target, yaw_rate_target;
 
-        if (state.getFlightMode() == stampfly::FlightMode::STABILIZE) {
-            // STABILIZE: カスケード制御（姿勢 → レート）
-            // STABILIZE: Cascade control (attitude → rate)
+        stampfly::FlightMode current_mode = state.getFlightMode();
 
-            // Apply trim offsets (STABILIZE mode only)
-            // トリムオフセット適用（STABILIZEモードのみ）
+        if (current_mode == stampfly::FlightMode::STABILIZE ||
+            current_mode == stampfly::FlightMode::ALTITUDE_HOLD) {
+            // STABILIZE / ALTITUDE_HOLD: カスケード制御（姿勢 → レート）
+            // STABILIZE / ALTITUDE_HOLD: Cascade control (attitude → rate)
+            // 水平方向の姿勢制御は共通
+            // Horizontal attitude control is shared between both modes
+
+            // Apply trim offsets
+            // トリムオフセット適用
             float roll_trimmed = std::clamp(roll_cmd + g_trim_roll, -1.0f, 1.0f);
             float pitch_trimmed = std::clamp(pitch_cmd + g_trim_pitch, -1.0f, 1.0f);
             float yaw_trimmed = std::clamp(yaw_cmd + g_trim_yaw, -1.0f, 1.0f);
@@ -552,10 +604,39 @@ void ControlTask(void* pvParameters)
         // Physical units mode: PID output [Nm] -> ControlAllocator -> Motor Duty
 
         // スロットル → 総推力 [N] (4モータ合計)
-        // Throttle (0-1) -> Total thrust [N] (sum of 4 motors)
-        // ホバー推力 0.343N (35g × 9.81) でthrottle=0.5程度を想定
+        // Throttle -> Total thrust [N] (sum of 4 motors)
         constexpr float MAX_TOTAL_THRUST = 4.0f * 0.15f;  // 4 × max_thrust_per_motor
-        float total_thrust = throttle * MAX_TOTAL_THRUST;
+        float total_thrust;
+
+        if (current_mode == stampfly::FlightMode::ALTITUDE_HOLD &&
+            g_altitude_controller.altitude_captured) {
+            // 高度制御: 閉ループスロットル
+            // Altitude hold: closed-loop throttle
+            auto fused_state = g_fusion.getState();
+            float alt = -fused_state.position.z;       // NED -> altitude (positive up)
+            float vel_z = -fused_state.velocity.z;     // NED -> velocity (positive up)
+
+            uint16_t raw_throttle, raw_r, raw_p, raw_y;
+            state.getRawControlInput(raw_throttle, raw_r, raw_p, raw_y);
+            float climb_cmd = AltitudeController::stickToClimbRate(raw_throttle);
+
+            float vbat = state.getVoltage();
+            total_thrust = g_altitude_controller.update(climb_cmd, alt, vel_z, vbat, dt);
+
+            // Debug log every 200 cycles (~500ms @ 400Hz)
+            static int alt_log_counter = 0;
+            if (++alt_log_counter >= 200) {
+                ESP_LOGI(TAG, "ALT_HOLD: sp=%.2fm alt=%.2fm vz=%.2fm/s thrust=%.3fN hover=%.3fN vbat=%.2fV",
+                         g_altitude_controller.altitude_setpoint, alt, vel_z,
+                         total_thrust, g_altitude_controller.getHoverThrust(), vbat);
+                alt_log_counter = 0;
+            }
+        } else {
+            // 既存: オープンループスロットル
+            // Existing: open-loop throttle
+            // ホバー推力 0.343N (35g × 9.81) でthrottle=0.5程度を想定
+            total_thrust = throttle * MAX_TOTAL_THRUST;
+        }
 
         // 制御入力ベクトル: [総推力, ロールトルク, ピッチトルク, ヨートルク]
         // Control input vector: [total_thrust, roll_torque, pitch_torque, yaw_torque]
@@ -573,9 +654,9 @@ void ControlTask(void* pvParameters)
 
         // Debug log every 100 cycles (~250ms @ 400Hz) when throttle > 0
         static int motor_log_counter = 0;
-        if (throttle > 0.01f && ++motor_log_counter >= 100) {
-            ESP_LOGI(TAG, "MOTOR: throttle=%.2f -> total_thrust=%.3fN -> duties[FR=%.2f RR=%.2f RL=%.2f FL=%.2f]",
-                     throttle, total_thrust, duties[0], duties[1], duties[2], duties[3]);
+        if (total_thrust > 0.01f && ++motor_log_counter >= 100) {
+            ESP_LOGI(TAG, "MOTOR: thrust=%.3fN -> duties[FR=%.2f RR=%.2f RL=%.2f FL=%.2f]",
+                     total_thrust, duties[0], duties[1], duties[2], duties[3]);
             motor_log_counter = 0;
         }
 

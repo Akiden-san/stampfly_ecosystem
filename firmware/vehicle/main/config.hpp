@@ -498,6 +498,58 @@ inline constexpr float PID_ETA = 0.125f;  // 不完全微分フィルタ係数
 } // namespace attitude_control
 
 // =============================================================================
+// Altitude Control Parameters - 高度制御パラメータ（ALTITUDE_HOLD Mode）
+// =============================================================================
+//
+// カスケード制御: 高度PID（外ループ） → 速度PID（内ループ） → 推力補正
+// ホバー推力をフィードフォワードとして加算し、補正量のみをPIDで計算
+//
+// Cascade control: Altitude PID (outer) -> Velocity PID (inner) -> thrust correction
+// Hover thrust is added as feedforward; only correction is computed by PID.
+//
+namespace altitude_control {
+
+// 機体パラメータ
+// Vehicle parameters
+inline constexpr float MASS = 0.035f;                    // [kg]
+inline constexpr float GRAVITY = 9.81f;                  // [m/s²]
+inline constexpr float MAX_TOTAL_THRUST = 4.0f * 0.15f;  // 0.60N (4 motors)
+
+// ホバー推力推定のデフォルトパラメータ
+// Default hover thrust estimation parameters
+inline constexpr float HOVER_THRUST_CORRECTION = 1.0f;   // Empirical correction factor (1.0 = theoretical)
+
+// 高度PID（外ループ）: 高度誤差 [m] → 垂直速度目標 [m/s]
+// Altitude PID (outer loop): altitude error [m] -> vertical velocity target [m/s]
+inline constexpr float ALT_KP = 2.0f;
+inline constexpr float ALT_TI = 3.0f;
+inline constexpr float ALT_TD = 0.1f;
+inline constexpr float ALT_OUTPUT_MAX = 1.0f;  // Max climb/descent rate [m/s]
+
+// 速度PID（内ループ）: 速度誤差 [m/s] → 推力補正 [N]
+// Velocity PID (inner loop): velocity error [m/s] -> thrust correction [N]
+inline constexpr float VEL_KP = 0.3f;
+inline constexpr float VEL_TI = 1.0f;
+inline constexpr float VEL_TD = 0.02f;
+inline constexpr float VEL_OUTPUT_MAX = 0.2f;  // Max thrust correction [N]
+
+// スティック設定
+// Stick configuration
+inline constexpr float STICK_DEADZONE = 0.1f;        // Normalized ADC ±0.1 = hold
+inline constexpr float MAX_CLIMB_RATE = 0.5f;         // [m/s]
+inline constexpr float MAX_DESCENT_RATE = 0.3f;       // [m/s]
+
+// 高度制限
+// Altitude limits
+inline constexpr float MIN_ALTITUDE = 0.10f;   // [m] Ground protection
+inline constexpr float MAX_ALTITUDE = 3.0f;    // [m] ToF effective range
+
+// 共通
+inline constexpr float PID_ETA = 0.125f;
+
+} // namespace altitude_control
+
+// =============================================================================
 // Safety Parameters - 安全機能パラメータ
 // =============================================================================
 namespace safety {

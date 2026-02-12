@@ -54,7 +54,7 @@ void LEDTask(void* pvParameters)
         // Monitor flight mode (also when disarmed)
         stampfly::FlightMode flight_mode = state.getFlightMode();
         if (flight_mode != prev_flight_mode) {
-            led_mgr.onFlightModeChanged(flight_mode == stampfly::FlightMode::STABILIZE);
+            led_mgr.onFlightModeChanged(flight_mode);
             prev_flight_mode = flight_mode;
         }
 

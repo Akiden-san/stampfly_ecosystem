@@ -83,9 +83,9 @@ public:
 
     /**
      * @brief フライトモード変更通知
-     * @param is_stabilize true=STABILIZE（角度制御）, false=ACRO（角速度制御）
+     * @param mode Flight mode (ACRO / STABILIZE / ALTITUDE_HOLD)
      */
-    void onFlightModeChanged(bool is_stabilize);
+    void onFlightModeChanged(FlightMode mode);
 
     /**
      * @brief バッテリー状態変更通知

@@ -151,10 +151,11 @@ public:
      */
     float thrustToDuty(float thrust) const;
 
-    // Getters for debugging
+    // Getters for debugging and runtime access
     const float* getBMatrix() const { return &B_[0][0]; }
     const float* getBInvMatrix() const { return &B_inv_[0][0]; }
     float getMaxThrustPerMotor() const { return max_thrust_; }
+    const MotorParams& getMotorParams() const { return motor_params_; }
 
 private:
     /**
