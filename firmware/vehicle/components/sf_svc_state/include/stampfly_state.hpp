@@ -34,7 +34,8 @@ enum class FlightState {
 enum class FlightMode {
     ACRO,           // Rate control - アクロモード（角速度制御）
     STABILIZE,      // Angle control - スタビライズモード（角度制御）
-    ALTITUDE_HOLD   // Angle + altitude control - 高度維持モード
+    ALTITUDE_HOLD,  // Angle + altitude control - 高度維持モード
+    POSITION_HOLD   // Angle + altitude + position control - 位置保持モード
 };
 
 enum class PairingState {
@@ -211,7 +212,7 @@ private:
     uint16_t ctrl_roll_ = 2048;   // ADC center
     uint16_t ctrl_pitch_ = 2048;  // ADC center
     uint16_t ctrl_yaw_ = 2048;    // ADC center
-    uint8_t ctrl_flags_ = 0;      // ARM, FLIP, MODE, ALT_MODE
+    uint8_t ctrl_flags_ = 0;      // ARM, FLIP, MODE, ALT_MODE, POS_MODE
 
     // Debug mode
     bool debug_mode_ = false;

@@ -158,6 +158,7 @@ void LEDManager::onFlightModeChanged(FlightMode mode)
     // ACRO: 青（角速度制御 - アクロバティック）
     // STABILIZE: 緑（角度制御 - 安定）
     // ALTITUDE_HOLD: オレンジ（高度維持）
+    // POSITION_HOLD: マゼンタ（位置保持）
     uint32_t color;
     switch (mode) {
         case FlightMode::STABILIZE:
@@ -165,6 +166,9 @@ void LEDManager::onFlightModeChanged(FlightMode mode)
             break;
         case FlightMode::ALTITUDE_HOLD:
             color = 0xFF8000;  // Orange
+            break;
+        case FlightMode::POSITION_HOLD:
+            color = 0xFF00FF;  // Magenta
             break;
         case FlightMode::ACRO:
         default:

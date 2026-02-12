@@ -53,12 +53,15 @@ static const char* TAG = "MAIN";
 #define RATECONTROL 1
 #define ALT_CONTROL_MODE 1
 #define NOT_ALT_CONTROL_MODE 0
+#define POS_CONTROL_MODE 1
+#define NOT_POS_CONTROL_MODE 0
 
 // 制御変数
 static uint16_t Throttle = 0;
 static uint16_t Phi = 0, Theta = 0, Psi = 0;
 static uint8_t Mode = ANGLECONTROL;
 static uint8_t AltMode = NOT_ALT_CONTROL_MODE;
+static uint8_t PosMode = NOT_POS_CONTROL_MODE;
 static uint8_t StickMode = 2;
 static float Timer = 0.0f;
 static uint8_t Timer_state = 0;
@@ -1065,10 +1068,12 @@ static void update_display(void)
     M5.Display.setTextColor(base_color, SF_BLACK);
     M5.Display.printf("CH: %02d ID: %d  ", espnow_get_channel(), tdma_get_device_id());
 
-    // 行4: 高度モード
+    // 行4: 高度/位置モード
     M5.Display.setCursor(4, 2 + 4 * line_height);
     M5.Display.setTextColor(base_color, SF_BLACK);
-    if (AltMode == ALT_CONTROL_MODE)
+    if (PosMode == POS_CONTROL_MODE)
+        M5.Display.printf("-Pos HOLD-  ");
+    else if (AltMode == ALT_CONTROL_MODE)
         M5.Display.printf("-Auto ALT-  ");
     else
         M5.Display.printf("-Mnual ALT- ");
@@ -1618,8 +1623,24 @@ static void udp_main_loop(void)
     }
 
     if (!menu_is_active() && local_input.alt_mode_changed == 1) {
-        AltMode = (AltMode == ALT_CONTROL_MODE) ? NOT_ALT_CONTROL_MODE : ALT_CONTROL_MODE;
-        ESP_LOGI(TAG, "高度モード変更: %s", AltMode == ALT_CONTROL_MODE ? "Auto ALT" : "Manual ALT");
+        // 3-state cycle: OFF -> ALT_HOLD -> POS_HOLD -> OFF
+        // 3状態サイクル: OFF → 高度維持 → 位置保持 → OFF
+        if (AltMode == NOT_ALT_CONTROL_MODE && PosMode == NOT_POS_CONTROL_MODE) {
+            // OFF -> ALT_HOLD
+            AltMode = ALT_CONTROL_MODE;
+            PosMode = NOT_POS_CONTROL_MODE;
+            ESP_LOGI(TAG, "モード変更: Auto ALT");
+        } else if (AltMode == ALT_CONTROL_MODE && PosMode == NOT_POS_CONTROL_MODE) {
+            // ALT_HOLD -> POS_HOLD
+            AltMode = ALT_CONTROL_MODE;
+            PosMode = POS_CONTROL_MODE;
+            ESP_LOGI(TAG, "モード変更: Pos HOLD");
+        } else {
+            // POS_HOLD -> OFF
+            AltMode = NOT_ALT_CONTROL_MODE;
+            PosMode = NOT_POS_CONTROL_MODE;
+            ESP_LOGI(TAG, "モード変更: Manual ALT");
+        }
 
         if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
             shared_inputdata.alt_mode_changed = 0;
@@ -1652,7 +1673,8 @@ static void udp_main_loop(void)
     Psi = _psi;
 
     // フラグ構築
-    uint8_t flags = (0x01 & AltMode) << 3 |
+    uint8_t flags = (0x01 & PosMode) << 4 |
+                    (0x01 & AltMode) << 3 |
                     (0x01 & Mode) << 2 |
                     (0x01 & joy_get_flip_button()) << 1 |
                     (0x01 & joy_get_arm_button());
@@ -1818,8 +1840,21 @@ static void main_loop(void)
     }
 
     if (!menu_is_active() && local_input.alt_mode_changed == 1) {
-        AltMode = (AltMode == ALT_CONTROL_MODE) ? NOT_ALT_CONTROL_MODE : ALT_CONTROL_MODE;
-        ESP_LOGI(TAG, "高度モード変更: %s", AltMode == ALT_CONTROL_MODE ? "Auto ALT" : "Manual ALT");
+        // 3-state cycle: OFF -> ALT_HOLD -> POS_HOLD -> OFF
+        // 3状態サイクル: OFF → 高度維持 → 位置保持 → OFF
+        if (AltMode == NOT_ALT_CONTROL_MODE && PosMode == NOT_POS_CONTROL_MODE) {
+            AltMode = ALT_CONTROL_MODE;
+            PosMode = NOT_POS_CONTROL_MODE;
+            ESP_LOGI(TAG, "モード変更: Auto ALT");
+        } else if (AltMode == ALT_CONTROL_MODE && PosMode == NOT_POS_CONTROL_MODE) {
+            AltMode = ALT_CONTROL_MODE;
+            PosMode = POS_CONTROL_MODE;
+            ESP_LOGI(TAG, "モード変更: Pos HOLD");
+        } else {
+            AltMode = NOT_ALT_CONTROL_MODE;
+            PosMode = NOT_POS_CONTROL_MODE;
+            ESP_LOGI(TAG, "モード変更: Manual ALT");
+        }
 
         if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
             shared_inputdata.alt_mode_changed = 0;
@@ -1876,7 +1911,8 @@ static void main_loop(void)
     senddata[9] = d_int[0];
     senddata[10] = d_int[1];
 
-    senddata[11] = (0x01 & AltMode) << 3 |
+    senddata[11] = (0x01 & PosMode) << 4 |
+                   (0x01 & AltMode) << 3 |
                    (0x01 & Mode) << 2 |
                    (0x01 & joy_get_flip_button()) << 1 |
                    (0x01 & joy_get_arm_button());
@@ -2102,6 +2138,7 @@ extern "C" void app_main(void)
         }
 
         AltMode = NOT_ALT_CONTROL_MODE;
+        PosMode = NOT_POS_CONTROL_MODE;
     } else {
         // ESP-NOWモード初期化
         // ESP-NOW mode initialization
@@ -2144,6 +2181,7 @@ extern "C" void app_main(void)
         // Stick Modeは既にNVSから読み込み済み
         // Stick mode already loaded from NVS
         AltMode = NOT_ALT_CONTROL_MODE;
+        PosMode = NOT_POS_CONTROL_MODE;
     }
 
     // 入力Mutex作成

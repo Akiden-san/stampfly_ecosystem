@@ -74,6 +74,10 @@ constexpr uint8_t CTRL_FLAG_MODE = (1 << 2);
 /// ALT_MODEフラグ - 高度モード変更（自動高度/手動高度）
 constexpr uint8_t CTRL_FLAG_ALT_MODE = (1 << 3);
 
+/// POS_MODE flag - Position hold mode
+/// POS_MODEフラグ - 位置保持モード
+constexpr uint8_t CTRL_FLAG_POS_MODE = (1 << 4);
+
 // ============================================================================
 // Device IDs
 // デバイスID

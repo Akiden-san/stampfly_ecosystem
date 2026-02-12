@@ -203,12 +203,13 @@ static int cmd_ctrl(int argc, char** argv)
 
         if (watch_seconds > 0) {
             // Overwrite line with \r
-            console.print("\rT:%4u R:%4u P:%4u Y:%4u [%c%c%c%c] [%s]   ",
+            console.print("\rT:%4u R:%4u P:%4u Y:%4u [%c%c%c%c%c] [%s]   ",
                           throttle, roll, pitch, yaw,
                           (flags & CTRL_FLAG_ARM) ? 'A' : '-',
                           (flags & CTRL_FLAG_FLIP) ? 'F' : '-',
                           (flags & CTRL_FLAG_MODE) ? 'M' : '-',
                           (flags & CTRL_FLAG_ALT_MODE) ? 'H' : '-',
+                          (flags & CTRL_FLAG_POS_MODE) ? 'P' : '-',
                           conn_status);
             vTaskDelay(pdMS_TO_TICKS(100));  // 10Hz update
             iterations--;
@@ -223,6 +224,7 @@ static int cmd_ctrl(int argc, char** argv)
             console.print("    FLIP:     %s\r\n", (flags & CTRL_FLAG_FLIP) ? "ON" : "OFF");
             console.print("    MODE:     %s\r\n", (flags & CTRL_FLAG_MODE) ? "ON" : "OFF");
             console.print("    ALT_MODE: %s\r\n", (flags & CTRL_FLAG_ALT_MODE) ? "ON" : "OFF");
+            console.print("    POS_MODE: %s\r\n", (flags & CTRL_FLAG_POS_MODE) ? "ON" : "OFF");
             console.print("  Status:   %s\r\n", conn_status);
         }
     } while (iterations > 0);

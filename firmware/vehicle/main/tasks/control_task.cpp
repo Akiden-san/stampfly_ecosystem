@@ -15,6 +15,7 @@
 #include "../rate_controller.hpp"
 #include "../attitude_controller.hpp"
 #include "../altitude_controller.hpp"
+#include "../position_controller.hpp"
 #include "control_allocation.hpp"
 #include "motor_model.hpp"
 #include "controller_comm.hpp"  // for CTRL_FLAG_MODE, CTRL_FLAG_ALT_MODE
@@ -208,6 +209,10 @@ AttitudeController g_attitude_controller;
 // Global altitude controller
 AltitudeController g_altitude_controller;
 
+// グローバル位置コントローラ
+// Global position controller
+PositionController g_position_controller;
+
 /**
  * @brief Control Task - 400Hz (2.5ms period)
  *
@@ -250,6 +255,7 @@ void ControlTask(void* pvParameters)
     g_rate_controller.init();
     g_attitude_controller.init();
     g_altitude_controller.init();
+    g_position_controller.init();
 
     // 初期フライトモードをLEDに反映（デフォルト: ACRO=青）
     // Set initial flight mode LED (default: ACRO=blue)
@@ -274,14 +280,26 @@ void ControlTask(void* pvParameters)
             g_rate_controller.reset();
             g_attitude_controller.reset();
             g_altitude_controller.reset();
+            g_position_controller.reset();
 
-            // ALTITUDE_HOLDモードでARM → 現在高度をキャプチャ
-            // Capture altitude when ARMing in ALTITUDE_HOLD mode
-            if (state.getFlightMode() == stampfly::FlightMode::ALTITUDE_HOLD) {
+            // ALTITUDE_HOLD/POSITION_HOLDモードでARM → 現在高度をキャプチャ
+            // Capture altitude when ARMing in ALTITUDE_HOLD or POSITION_HOLD mode
+            stampfly::FlightMode arm_mode = state.getFlightMode();
+            if (arm_mode == stampfly::FlightMode::ALTITUDE_HOLD ||
+                arm_mode == stampfly::FlightMode::POSITION_HOLD) {
                 auto fused_state = g_fusion.getState();
                 float alt = -fused_state.position.z;
                 g_altitude_controller.captureAltitude(alt);
-                ESP_LOGI(TAG, "ALTITUDE_HOLD: captured alt=%.2fm on ARM", alt);
+                ESP_LOGI(TAG, "ALT capture on ARM: alt=%.2fm", alt);
+
+                // POSITION_HOLD: also capture horizontal position
+                // POSITION_HOLD: 水平位置もキャプチャ
+                if (arm_mode == stampfly::FlightMode::POSITION_HOLD) {
+                    g_position_controller.capturePosition(
+                        fused_state.position.x, fused_state.position.y);
+                    ESP_LOGI(TAG, "POS capture on ARM: x=%.2f y=%.2f",
+                             fused_state.position.x, fused_state.position.y);
+                }
             }
 
             ESP_LOGI(TAG, "PID reset on ARM");
@@ -335,13 +353,16 @@ void ControlTask(void* pvParameters)
         // Flight mode detection (runs even when disarmed - for LED update)
         // =====================================================================
         // Controller flag definitions:
-        //   CTRL_FLAG_ALT_MODE set            → ALTITUDE_HOLD
-        //   CTRL_FLAG_MODE set (no ALT_MODE)  → ACRO
-        //   Neither set                       → STABILIZE
+        //   CTRL_FLAG_POS_MODE set             → POSITION_HOLD
+        //   CTRL_FLAG_ALT_MODE set (no POS)    → ALTITUDE_HOLD
+        //   CTRL_FLAG_MODE set (no ALT/POS)    → ACRO
+        //   Neither set                        → STABILIZE
         {
             uint8_t ctrl_flags = state.getControlFlags();
             stampfly::FlightMode requested_mode;
-            if (ctrl_flags & stampfly::CTRL_FLAG_ALT_MODE) {
+            if (ctrl_flags & stampfly::CTRL_FLAG_POS_MODE) {
+                requested_mode = stampfly::FlightMode::POSITION_HOLD;
+            } else if (ctrl_flags & stampfly::CTRL_FLAG_ALT_MODE) {
                 requested_mode = stampfly::FlightMode::ALTITUDE_HOLD;
             } else if (ctrl_flags & stampfly::CTRL_FLAG_MODE) {
                 requested_mode = stampfly::FlightMode::ACRO;
@@ -366,25 +387,46 @@ void ControlTask(void* pvParameters)
                 state.setFlightMode(g_pending_mode);
                 g_attitude_controller.reset();
 
-                // ALTITUDE_HOLD突入時: 現在高度をキャプチャ
-                // Capture current altitude when entering ALTITUDE_HOLD
-                if (g_pending_mode == stampfly::FlightMode::ALTITUDE_HOLD) {
+                // ALTITUDE_HOLD/POSITION_HOLD突入時: 現在高度をキャプチャ
+                // Capture current altitude when entering ALTITUDE_HOLD or POSITION_HOLD
+                if (g_pending_mode == stampfly::FlightMode::ALTITUDE_HOLD ||
+                    g_pending_mode == stampfly::FlightMode::POSITION_HOLD) {
                     auto fused_state = g_fusion.getState();
                     float alt = -fused_state.position.z;  // NED -> altitude (positive up)
                     g_altitude_controller.captureAltitude(alt);
-                    ESP_LOGI(TAG, "ALTITUDE_HOLD: captured alt=%.2fm", alt);
+                    ESP_LOGI(TAG, "ALT capture: alt=%.2fm", alt);
+
+                    // POSITION_HOLD突入時: 水平位置もキャプチャ
+                    // Also capture horizontal position when entering POSITION_HOLD
+                    if (g_pending_mode == stampfly::FlightMode::POSITION_HOLD) {
+                        g_position_controller.capturePosition(
+                            fused_state.position.x, fused_state.position.y);
+                        ESP_LOGI(TAG, "POS capture: x=%.2f y=%.2f",
+                                 fused_state.position.x, fused_state.position.y);
+                    }
                 }
 
-                // ALTITUDE_HOLD離脱時: PIDリセット
-                // Reset altitude PID when leaving ALTITUDE_HOLD
-                if (prev_mode == stampfly::FlightMode::ALTITUDE_HOLD) {
+                // POSITION_HOLD離脱時: 位置PIDリセット
+                // Reset position PID when leaving POSITION_HOLD
+                if (prev_mode == stampfly::FlightMode::POSITION_HOLD) {
+                    g_position_controller.reset();
+                    ESP_LOGI(TAG, "POSITION_HOLD: PID reset on exit");
+                }
+
+                // ALTITUDE_HOLD/POSITION_HOLD離脱時: 高度PIDリセット
+                // Reset altitude PID when leaving altitude-holding modes
+                if ((prev_mode == stampfly::FlightMode::ALTITUDE_HOLD ||
+                     prev_mode == stampfly::FlightMode::POSITION_HOLD) &&
+                    g_pending_mode != stampfly::FlightMode::ALTITUDE_HOLD &&
+                    g_pending_mode != stampfly::FlightMode::POSITION_HOLD) {
                     g_altitude_controller.reset();
-                    ESP_LOGI(TAG, "ALTITUDE_HOLD: PID reset on exit");
+                    ESP_LOGI(TAG, "Altitude PID reset on exit");
                 }
 
                 const char* mode_name = "ACRO";
                 if (g_pending_mode == stampfly::FlightMode::STABILIZE) mode_name = "STABILIZE";
                 else if (g_pending_mode == stampfly::FlightMode::ALTITUDE_HOLD) mode_name = "ALTITUDE_HOLD";
+                else if (g_pending_mode == stampfly::FlightMode::POSITION_HOLD) mode_name = "POSITION_HOLD";
                 ESP_LOGI(TAG, "Mode changed to %s", mode_name);
             }
         }
@@ -471,28 +513,99 @@ void ControlTask(void* pvParameters)
         stampfly::FlightMode current_mode = state.getFlightMode();
 
         if (current_mode == stampfly::FlightMode::STABILIZE ||
-            current_mode == stampfly::FlightMode::ALTITUDE_HOLD) {
-            // STABILIZE / ALTITUDE_HOLD: カスケード制御（姿勢 → レート）
-            // STABILIZE / ALTITUDE_HOLD: Cascade control (attitude → rate)
-            // 水平方向の姿勢制御は共通
-            // Horizontal attitude control is shared between both modes
-
-            // Apply trim offsets
-            // トリムオフセット適用
-            float roll_trimmed = std::clamp(roll_cmd + g_trim_roll, -1.0f, 1.0f);
-            float pitch_trimmed = std::clamp(pitch_cmd + g_trim_pitch, -1.0f, 1.0f);
-            float yaw_trimmed = std::clamp(yaw_cmd + g_trim_yaw, -1.0f, 1.0f);
+            current_mode == stampfly::FlightMode::ALTITUDE_HOLD ||
+            current_mode == stampfly::FlightMode::POSITION_HOLD) {
+            // STABILIZE / ALTITUDE_HOLD / POSITION_HOLD: カスケード制御（姿勢 → レート）
+            // Cascade control (attitude -> rate)
 
             // 現在の姿勢をESKFから取得
             // Get current attitude from ESKF
             float roll_current, pitch_current, yaw_current;
             state.getAttitudeEuler(roll_current, pitch_current, yaw_current);
 
+            float roll_input, pitch_input;
+            float yaw_trimmed = std::clamp(yaw_cmd + g_trim_yaw, -1.0f, 1.0f);
+
+            if (current_mode == stampfly::FlightMode::POSITION_HOLD &&
+                g_position_controller.position_captured) {
+                // POSITION_HOLD: 位置制御からroll/pitch角度を取得
+                // Get roll/pitch angles from position controller
+
+                // Flow quality check for fallback
+                // フロー品質チェック（フォールバック用）
+                int16_t flow_dx, flow_dy;
+                uint8_t flow_squal;
+                state.getFlowRawData(flow_dx, flow_dy, flow_squal);
+                float pos_variance = g_fusion.getPositionVariance();
+
+                if (flow_squal < config::FLOW_SQUAL_MIN || pos_variance > 1.0f) {
+                    // Flow quality degraded or ESKF position uncertain
+                    // フロー品質低下またはESKF位置推定不確実 → 位置PIDリセット
+                    g_position_controller.reset();
+
+                    // Fallback to stick+trim (ALTITUDE_HOLD equivalent)
+                    // ALTITUDE_HOLD相当にフォールバック
+                    roll_input = std::clamp(roll_cmd + g_trim_roll, -1.0f, 1.0f);
+                    pitch_input = std::clamp(pitch_cmd + g_trim_pitch, -1.0f, 1.0f);
+
+                    static int fallback_log_counter = 0;
+                    if (++fallback_log_counter >= 400) {
+                        ESP_LOGW(TAG, "POS_HOLD fallback: squal=%u var=%.2f",
+                                 flow_squal, pos_variance);
+                        fallback_log_counter = 0;
+                    }
+                } else {
+                    // Position control active
+                    // 位置制御アクティブ
+                    auto fused_state = g_fusion.getState();
+
+                    // Stick → velocity command (body frame)
+                    // スティック → 速度指令（body frame）
+                    float vel_cmd_body_x = PositionController::stickToVelocity(pitch_cmd);
+                    float vel_cmd_body_y = PositionController::stickToVelocity(roll_cmd);
+
+                    // Position controller update → roll/pitch angle [rad]
+                    // 位置コントローラ更新 → roll/pitch角度 [rad]
+                    float pos_roll_angle, pos_pitch_angle;
+                    constexpr float dt = IMU_DT;
+                    g_position_controller.update(
+                        vel_cmd_body_x, vel_cmd_body_y,
+                        fused_state.position.x, fused_state.position.y,
+                        fused_state.velocity.x, fused_state.velocity.y,
+                        yaw_current, dt,
+                        pos_roll_angle, pos_pitch_angle);
+
+                    // Convert angle [rad] to normalized input [-1, 1] for AttitudeController
+                    // 角度 [rad] をAttitudeControllerの正規化入力に変換
+                    roll_input = pos_roll_angle / g_attitude_controller.max_roll_angle;
+                    pitch_input = pos_pitch_angle / g_attitude_controller.max_pitch_angle;
+                    roll_input = std::clamp(roll_input, -1.0f, 1.0f);
+                    pitch_input = std::clamp(pitch_input, -1.0f, 1.0f);
+
+                    // Debug log every 400 cycles (~1s @ 400Hz)
+                    static int pos_log_counter = 0;
+                    if (++pos_log_counter >= 400) {
+                        ESP_LOGI(TAG, "POS_HOLD: sp=(%.2f,%.2f) pos=(%.2f,%.2f) r=%.1f° p=%.1f°",
+                                 g_position_controller.pos_setpoint_x,
+                                 g_position_controller.pos_setpoint_y,
+                                 fused_state.position.x, fused_state.position.y,
+                                 pos_roll_angle * 180.0f / 3.14159f,
+                                 pos_pitch_angle * 180.0f / 3.14159f);
+                        pos_log_counter = 0;
+                    }
+                }
+            } else {
+                // STABILIZE / ALTITUDE_HOLD: スティック + トリム
+                // Stick + trim for non-position modes
+                roll_input = std::clamp(roll_cmd + g_trim_roll, -1.0f, 1.0f);
+                pitch_input = std::clamp(pitch_cmd + g_trim_pitch, -1.0f, 1.0f);
+            }
+
             // 外側ループ：姿勢制御
             // Outer loop: attitude control
             constexpr float dt = IMU_DT;  // 2.5ms
             g_attitude_controller.update(
-                roll_trimmed, pitch_trimmed, yaw_trimmed,
+                roll_input, pitch_input, yaw_trimmed,
                 roll_current, pitch_current,
                 dt,
                 roll_rate_target, pitch_rate_target, yaw_rate_target
@@ -618,7 +731,8 @@ void ControlTask(void* pvParameters)
         constexpr float MAX_TOTAL_THRUST = 4.0f * 0.15f;  // 4 × max_thrust_per_motor
         float total_thrust;
 
-        if (current_mode == stampfly::FlightMode::ALTITUDE_HOLD &&
+        if ((current_mode == stampfly::FlightMode::ALTITUDE_HOLD ||
+             current_mode == stampfly::FlightMode::POSITION_HOLD) &&
             g_altitude_controller.altitude_captured) {
             // 高度制御: 閉ループスロットル
             // Altitude hold: closed-loop throttle

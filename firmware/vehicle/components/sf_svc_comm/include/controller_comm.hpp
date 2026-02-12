@@ -26,7 +26,7 @@ struct ControlPacket {
     uint16_t roll;          // byte 5-6: 0-1000 (500=center)
     uint16_t pitch;         // byte 7-8: 0-1000 (500=center)
     uint16_t yaw;           // byte 9-10: 0-1000 (500=center)
-    uint8_t flags;          // byte 11: bit0:Arm, bit1:Flip, bit2:Mode, bit3:AltMode
+    uint8_t flags;          // byte 11: bit0:Arm, bit1:Flip, bit2:Mode, bit3:AltMode, bit4:PosMode
     uint8_t reserved;       // byte 12: Reserved (proactive_flag, ignored)
     uint8_t checksum;       // byte 13: Sum of bytes 0-12
 } __attribute__((packed));
@@ -36,6 +36,7 @@ constexpr uint8_t CTRL_FLAG_ARM      = 0x01;
 constexpr uint8_t CTRL_FLAG_FLIP     = 0x02;
 constexpr uint8_t CTRL_FLAG_MODE     = 0x04;
 constexpr uint8_t CTRL_FLAG_ALT_MODE = 0x08;
+constexpr uint8_t CTRL_FLAG_POS_MODE = 0x10;  // bit 4: Position hold mode
 
 /**
  * @brief Telemetry packet to controller (22 bytes)

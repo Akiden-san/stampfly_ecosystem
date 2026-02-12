@@ -550,6 +550,50 @@ inline constexpr float PID_ETA = 0.125f;
 } // namespace altitude_control
 
 // =============================================================================
+// Position Control Parameters - 位置制御パラメータ（POSITION_HOLD Mode）
+// =============================================================================
+//
+// カスケード制御: 位置PID（外ループ） → 速度PID（内ループ） → 角度補正
+// NED座標系で演算し、yaw角でbody frameに変換してAttitudeControllerに渡す
+//
+// Cascade control: Position PID (outer) -> Velocity PID (inner) -> angle correction
+// Computed in NED frame, converted to body frame via yaw rotation.
+//
+namespace position_control {
+
+// 位置PID（外ループ）: 位置誤差 [m] → 速度目標 [m/s]
+// Position PID (outer loop): position error [m] -> velocity target [m/s]
+inline constexpr float POS_KP = 1.0f;
+inline constexpr float POS_TI = 5.0f;         // Slow integral for drift correction
+inline constexpr float POS_TD = 0.1f;
+inline constexpr float POS_OUTPUT_MAX = 0.5f;  // Max horizontal velocity target [m/s]
+
+// 速度PID（内ループ）: 速度誤差 [m/s] → 角度補正 [rad]
+// Velocity PID (inner loop): velocity error [m/s] -> angle correction [rad]
+inline constexpr float VEL_KP = 0.3f;
+inline constexpr float VEL_TI = 2.0f;
+inline constexpr float VEL_TD = 0.02f;
+inline constexpr float VEL_OUTPUT_MAX = 0.20f; // Max angle correction ~11.5° safety limit
+
+// スティック設定
+// Stick configuration
+inline constexpr float STICK_DEADZONE = 0.15f;
+inline constexpr float MAX_HORIZONTAL_SPEED = 0.5f; // [m/s]
+
+// 位置制限
+// Position limits
+inline constexpr float MAX_POSITION_OFFSET = 5.0f;  // [m] Max distance from capture point
+
+// 安全制限
+// Safety limits
+inline constexpr float MAX_TILT_ANGLE = 0.1745f;    // ~10° max tilt from position control
+
+// 共通
+inline constexpr float PID_ETA = 0.125f;
+
+} // namespace position_control
+
+// =============================================================================
 // Safety Parameters - 安全機能パラメータ
 // =============================================================================
 namespace safety {
