@@ -274,6 +274,16 @@ void ControlTask(void* pvParameters)
             g_rate_controller.reset();
             g_attitude_controller.reset();
             g_altitude_controller.reset();
+
+            // ALTITUDE_HOLDモードでARM → 現在高度をキャプチャ
+            // Capture altitude when ARMing in ALTITUDE_HOLD mode
+            if (state.getFlightMode() == stampfly::FlightMode::ALTITUDE_HOLD) {
+                auto fused_state = g_fusion.getState();
+                float alt = -fused_state.position.z;
+                g_altitude_controller.captureAltitude(alt);
+                ESP_LOGI(TAG, "ALTITUDE_HOLD: captured alt=%.2fm on ARM", alt);
+            }
+
             ESP_LOGI(TAG, "PID reset on ARM");
         }
 
