@@ -1,5 +1,5 @@
 """
-sf takeoff / land / hover / jump / up / down / cw / ccw / emergency / stop
+sf takeoff / land / hover / jump / up / down / cw / ccw / forward / back / left / right / emergency / stop
 Flight commands
 
 Send flight commands to StampFly via WiFi CLI and monitor in real-time.
@@ -14,6 +14,10 @@ Commands:
     down <cm>           - Move down by distance (20-200 cm)
     cw <deg>            - Rotate clockwise (1-360 degrees)
     ccw <deg>           - Rotate counter-clockwise (1-360 degrees)
+    forward <cm>        - Move forward by distance (20-200 cm)
+    back <cm>           - Move backward by distance (20-200 cm)
+    left <cm>           - Move left by distance (20-200 cm)
+    right <cm>          - Move right by distance (20-200 cm)
     emergency           - Emergency motor stop (kill all motors)
     stop                - Stop and hover at current position
 """
@@ -162,6 +166,62 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     _add_common_args(emergency_parser)
     emergency_parser.set_defaults(func=run_emergency)
+
+    # --- forward ---
+    forward_parser = subparsers.add_parser(
+        "forward",
+        help="Move forward by distance (cm)",
+        description="Move forward by specified distance. WiFi CLI経由で前進コマンドを送信。",
+    )
+    forward_parser.add_argument(
+        "distance",
+        type=int,
+        help="Distance in cm (20-200)",
+    )
+    _add_common_args(forward_parser)
+    forward_parser.set_defaults(func=run_forward)
+
+    # --- back ---
+    back_parser = subparsers.add_parser(
+        "back",
+        help="Move backward by distance (cm)",
+        description="Move backward by specified distance. WiFi CLI経由で後退コマンドを送信。",
+    )
+    back_parser.add_argument(
+        "distance",
+        type=int,
+        help="Distance in cm (20-200)",
+    )
+    _add_common_args(back_parser)
+    back_parser.set_defaults(func=run_back)
+
+    # --- left ---
+    left_parser = subparsers.add_parser(
+        "left",
+        help="Move left by distance (cm)",
+        description="Move left by specified distance. WiFi CLI経由で左移動コマンドを送信。",
+    )
+    left_parser.add_argument(
+        "distance",
+        type=int,
+        help="Distance in cm (20-200)",
+    )
+    _add_common_args(left_parser)
+    left_parser.set_defaults(func=run_left)
+
+    # --- right ---
+    right_parser = subparsers.add_parser(
+        "right",
+        help="Move right by distance (cm)",
+        description="Move right by specified distance. WiFi CLI経由で右移動コマンドを送信。",
+    )
+    right_parser.add_argument(
+        "distance",
+        type=int,
+        help="Distance in cm (20-200)",
+    )
+    _add_common_args(right_parser)
+    right_parser.set_defaults(func=run_right)
 
     # --- stop ---
     stop_parser = subparsers.add_parser(
@@ -336,6 +396,70 @@ def run_emergency(args: argparse.Namespace) -> int:
     return _run_flight_command(
         cli_cmd="emergency",
         label="EMERGENCY",
+        target_alt=0.0,
+        args=args,
+    )
+
+
+def run_forward(args: argparse.Namespace) -> int:
+    """Execute forward command"""
+    cm = args.distance
+    if cm < 20 or cm > 200:
+        console.error("Distance must be 20-200 [cm]")
+        return 1
+
+    console.info(f"Move forward {cm} cm", prefix="FORWARD")
+    return _run_flight_command(
+        cli_cmd=f"forward {cm}",
+        label="FORWARD",
+        target_alt=0.0,
+        args=args,
+    )
+
+
+def run_back(args: argparse.Namespace) -> int:
+    """Execute back command"""
+    cm = args.distance
+    if cm < 20 or cm > 200:
+        console.error("Distance must be 20-200 [cm]")
+        return 1
+
+    console.info(f"Move back {cm} cm", prefix="BACK")
+    return _run_flight_command(
+        cli_cmd=f"back {cm}",
+        label="BACK",
+        target_alt=0.0,
+        args=args,
+    )
+
+
+def run_left(args: argparse.Namespace) -> int:
+    """Execute left command"""
+    cm = args.distance
+    if cm < 20 or cm > 200:
+        console.error("Distance must be 20-200 [cm]")
+        return 1
+
+    console.info(f"Move left {cm} cm", prefix="LEFT")
+    return _run_flight_command(
+        cli_cmd=f"left {cm}",
+        label="LEFT",
+        target_alt=0.0,
+        args=args,
+    )
+
+
+def run_right(args: argparse.Namespace) -> int:
+    """Execute right command"""
+    cm = args.distance
+    if cm < 20 or cm > 200:
+        console.error("Distance must be 20-200 [cm]")
+        return 1
+
+    console.info(f"Move right {cm} cm", prefix="RIGHT")
+    return _run_flight_command(
+        cli_cmd=f"right {cm}",
+        label="RIGHT",
         target_alt=0.0,
         args=args,
     )

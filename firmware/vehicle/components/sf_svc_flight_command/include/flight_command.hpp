@@ -28,6 +28,8 @@ struct FlightCommandParams {
     float climb_rate;         // Climb rate [m/s] / 上昇速度 [m/s]
     float descent_rate;       // Descent rate [m/s] / 降下速度 [m/s]
     float target_yaw_deg;     // Target yaw angle [deg] (for ROTATE_YAW) / 目標ヨー角 [deg]
+    float target_pos_x;       // Target position NED X [m] (for MOVE_HORIZONTAL) / 目標位置 NED X [m]
+    float target_pos_y;       // Target position NED Y [m] (for MOVE_HORIZONTAL) / 目標位置 NED Y [m]
 };
 
 // Flight Command Service
@@ -81,6 +83,7 @@ private:
         HOVERING,
         DESCENDING,
         ROTATING,     // Yaw rotation in progress / ヨー回転中
+        MOVING,       // Horizontal movement in progress / 水平移動中
         DONE,
     };
     ExecutionPhase phase_ = ExecutionPhase::INIT;
@@ -94,7 +97,7 @@ private:
 
     // Send control input to ControlArbiter
     // 制御出力を ControlArbiter に送る
-    void sendControlInput(float throttle, float roll, float pitch, float yaw);
+    void sendControlInput(float throttle, float roll, float pitch, float yaw, uint8_t flags = 0);
 
     // Get current altitude estimate
     // 現在の高度推定値を取得
@@ -108,6 +111,7 @@ private:
     void updateHoverCommand(float dt, float current_altitude);
     void updateMoveVerticalCommand(float dt, float current_altitude);
     void updateRotateYawCommand(float dt, float current_altitude);
+    void updateMoveHorizontalCommand(float dt, float current_altitude);
 
     // Get current yaw angle estimate [rad]
     // 現在のヨー角推定値を取得 [rad]

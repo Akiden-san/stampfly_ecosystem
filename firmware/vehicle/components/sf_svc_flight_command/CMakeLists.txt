@@ -9,7 +9,9 @@ idf_component_register(
         esp_timer
         sf_svc_state
         sf_svc_control_arbiter
+        sf_svc_comm
         sf_algo_fusion
+        sf_algo_pid
 )
 
 # Access to main/ directory for globals.hpp

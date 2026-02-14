@@ -40,6 +40,7 @@ enum class FlightCommandType {
     JUMP,            ///< Jump (takeoff → hover → land) / ジャンプ
     MOVE_VERTICAL,   ///< Vertical move (up/down) / 垂直移動
     ROTATE_YAW,      ///< Yaw rotation (cw/ccw) / ヨー回転
+    MOVE_HORIZONTAL, ///< Horizontal move (forward/back/left/right) / 水平移動
 };
 
 /**

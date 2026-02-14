@@ -7,6 +7,8 @@
 #include "sensor_fusion.hpp"
 #include "landing_handler.hpp"
 #include "stampfly_state.hpp"
+#include "controller_comm.hpp"
+#include "position_controller.hpp"
 #include "esp_log.h"
 #include <cmath>
 
@@ -104,9 +106,31 @@ bool FlightCommandService::executeCommand(FlightCommandType type, const FlightCo
         ESP_LOGI(TAG, "Auto-ARMed for WiFi command");
     }
 
-    // Enqueue to CommandQueue
-    // CommandQueueに登録
-    int cmd_id = queue.enqueue(type, params.target_altitude, params.duration_s);
+    // Enqueue to CommandQueue with full parameters
+    // フルパラメータでCommandQueueに登録
+    CommandEntry entry;
+    entry.type = type;
+    entry.target_altitude = params.target_altitude;
+    entry.duration_s = params.duration_s;
+    entry.climb_rate = params.climb_rate;
+    entry.descent_rate = params.descent_rate;
+    entry.target_yaw_deg = params.target_yaw_deg;
+    entry.target_pos_x = params.target_pos_x;
+    entry.target_pos_y = params.target_pos_y;
+
+    // Set preconditions based on command type
+    // コマンドタイプに基づいて前提条件を設定
+    switch (type) {
+        case FlightCommandType::TAKEOFF:
+        case FlightCommandType::JUMP:
+            entry.precondition_flags = ReadinessFlags::CALIBRATED | ReadinessFlags::LANDED;
+            break;
+        default:
+            entry.precondition_flags = ReadinessFlags::NONE;
+            break;
+    }
+
+    int cmd_id = queue.enqueueDetailed(entry);
 
     if (cmd_id < 0) {
         ESP_LOGE(TAG, "Failed to enqueue command (queue full)");
@@ -182,6 +206,8 @@ void FlightCommandService::update(float dt) {
         params_.climb_rate = cmd->climb_rate;
         params_.descent_rate = cmd->descent_rate;
         params_.target_yaw_deg = cmd->target_yaw_deg;
+        params_.target_pos_x = cmd->target_pos_x;
+        params_.target_pos_y = cmd->target_pos_y;
         state_ = FlightCommandState::RUNNING;
         phase_ = ExecutionPhase::INIT;
         elapsed_time_ = 0.0f;
@@ -228,6 +254,10 @@ void FlightCommandService::update(float dt) {
 
         case FlightCommandType::ROTATE_YAW:
             updateRotateYawCommand(dt, current_altitude);
+            break;
+
+        case FlightCommandType::MOVE_HORIZONTAL:
+            updateMoveHorizontalCommand(dt, current_altitude);
             break;
 
         default:
@@ -301,11 +331,11 @@ bool FlightCommandService::canExecute() const {
 
 // Send control input to ControlArbiter
 // 制御出力を ControlArbiter に送る
-void FlightCommandService::sendControlInput(float throttle, float roll, float pitch, float yaw) {
+void FlightCommandService::sendControlInput(float throttle, float roll, float pitch, float yaw, uint8_t flags) {
     // Send to ControlArbiter via WebSocket source
     // WebSocketソース経由でControlArbiterに送信
     auto& arbiter = ControlArbiter::getInstance();
-    arbiter.updateFromWebSocket(throttle, roll, pitch, yaw, 0);
+    arbiter.updateFromWebSocket(throttle, roll, pitch, yaw, flags);
 
     // Debug log every 100 cycles (~250ms @ 400Hz)
     static int send_log_counter = 0;
@@ -655,6 +685,86 @@ void FlightCommandService::updateRotateYawCommand(float dt, float current_altitu
             state_ = FlightCommandState::COMPLETED;
             current_command_ = FlightCommandType::NONE;
             sendControlInput(0.55f, 0.0f, 0.0f, 0.0f);
+            break;
+
+        default:
+            break;
+    }
+}
+
+void FlightCommandService::updateMoveHorizontalCommand(float dt, float current_altitude) {
+    // MOVE_HORIZONTAL: INIT → MOVING → DONE
+    // 水平移動: INIT → 移動中 → 完了
+    //
+    // Uses PositionController setpoint to move to target position.
+    // PositionController のセットポイントを直接設定して目標位置へ移動。
+    switch (phase_) {
+        case ExecutionPhase::INIT:
+            {
+                // Enable POSITION_HOLD mode and set target position
+                // POSITION_HOLD モードを有効化し、目標位置を設定
+                auto state = globals::g_fusion.getState();
+                float current_x = state.position.x;
+                float current_y = state.position.y;
+
+                // Capture current position, then override setpoint with target
+                // 現在位置をキャプチャ後、セットポイントを目標位置に上書き
+                g_position_controller.capturePosition(current_x, current_y);
+                g_position_controller.pos_setpoint_x = params_.target_pos_x;
+                g_position_controller.pos_setpoint_y = params_.target_pos_y;
+
+                ESP_LOGI(TAG, "MOVE_HORIZONTAL: Moving from (%.2f, %.2f) to (%.2f, %.2f) m",
+                         current_x, current_y, params_.target_pos_x, params_.target_pos_y);
+
+                phase_ = ExecutionPhase::MOVING;
+            }
+            break;
+
+        case ExecutionPhase::MOVING:
+            {
+                // Send control input with POSITION_HOLD flag, zero sticks
+                // POSITION_HOLD フラグ付きで制御入力送信、スティックはゼロ
+                constexpr float HOVER_THROTTLE = 0.55f;
+
+                // Maintain altitude with proportional control
+                // 高度を比例制御で維持
+                float alt_error = params_.target_altitude - current_altitude;
+                float throttle = HOVER_THROTTLE + (alt_error * 0.6f);
+                throttle = constrain(throttle, 0.50f, 0.75f);
+
+                sendControlInput(throttle, 0.0f, 0.0f, 0.0f, CTRL_FLAG_POS_MODE);
+
+                // Check if position reached
+                // 位置到達チェック
+                auto state = globals::g_fusion.getState();
+                float error_x = params_.target_pos_x - state.position.x;
+                float error_y = params_.target_pos_y - state.position.y;
+                float error_dist = sqrtf(error_x * error_x + error_y * error_y);
+
+                if (error_dist < 0.05f) {
+                    // Reached target position (within 5cm)
+                    // 目標位置に到達（5cm以内）
+                    ESP_LOGI(TAG, "MOVE_HORIZONTAL: Reached target (error: %.3f m)", error_dist);
+                    phase_ = ExecutionPhase::DONE;
+                }
+
+                // Debug log every 100 cycles (~250ms @ 400Hz)
+                static int move_log_counter = 0;
+                if (++move_log_counter >= 100) {
+                    ESP_LOGI(TAG, "MOVE_HORIZONTAL: pos=(%.2f, %.2f), target=(%.2f, %.2f), error=%.3f m",
+                             state.position.x, state.position.y,
+                             params_.target_pos_x, params_.target_pos_y, error_dist);
+                    move_log_counter = 0;
+                }
+            }
+            break;
+
+        case ExecutionPhase::DONE:
+            // Keep hovering at target position with POSITION_HOLD
+            // POSITION_HOLD で目標位置にホバリング維持
+            state_ = FlightCommandState::COMPLETED;
+            current_command_ = FlightCommandType::NONE;
+            sendControlInput(0.55f, 0.0f, 0.0f, 0.0f, CTRL_FLAG_POS_MODE);
             break;
 
         default:

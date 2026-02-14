@@ -86,6 +86,7 @@ int CommandQueue::enqueue(FlightCommandType type,
             break;
         case FlightCommandType::MOVE_VERTICAL:
         case FlightCommandType::ROTATE_YAW:
+        case FlightCommandType::MOVE_HORIZONTAL:
             entry.precondition_flags = ReadinessFlags::NONE;  // Allowed while flying
             break;
         default:

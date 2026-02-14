@@ -191,6 +191,7 @@ static int cmd_flight(int argc, char** argv) {
                 case FlightCommandType::HOVER:         cmd_name = "HOVER"; break;
                 case FlightCommandType::MOVE_VERTICAL: cmd_name = "MOVE_VERTICAL"; break;
                 case FlightCommandType::ROTATE_YAW:    cmd_name = "ROTATE_YAW"; break;
+                case FlightCommandType::MOVE_HORIZONTAL: cmd_name = "MOVE_HORIZONTAL"; break;
                 default: break;
             }
             console.print("Flight command: %s\r\n", cmd_name);
@@ -367,6 +368,182 @@ static int cmd_ccw(int argc, char** argv) {
     }
 }
 
+// Forward command: forward <cm>
+// 前進コマンド: forward <cm>
+static int cmd_forward(int argc, char** argv) {
+    auto& console = Console::getInstance();
+    auto& flight = FlightCommandService::getInstance();
+
+    if (argc < 2) {
+        console.print("Usage: forward <cm>  (20-200)\r\n");
+        return 1;
+    }
+
+    int cm = atoi(argv[1]);
+    if (cm < 20 || cm > 200) {
+        console.print("Error: Distance must be 20-200 [cm]\r\n");
+        return 1;
+    }
+
+    // Calculate target position in NED frame (body forward → NED)
+    // NED座標系で目標位置を計算（機体前方 → NED）
+    auto state = globals::g_fusion.getState();
+    float current_x = state.position.x;
+    float current_y = state.position.y;
+    float yaw = state.yaw;
+    float dist = (float)cm / 100.0f;
+
+    // Body forward → NED: X += dist*cos(yaw), Y += dist*sin(yaw)
+    float target_x = current_x + dist * cosf(yaw);
+    float target_y = current_y + dist * sinf(yaw);
+    float current_alt = -state.position.z;
+
+    FlightCommandParams params{};
+    params.target_altitude = current_alt;
+    params.target_pos_x = target_x;
+    params.target_pos_y = target_y;
+
+    if (flight.executeCommand(FlightCommandType::MOVE_HORIZONTAL, params)) {
+        console.print("Forward %d cm enqueued (target: %.2f, %.2f)\r\n", cm, target_x, target_y);
+        return 0;
+    } else {
+        console.print("Failed to enqueue forward command\r\n");
+        return 1;
+    }
+}
+
+// Back command: back <cm>
+// 後退コマンド: back <cm>
+static int cmd_back(int argc, char** argv) {
+    auto& console = Console::getInstance();
+    auto& flight = FlightCommandService::getInstance();
+
+    if (argc < 2) {
+        console.print("Usage: back <cm>  (20-200)\r\n");
+        return 1;
+    }
+
+    int cm = atoi(argv[1]);
+    if (cm < 20 || cm > 200) {
+        console.print("Error: Distance must be 20-200 [cm]\r\n");
+        return 1;
+    }
+
+    // Body backward → NED: X -= dist*cos(yaw), Y -= dist*sin(yaw)
+    auto state = globals::g_fusion.getState();
+    float current_x = state.position.x;
+    float current_y = state.position.y;
+    float yaw = state.yaw;
+    float dist = (float)cm / 100.0f;
+
+    float target_x = current_x - dist * cosf(yaw);
+    float target_y = current_y - dist * sinf(yaw);
+    float current_alt = -state.position.z;
+
+    FlightCommandParams params{};
+    params.target_altitude = current_alt;
+    params.target_pos_x = target_x;
+    params.target_pos_y = target_y;
+
+    if (flight.executeCommand(FlightCommandType::MOVE_HORIZONTAL, params)) {
+        console.print("Back %d cm enqueued (target: %.2f, %.2f)\r\n", cm, target_x, target_y);
+        return 0;
+    } else {
+        console.print("Failed to enqueue back command\r\n");
+        return 1;
+    }
+}
+
+// Left command: left <cm>
+// 左移動コマンド: left <cm>
+static int cmd_left(int argc, char** argv) {
+    auto& console = Console::getInstance();
+    auto& flight = FlightCommandService::getInstance();
+
+    if (argc < 2) {
+        console.print("Usage: left <cm>  (20-200)\r\n");
+        return 1;
+    }
+
+    int cm = atoi(argv[1]);
+    if (cm < 20 || cm > 200) {
+        console.print("Error: Distance must be 20-200 [cm]\r\n");
+        return 1;
+    }
+
+    // Body left → NED: perpendicular to forward, left = -90° from heading
+    // NED: X += dist*sin(yaw) * (-1), Y -= dist*cos(yaw) ... wait
+    // Body left in NED: X += dist*(-sin(yaw)), Y += dist*cos(yaw)
+    // Actually: body left = yaw - 90° direction
+    // forward direction = (cos(yaw), sin(yaw))
+    // left direction = (-sin(yaw), cos(yaw))
+    auto state = globals::g_fusion.getState();
+    float current_x = state.position.x;
+    float current_y = state.position.y;
+    float yaw = state.yaw;
+    float dist = (float)cm / 100.0f;
+
+    float target_x = current_x - dist * sinf(yaw);
+    float target_y = current_y + dist * cosf(yaw);
+    float current_alt = -state.position.z;
+
+    FlightCommandParams params{};
+    params.target_altitude = current_alt;
+    params.target_pos_x = target_x;
+    params.target_pos_y = target_y;
+
+    if (flight.executeCommand(FlightCommandType::MOVE_HORIZONTAL, params)) {
+        console.print("Left %d cm enqueued (target: %.2f, %.2f)\r\n", cm, target_x, target_y);
+        return 0;
+    } else {
+        console.print("Failed to enqueue left command\r\n");
+        return 1;
+    }
+}
+
+// Right command: right <cm>
+// 右移動コマンド: right <cm>
+static int cmd_right(int argc, char** argv) {
+    auto& console = Console::getInstance();
+    auto& flight = FlightCommandService::getInstance();
+
+    if (argc < 2) {
+        console.print("Usage: right <cm>  (20-200)\r\n");
+        return 1;
+    }
+
+    int cm = atoi(argv[1]);
+    if (cm < 20 || cm > 200) {
+        console.print("Error: Distance must be 20-200 [cm]\r\n");
+        return 1;
+    }
+
+    // Body right → NED: right = +90° from heading
+    // right direction = (sin(yaw), -cos(yaw))
+    auto state = globals::g_fusion.getState();
+    float current_x = state.position.x;
+    float current_y = state.position.y;
+    float yaw = state.yaw;
+    float dist = (float)cm / 100.0f;
+
+    float target_x = current_x + dist * sinf(yaw);
+    float target_y = current_y - dist * cosf(yaw);
+    float current_alt = -state.position.z;
+
+    FlightCommandParams params{};
+    params.target_altitude = current_alt;
+    params.target_pos_x = target_x;
+    params.target_pos_y = target_y;
+
+    if (flight.executeCommand(FlightCommandType::MOVE_HORIZONTAL, params)) {
+        console.print("Right %d cm enqueued (target: %.2f, %.2f)\r\n", cm, target_x, target_y);
+        return 0;
+    } else {
+        console.print("Failed to enqueue right command\r\n");
+        return 1;
+    }
+}
+
 // Emergency command: emergency
 // 緊急停止コマンド: emergency
 static int cmd_emergency(int argc, char** argv) {
@@ -500,6 +677,38 @@ extern "C" void register_flight_commands() {
         .func = &cmd_ccw,
     };
     esp_console_cmd_register(&ccw_cmd);
+
+    const esp_console_cmd_t forward_cmd = {
+        .command = "forward",
+        .help = "Move forward [forward <cm>] (20-200)",
+        .hint = NULL,
+        .func = &cmd_forward,
+    };
+    esp_console_cmd_register(&forward_cmd);
+
+    const esp_console_cmd_t back_cmd = {
+        .command = "back",
+        .help = "Move backward [back <cm>] (20-200)",
+        .hint = NULL,
+        .func = &cmd_back,
+    };
+    esp_console_cmd_register(&back_cmd);
+
+    const esp_console_cmd_t left_cmd = {
+        .command = "left",
+        .help = "Move left [left <cm>] (20-200)",
+        .hint = NULL,
+        .func = &cmd_left,
+    };
+    esp_console_cmd_register(&left_cmd);
+
+    const esp_console_cmd_t right_cmd = {
+        .command = "right",
+        .help = "Move right [right <cm>] (20-200)",
+        .hint = NULL,
+        .func = &cmd_right,
+    };
+    esp_console_cmd_register(&right_cmd);
 
     const esp_console_cmd_t emergency_cmd = {
         .command = "emergency",
