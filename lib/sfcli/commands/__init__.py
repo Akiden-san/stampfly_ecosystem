@@ -14,6 +14,7 @@ from . import sim
 from . import cal
 from . import setup
 from . import sysid
+from . import flight
 
 __all__ = [
     "version",
@@ -26,4 +27,5 @@ __all__ = [
     "cal",
     "setup",
     "sysid",
+    "flight",
 ]

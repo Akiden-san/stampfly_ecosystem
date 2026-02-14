@@ -12,7 +12,7 @@ import sys
 from typing import Optional, List
 
 from . import __version__
-from .commands import version, doctor, build, flash, monitor, log, sim, cal, setup, eskf, sysid
+from .commands import version, doctor, build, flash, monitor, log, sim, cal, setup, eskf, sysid, flight
 from .utils import console
 
 
@@ -56,6 +56,7 @@ def create_parser() -> argparse.ArgumentParser:
     cal.register(subparsers)
     eskf.register(subparsers)
     sysid.register(subparsers)
+    flight.register(subparsers)
 
     return parser
 
