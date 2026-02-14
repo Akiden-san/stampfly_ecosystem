@@ -10,7 +10,8 @@ $ARGUMENTS を解釈:
 ### コミット選択オプション（排他的）
 - `-n <数>`: 直近N件のコミットをまとめる（デフォルト: 1）
 - `--day <数>`: 直近N日間のコミットをまとめる（例: `--day 7`で1週間分）
-- `--select`: **インタラクティブ選択**（直近20件から番号で選択）
+- `--select`: **インタラクティブ選択**（ターミナル専用、Claude Code スキルでは使用不可）
+- `--list [数]`: **コミット一覧を表示**（デフォルト20件、Claude Code スキル用）
 - `--commits <ハッシュ>`: **ハッシュ指定**（カンマ区切り、例: `f3a6083,139df24`）
 - `--range <範囲>`: **範囲指定**（例: `4c8c60c..f3a6083`）
 
@@ -22,21 +23,44 @@ $ARGUMENTS を解釈:
 **Note**:
 - コミット選択オプションは排他的（1つのみ指定可能）
 - `-m`を指定すると、指定したメッセージが自動生成メッセージの前に追加されます（置き換えではなく追加）
+- **Claude Code スキルから使う場合**: `--select` は使えません。代わりに以下の手順で選択します：
+  1. `--list` でコミット一覧を取得
+  2. AskUserQuestion で選択肢を提示
+  3. 選択されたハッシュで `--commits` を実行
 
 ### 実行手順
 
-1. **コミット情報の取得**
-   新しい `generate_post.py` スクリプトを使用:
+**Claude Code スキルから実行する場合**（推奨）:
+
+1. **コミット一覧を取得**:
    ```bash
-   python3 .claude/skills/post-progress/scripts/generate_post.py [オプション]
+   python3 .claude/skills/post-progress/scripts/generate_post.py --list [件数]
+   ```
+   JSON 形式でコミット一覧が出力されます。
+
+2. **AskUserQuestion でユーザーに選択させる**:
+   - 出力されたコミットから選択肢を作成
+   - multiSelect または単一選択でユーザーに提示
+   - 選択されたハッシュを取得
+
+3. **投稿文を生成**:
+   ```bash
+   python3 .claude/skills/post-progress/scripts/generate_post.py --commits <選択されたハッシュ> [--dry-run]
    ```
 
-   **オプション別の動作:**
-   - `-n <数>`: `git log -n <数>` で直近N件取得
-   - `--day <数>`: `git log --since="<数> days ago"` で期間指定
-   - `--select`: インタラクティブ選択（直近20件から番号で選択）
-   - `--commits <ハッシュ>`: 指定ハッシュのみ取得
-   - `--range <範囲>`: `git log <範囲>` で範囲指定
+**ターミナルから直接実行する場合**:
+
+```bash
+python3 .claude/skills/post-progress/scripts/generate_post.py [オプション]
+```
+
+**オプション別の動作:**
+- `-n <数>`: `git log -n <数>` で直近N件取得
+- `--day <数>`: `git log --since="<数> days ago"` で期間指定
+- `--select`: インタラクティブ選択（直近20件から番号で選択、ターミナル専用）
+- `--list [数]`: コミット一覧を JSON 出力（Claude Code 用）
+- `--commits <ハッシュ>`: 指定ハッシュのみ取得
+- `--range <範囲>`: `git log <範囲>` で範囲指定
 
 2. **投稿文の生成**
    コミットメッセージを元に、以下のスタイルで投稿文を生成:

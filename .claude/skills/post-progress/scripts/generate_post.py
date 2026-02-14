@@ -276,7 +276,8 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-n', type=int, help='直近N件のコミット')
     group.add_argument('--day', type=int, help='直近N日間のコミット')
-    group.add_argument('--select', action='store_true', help='インタラクティブ選択')
+    group.add_argument('--select', action='store_true', help='インタラクティブ選択（ターミナル専用）')
+    group.add_argument('--list', type=int, default=None, nargs='?', const=20, help='コミット一覧をJSON出力（デフォルト20件）')
     group.add_argument('--commits', help='コミットハッシュ（カンマ区切り）')
     group.add_argument('--range', help='範囲指定（例: abc123..def456）')
 
@@ -284,6 +285,23 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='プレビューのみ')
 
     args = parser.parse_args()
+
+    # --list: コミット一覧をJSON出力（Claude Code用）
+    if args.list is not None:
+        import json
+        result = subprocess.run(
+            ["git", "log", f"-{args.list}", "--format=%H|%s"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        commits_list = []
+        for line in result.stdout.strip().split('\n'):
+            if '|' in line:
+                hash, subject = line.split('|', 1)
+                commits_list.append({"hash": hash[:7], "subject": subject})
+        print(json.dumps(commits_list, ensure_ascii=False, indent=2))
+        sys.exit(0)
 
     # コミット取得
     if args.n:
