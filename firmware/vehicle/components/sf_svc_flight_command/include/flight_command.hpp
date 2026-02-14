@@ -27,6 +27,7 @@ struct FlightCommandParams {
     float duration_s;         // Duration [s] (used for HOVER/JUMP) / 持続時間 [s]（HOVERやJUMPで使用）
     float climb_rate;         // Climb rate [m/s] / 上昇速度 [m/s]
     float descent_rate;       // Descent rate [m/s] / 降下速度 [m/s]
+    float target_yaw_deg;     // Target yaw angle [deg] (for ROTATE_YAW) / 目標ヨー角 [deg]
 };
 
 // Flight Command Service
@@ -79,6 +80,7 @@ private:
         CLIMBING,
         HOVERING,
         DESCENDING,
+        ROTATING,     // Yaw rotation in progress / ヨー回転中
         DONE,
     };
     ExecutionPhase phase_ = ExecutionPhase::INIT;
@@ -104,10 +106,20 @@ private:
     void updateTakeoffCommand(float dt, float current_altitude);
     void updateLandCommand(float dt, float current_altitude);
     void updateHoverCommand(float dt, float current_altitude);
+    void updateMoveVerticalCommand(float dt, float current_altitude);
+    void updateRotateYawCommand(float dt, float current_altitude);
+
+    // Get current yaw angle estimate [rad]
+    // 現在のヨー角推定値を取得 [rad]
+    float getCurrentYaw() const;
 
     // Helper function
     // ヘルパー関数
     static float constrain(float value, float min, float max);
+
+    // Normalize angle to [-180, 180] degrees
+    // 角度を [-180, 180] 度に正規化
+    static float normalizeAngleDeg(float angle);
 };
 
 } // namespace stampfly

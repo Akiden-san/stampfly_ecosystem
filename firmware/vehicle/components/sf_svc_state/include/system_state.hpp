@@ -34,10 +34,12 @@ enum class ControlSource : uint8_t;
  */
 enum class FlightCommandType {
     NONE = 0,
-    TAKEOFF,      ///< Takeoff / 離陸
-    LAND,         ///< Land / 着陸
-    HOVER,        ///< Hover at specified altitude / ホバリング
-    JUMP,         ///< Jump (takeoff → hover → land) / ジャンプ
+    TAKEOFF,         ///< Takeoff / 離陸
+    LAND,            ///< Land / 着陸
+    HOVER,           ///< Hover at specified altitude / ホバリング
+    JUMP,            ///< Jump (takeoff → hover → land) / ジャンプ
+    MOVE_VERTICAL,   ///< Vertical move (up/down) / 垂直移動
+    ROTATE_YAW,      ///< Yaw rotation (cw/ccw) / ヨー回転
 };
 
 /**
