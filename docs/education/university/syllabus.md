@@ -84,7 +84,7 @@
 |------|------|
 | `docs/education/setup_guide.md` | 環境構築手順 |
 | `docs/education/safety_guide.md` | 飛行安全ガイド |
-| `docs/education/assessment_rubric.md` | 評価ルーブリック |
+| `docs/education/university/assessment_rubric.md` | 評価ルーブリック |
 
 ---
 
