@@ -1,3 +1,9 @@
+---
+name: commit
+description: プロジェクトのコミットガイドラインに基づいてGitコミットを作成
+disable-model-invocation: true
+---
+
 # Git Commit with Guidelines
 # ガイドラインに基づいたGitコミット
 
