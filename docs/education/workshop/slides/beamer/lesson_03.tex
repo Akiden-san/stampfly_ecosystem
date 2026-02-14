@@ -93,11 +93,9 @@
 \begin{frame}[fragile]{実習: ARM 状態で LED 色を変える / Hands-on}
   \begin{lstlisting}[style=sfcpp, title={student.cpp}]
 #include "workshop_api.hpp"
-
 void setup() {
     ws::print("Lesson 3: LED Control");
 }
-
 void loop_400Hz(float dt) {
     if (ws::is_armed()) {
         ws::led_color(0, 255, 0);    // Green

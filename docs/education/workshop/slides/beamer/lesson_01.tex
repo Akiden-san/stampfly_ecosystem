@@ -28,9 +28,8 @@
 % ------------------------------------------------------------------
 \begin{frame}{モータ配置 / Motor Layout}
   \begin{center}
-    \includegraphics[width=0.45\textwidth]{motor_layout.png}
+    \includegraphics[width=0.38\textwidth]{motor_layout.png}
   \end{center}
-
   \begin{itemize}
     \item 対角のモータが同じ方向に回転（トルクバランス）
     \item M1(FR), M3(RL) = CW / M2(RR), M4(FL) = CCW
@@ -39,16 +38,23 @@
 
 % ------------------------------------------------------------------
 \begin{frame}{PWM とは / What is PWM?}
-  \begin{center}
-    \includegraphics[width=0.55\textwidth]{pwm_waveform.png}
-  \end{center}
-
-  \vspace{0.3em}
-
-  \begin{itemize}
-    \item \textbf{Duty 0\%} = 停止 / \textbf{100\%} = 最大回転
-    \item StampFly API: \api{motor\_set\_duty(id, 0.0\textasciitilde1.0)}
-  \end{itemize}
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \begin{center}
+        \includegraphics[height=0.72\textheight]{pwm_waveform.png}
+      \end{center}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \vspace{1em}
+      \begin{itemize}
+        \item \textbf{Pulse Width Modulation}\\（パルス幅変調）
+        \item \textbf{Duty 0\%} = 停止
+        \item \textbf{Duty 100\%} = 最大回転
+        \item API: \api{motor\_set\_duty(id, duty)}\\
+              \small id=1--4, duty=0.0--1.0
+      \end{itemize}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -77,18 +83,15 @@
 \begin{frame}[fragile]{実習: モータを順番に回す / Hands-on}
   \begin{lstlisting}[style=sfcpp, title={student.cpp}]
 #include "workshop_api.hpp"
-
 static uint32_t timer = 0;
 
 void setup() {
     ws::print("Lesson 1: Motor Control");
 }
-
 void loop_400Hz(float dt) {
     timer++;
     // 800 ticks = 2 seconds at 400Hz
     int motor_id = (timer / 800) % 4 + 1;
-
     ws::motor_stop_all();
     ws::motor_set_duty(motor_id, 0.1f);
 }

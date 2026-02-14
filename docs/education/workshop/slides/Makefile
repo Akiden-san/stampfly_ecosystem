@@ -39,7 +39,7 @@ BEAMER_PDFS    := $(BEAMER_SOURCES:.tex=.pdf)
 beamer: tikz $(BEAMER_PDFS)
 
 $(BEAMER_DIR)/lesson_%.pdf: $(BEAMER_DIR)/lesson_%.tex $(BEAMER_DIR)/stampfly_slides.sty $(TIKZ_SOURCES)
-	cd $(BEAMER_DIR) && lualatex -interaction=nonstopmode $(notdir $<)
+	cd $(BEAMER_DIR) && lualatex -interaction=nonstopmode $(notdir $<) && lualatex -interaction=nonstopmode $(notdir $<)
 
 # ---------------------------------------------------------------------------
 # PowerPoint slides (python-pptx)
