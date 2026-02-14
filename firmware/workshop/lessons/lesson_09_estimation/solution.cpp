@@ -1,0 +1,56 @@
+#include "workshop_api.hpp"
+#include <cmath>
+
+// Complementary filter state
+// 相補フィルタの状態変数
+static float cf_roll = 0.0f;
+static float cf_pitch = 0.0f;
+static uint32_t tick = 0;
+
+void setup()
+{
+    ws::print("Lesson 9: Attitude Estimation - Solution");
+}
+
+void loop_400Hz(float dt)
+{
+    tick++;
+
+    // Read sensors / センサ値を読み取る
+    float gx = ws::gyro_x();
+    float gy = ws::gyro_y();
+    float ax = ws::accel_x();
+    float ay = ws::accel_y();
+    float az = ws::accel_z();
+
+    // Accelerometer-based angles
+    // 加速度センサから角度を計算
+    float accel_roll  = atan2f(ay, az);
+    float accel_pitch = atan2f(-ax, az);
+
+    // Complementary filter
+    // 相補フィルタ: ジャイロ98% + 加速度2%
+    constexpr float alpha = 0.98f;
+    cf_roll  = alpha * (cf_roll  + gx * dt) + (1.0f - alpha) * accel_roll;
+    cf_pitch = alpha * (cf_pitch + gy * dt) + (1.0f - alpha) * accel_pitch;
+
+    // ESKF reference for comparison
+    // 比較用のESKF推定値
+    float eskf_roll  = ws::estimated_roll();
+    float eskf_pitch = ws::estimated_pitch();
+
+    // Telemetry: compare CF vs ESKF (convert rad -> deg)
+    // テレメトリ: 相補フィルタとESKFを比較（rad -> deg変換）
+    ws::telemetry_send("cf_roll",    cf_roll  * 57.3f);
+    ws::telemetry_send("eskf_roll",  eskf_roll  * 57.3f);
+    ws::telemetry_send("cf_pitch",   cf_pitch * 57.3f);
+    ws::telemetry_send("eskf_pitch", eskf_pitch * 57.3f);
+
+    // Print every 200ms (80 ticks at 400Hz)
+    // 200ms毎に表示
+    if (tick % 80 == 0) {
+        ws::print("CF: R=%.1f P=%.1f | ESKF: R=%.1f P=%.1f",
+                  cf_roll * 57.3f, cf_pitch * 57.3f,
+                  eskf_roll * 57.3f, eskf_pitch * 57.3f);
+    }
+}
