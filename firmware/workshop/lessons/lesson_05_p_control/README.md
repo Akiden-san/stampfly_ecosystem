@@ -7,9 +7,9 @@ Implement proportional (P) feedback control on angular rate and achieve your fir
 
 ## Prerequisites / 前提条件
 - Lesson 1-4 completed (motor, controller, LED, IMU)
-- Propellers installed correctly (check rotation direction!)
-- Propeller guards installed
-- Clear open space (3m x 3m minimum)
+- Propellers installed correctly (check rotation direction! / 回転方向を確認！)
+- Clear open space (3m x 3m minimum) / 広い空間（最低3m x 3m）
+- Safety glasses / 保護メガネ
 
 ## Key Concept: Feedback Control / フィードバック制御
 
@@ -76,11 +76,11 @@ output = Kp * error
 1. `sf lesson switch 5`
 2. Fill in the TODO sections in `student.cpp`
 3. Build and flash: `sf build workshop && sf flash workshop -m`
-4. **Safety checklist before flight:**
-   - Propeller guards installed
-   - Battery fully charged
-   - Throttle stick at minimum
-   - Clear area around drone
+4. **Safety checklist before flight / フライト前安全チェック:**
+   - Battery fully charged / バッテリー満充電
+   - Throttle stick at minimum / スロットルスティック最小
+   - Clear area around drone / 機体周辺に障害物なし
+   - Safety glasses on / 保護メガネ着用
 5. ARM the drone
 6. Slowly increase throttle to ~40-50%
 7. Observe: does the drone resist tilting?
@@ -90,11 +90,13 @@ output = Kp * error
 
 | Rule | 説明 |
 |------|------|
-| Always have propeller guards | 必ずプロペラガードを装着 |
+| Wear safety glasses | 保護メガネを着用する |
 | Start with low throttle | 低スロットルから始める |
 | Immediately disarm if unstable | 不安定ならすぐディスアーム |
 | Test over soft surface | 柔らかい面の上でテスト |
 | Keep fingers away from propellers | プロペラに指を近づけない |
+
+> **Note / 注:** StampFly has built-in propeller guards that cannot be removed. / StampFly はプロペラガード一体型のため取り外しできません。
 
 ## Challenge / チャレンジ
 - Try different Kp values (0.2, 0.5, 1.0, 2.0) and observe the response

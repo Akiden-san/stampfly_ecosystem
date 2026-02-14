@@ -44,8 +44,8 @@ Stick Input ──> [Attitude PID] ──> [Rate PID] ──> Motor Mixer
 | Altitude hold | Hold 0.5m altitude for 30 seconds | Smallest altitude error wins |
 
 ### Safety Rules / 安全ルール
-- Propeller guards must be installed at all times
-- Maximum altitude: 1.5m
+- Safety glasses required during flight / フライト中は保護メガネ必須
+- Maximum altitude: 1.5m / 最大高度: 1.5m
 - Flight area boundary: 3m x 3m
 - Instructor must approve code before flight
 - Emergency stop: release all sticks (auto-disarm)

@@ -79,9 +79,9 @@ python3 -c "import stampfly_sdk"
 **目的:** PWM 制御の基礎、モータ番号と配置の理解
 
 **安全注意:**
-- プロペラは外した状態で実施
-- duty は 0.2 以下で開始
+- duty は 0.2 以下で開始（低推力で安全に確認）
 - モータの回転方向を確認
+- 機体を手で押さえた状態でテスト
 
 **確認ポイント:**
 - 各モータが個別に回転するか
@@ -180,7 +180,7 @@ sf log viz <logfile>
 | 保護メガネ | フライト時は全員着用 |
 | フライトエリア | ネット/フェンスで囲う |
 | バッテリー | 3.3V 以下で使用禁止 |
-| プロペラ | 地上テストは外した状態 |
+| 地上テスト | 低 duty（0.2以下）で機体を手で押さえてテスト |
 | 緊急停止 | コントローラの DISARM ボタンを常に意識 |
 
 ### 事故対応
@@ -244,7 +244,7 @@ See the Japanese section above for detailed lesson-by-lesson instructions.
 - Safety glasses required during flight
 - Flight area must be enclosed
 - Battery cutoff at 3.3V
-- Ground tests without propellers
+- Ground tests at low duty (hold drone by hand)
 - Always be ready to DISARM
 
 ## 5. Troubleshooting

@@ -29,9 +29,9 @@ Understand motor numbering and control individual motors with PWM.
 ## Steps / 手順
 1. Switch to this lesson: `sf lesson switch 1`
 2. Spin motor 1 at 10% duty
-3. Verify which propeller spins (FR = front-right)
-4. Try each motor to confirm numbering
-5. **WARNING**: Hold the drone firmly! Do not exceed 15% duty!
+3. Verify which propeller spins (FR = front-right) / どのプロペラが回るか確認（FR = 右前）
+4. Try each motor to confirm numbering / 各モータを試して番号を確認
+5. **WARNING / 注意**: Hold the drone firmly! Do not exceed 15% duty! / 機体をしっかり押さえること！duty 15% を超えないこと！
 
 ## Challenge / チャレンジ
 Cycle through all 4 motors, spinning each for 2 seconds.
