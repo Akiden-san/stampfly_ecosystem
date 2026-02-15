@@ -78,14 +78,15 @@
     \begin{bmatrix} T \\ \tau_\phi \\ \tau_\theta \\ \tau_\psi \end{bmatrix}$
   };
 
-  % Legend
-  \node[anchor=west, font=\small] at (0, -8.5) {%
-    \textcolor{pluscolor}{\rule{12pt}{2pt}} $+$ (positive) \quad
-    \textcolor{minuscolor}{- - -} $-$ (negative)};
-
   % Title
   \node[font=\Large\bfseries, motorcolor] at (4, 5)
     {Motor Mixer Matrix};
+
+  % Legend (right of matrix)
+  \node[anchor=west, font=\small, pluscolor] at (8.5, -5.5) {%
+    \rule{10pt}{2pt} $+$ positive};
+  \node[anchor=west, font=\small, minuscolor] at (8.5, -6.3) {%
+    - - - $-$ negative};
 
 \end{tikzpicture}
 \end{document}

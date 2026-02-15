@@ -60,23 +60,17 @@
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: ステップ応答実験 / Hands-on}
   \begin{lstlisting}[style=sfcpp, title={student.cpp (excerpt)}]
-// Step response experiment
-// 2s wait -> 1s step -> 1s recovery
+// Step response: 2s wait -> 1s step -> 1s recovery
 float step_rate = 0.5f;   // Step amplitude [rad/s]
 uint32_t delay  = 800;    // 2s at 400Hz
 uint32_t dur    = 400;    // 1s step
-
 float roll_step = 0.0f;
 if (elapsed >= delay && elapsed < delay + dur)
     roll_step = step_rate;  // Step ON!
-
-// Override roll target with step input
-float roll_target = roll_step;  // Ignore stick
-
+float roll_target = roll_step;  // Override stick
 // Send telemetry at 400Hz
 ws::telemetry_send("step_target", roll_step);
 ws::telemetry_send("step_actual", ws::gyro_x());
-
 // LED: red during step, green otherwise
 if (roll_step > 0) ws::led_color(50, 0, 0);
 else               ws::led_color(0, 50, 0);
