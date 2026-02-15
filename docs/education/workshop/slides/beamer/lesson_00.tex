@@ -11,6 +11,88 @@
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}{ワークショップカリキュラム / Workshop Curriculum}
+  \begin{table}
+    \centering
+    \begin{tabular}{llp{60mm}}
+      \hline
+      \textbf{Day} & \textbf{Lesson} & \textbf{テーマ} \\
+      \hline
+      Day 1 & 0\,--\,4  & 環境セットアップ + ハードウェア入門 \\
+      Day 2 & 5\,--\,7  & フィードバック制御 + 初フライト \\
+      Day 3 & 8\,--\,9  & モデリング + 姿勢推定 \\
+      Day 4 & 10\,--\,11 & Python SDK + 競技会 \\
+      \hline
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{StampFly ハードウェア / Hardware}
+  \begin{table}
+    \centering
+    \begin{tabular}{ll}
+      \hline
+      \textbf{項目} & \textbf{仕様} \\
+      \hline
+      MCU    & ESP32-S3 (M5Stamp S3) \\
+      IMU    & BMI270 (6軸 400\,Hz) \\
+      気圧   & BMP280 \\
+      ToF    & VL53L3CX \\
+      質量   & 35\,g（バッテリ含む） \\
+      通信   & ESP-NOW + WiFi \\
+      バッテリ & LiPo 1S 3.7\,V \\
+      \hline
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{エコシステム全体像 / Ecosystem Overview}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \centering
+      \resizebox{0.95\columnwidth}{!}{\input{../tikz/ecosystem_layers}}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \small
+      \begin{itemize}
+        \item \texttt{firmware/} --- 機体・送信機の組込みコード
+        \item \texttt{control/} --- 制御設計（PID, MPC）
+        \item \texttt{simulator/} --- 3D 物理シミュレータ
+        \item \texttt{analysis/} --- データ解析（Jupyter）
+        \item \texttt{tools/} --- 開発ツール（sf CLI）
+        \item \texttt{protocol/} --- 通信仕様（SSOT）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{開発ツール sf CLI / Development Tool}
+  \begin{table}
+    \centering\small
+    \begin{tabular}{lll}
+      \hline
+      \textbf{カテゴリ} & \textbf{コマンド例} & \textbf{説明} \\
+      \hline
+      ビルド         & \code{sf build} / \code{sf flash}    & ファームウェア開発 \\
+      診断           & \code{sf doctor} / \code{sf monitor}  & デバッグ \\
+      ログ           & \code{sf log wifi} / \code{sf log viz} & テレメトリ取得・可視化 \\
+      シミュレータ   & \code{sf sim run}                     & 仮想環境で練習 \\
+      キャリブレーション & \code{sf cal gyro/accel/mag}      & センサ校正 \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.5em}
+
+  \begin{block}{ワークフロー}
+    \code{sf lesson switch N} → \code{sf build workshop} → \code{sf flash workshop -m}
+  \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}{今日のゴール / Today's Goal}
   \begin{block}{目標}
     ワークショップファームウェアをビルド・書き込み・動作確認する

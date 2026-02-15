@@ -1,0 +1,49 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit}
+\usepackage{luatexja}
+\usepackage[match]{luatexja-fontspec}
+\setmainjfont{Hiragino Kaku Gothic ProN}
+\setsansjfont{Hiragino Kaku Gothic ProN}
+
+\begin{document}
+
+\definecolor{layer1}{RGB}{0, 100, 180}   % firmware
+\definecolor{layer2}{RGB}{40, 140, 60}   % control
+\definecolor{layer3}{RGB}{180, 120, 0}   % analysis
+\definecolor{layer4}{RGB}{0, 120, 200}   % tools
+\definecolor{layer5}{RGB}{120, 80, 160}  % simulator
+\definecolor{layer6}{RGB}{180, 60, 40}   % protocol
+
+\begin{tikzpicture}[
+    layer/.style={
+      rectangle, rounded corners=4pt, draw=#1, line width=1.5pt,
+      fill=#1!10, minimum width=75mm, minimum height=14mm,
+      font=\bfseries\large, text=#1, align=center
+    },
+    label/.style={
+      font=\small, text=black!70, align=left, anchor=west
+    },
+  ]
+
+  % Layers (bottom to top)
+  \node[layer=layer6] (L6) at (0, 0)    {\texttt{protocol/}\hspace{1em}通信仕様};
+  \node[layer=layer1, above=5mm of L6]  (L1) {\texttt{firmware/}\hspace{1em}組込みコード};
+  \node[layer=layer2, above=5mm of L1]  (L2) {\texttt{control/}\hspace{1em}制御設計};
+  \node[layer=layer5, above=5mm of L2]  (L5) {\texttt{simulator/}\hspace{1em}シミュレータ};
+  \node[layer=layer3, above=5mm of L5]  (L3) {\texttt{analysis/}\hspace{1em}データ解析};
+  \node[layer=layer4, above=5mm of L3]  (L4) {\texttt{tools/}\hspace{1em}開発ツール};
+
+  % Right-side descriptions
+  \node[label, right=12mm of L6] {SSOT: YAML → コード自動生成};
+  \node[label, right=12mm of L1] {ESP32-S3 / ESP-IDF / C++};
+  \node[label, right=12mm of L2] {PID, MPC, SIL};
+  \node[label, right=12mm of L5] {Genesis 3D 物理};
+  \node[label, right=12mm of L3] {Jupyter / Python};
+  \node[label, right=12mm of L4] {sf CLI};
+
+  % Title
+  \node[font=\LARGE\bfseries, above=10mm of L4] {StampFly Ecosystem};
+
+\end{tikzpicture}
+\end{document}

@@ -355,6 +355,52 @@ def build_lesson_00() -> Presentation:
 
     add_title_slide(prs, "Lesson 0: 環境セットアップ", "Environment Setup")
 
+    # P2: Workshop curriculum
+    add_table_slide(prs, "ワークショップカリキュラム / Workshop Curriculum", [
+        "Day", "Lesson", "テーマ",
+    ], [
+        ["Day 1", "0 - 4", "環境セットアップ + ハードウェア入門"],
+        ["Day 2", "5 - 7", "フィードバック制御 + 初フライト"],
+        ["Day 3", "8 - 9", "モデリング + 姿勢推定"],
+        ["Day 4", "10 - 11", "Python SDK + 競技会"],
+    ])
+
+    # P3: StampFly hardware specs
+    add_table_slide(prs, "StampFly ハードウェア / Hardware", [
+        "項目", "仕様",
+    ], [
+        ["MCU", "ESP32-S3 (M5Stamp S3)"],
+        ["IMU", "BMI270 (6軸 400Hz)"],
+        ["気圧", "BMP280"],
+        ["ToF", "VL53L3CX"],
+        ["質量", "35g（バッテリ含む）"],
+        ["通信", "ESP-NOW + WiFi"],
+        ["バッテリ", "LiPo 1S 3.7V"],
+    ])
+
+    # P4: Ecosystem overview
+    add_content_slide(prs, "エコシステム全体像 / Ecosystem Overview", [
+        "StampFly Ecosystem の6層構造:",
+        "",
+        "• firmware/ --- 機体・送信機の組込みコード",
+        "• control/ --- 制御設計（PID, MPC）",
+        "• simulator/ --- 3D 物理シミュレータ",
+        "• analysis/ --- データ解析（Jupyter）",
+        "• tools/ --- 開発ツール（sf CLI）",
+        "• protocol/ --- 通信仕様（SSOT）",
+    ])
+
+    # P5: sf CLI development tool
+    add_table_slide(prs, "開発ツール sf CLI / Development Tool", [
+        "カテゴリ", "コマンド例", "説明",
+    ], [
+        ["ビルド", "sf build / sf flash", "ファームウェア開発"],
+        ["診断", "sf doctor / sf monitor", "デバッグ"],
+        ["ログ", "sf log wifi / sf log viz", "テレメトリ取得・可視化"],
+        ["シミュレータ", "sf sim run", "仮想環境で練習"],
+        ["キャリブレーション", "sf cal gyro/accel/mag", "センサ校正"],
+    ])
+
     add_content_slide(prs, "今日のゴール / Today's Goal", [
         "ワークショップファームウェアをビルド・書き込み・動作確認する",
         "",
