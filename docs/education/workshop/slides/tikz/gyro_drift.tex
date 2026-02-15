@@ -38,7 +38,7 @@
 
   % True value (horizontal line at y=2)
   \draw[trueline] (0, 2) -- (8, 2);
-  \node[font=\normalsize\bfseries, truecolor, above left] at (3, 2.15) {True angle};
+  \node[font=\normalsize\bfseries, truecolor, below] at (3, 1.85) {True angle};
 
   % Gyro integrated value (drifting upward)
   \draw[driftline] plot[smooth, tension=0.5] coordinates {
