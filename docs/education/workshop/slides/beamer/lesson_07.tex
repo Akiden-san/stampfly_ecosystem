@@ -1,0 +1,103 @@
+\documentclass[aspectratio=169, 14pt]{beamer}
+\usepackage{stampfly_slides}
+
+\lesson{7}{テレメトリ + ステップ応答}{Telemetry + Step Response}
+
+\begin{document}
+
+% ------------------------------------------------------------------
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{今日のゴール / Today's Goal}
+  \begin{block}{目標}
+    WiFi テレメトリでステップ応答データを取得し、制御性能を分析する
+  \end{block}
+
+  \vspace{1em}
+
+  \begin{itemize}
+    \item ステップ応答とは何か
+    \item 立ち上がり時間・オーバーシュート・整定時間
+    \item \code{sf log wifi} でデータ取得
+  \end{itemize}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{ステップ応答 / Step Response}
+  \begin{center}
+    \resizebox{!}{0.78\textheight}{\input{../tikz/step_response}}
+  \end{center}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{テレメトリ API}
+  \begin{table}
+    \centering
+    \begin{tabular}{lll}
+      \hline
+      \textbf{関数} & \textbf{説明} & \textbf{引数} \\
+      \hline
+      \api{telemetry\_send(name, val)} & テレメトリ送信 & 名前, float 値 \\
+      \api{led\_color(r, g, b)} & LED 色設定 & 各 0--255 \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.5em}
+
+  \begin{block}{実験手順}
+    \begin{enumerate}
+      \item ホバリング状態でステップ入力を自動付加
+      \item \code{sf log wifi} でリアルタイム記録
+      \item CSV を分析して性能指標を計測
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{実習: ステップ応答実験 / Hands-on}
+  \begin{lstlisting}[style=sfcpp, title={student.cpp (excerpt)}]
+// Step response experiment
+// 2s wait -> 1s step -> 1s recovery
+float step_rate = 0.5f;   // Step amplitude [rad/s]
+uint32_t delay  = 800;    // 2s at 400Hz
+uint32_t dur    = 400;    // 1s step
+
+float roll_step = 0.0f;
+if (elapsed >= delay && elapsed < delay + dur)
+    roll_step = step_rate;  // Step ON!
+
+// Override roll target with step input
+float roll_target = roll_step;  // Ignore stick
+
+// Send telemetry at 400Hz
+ws::telemetry_send("step_target", roll_step);
+ws::telemetry_send("step_actual", ws::gyro_x());
+
+// LED: red during step, green otherwise
+if (roll_step > 0) ws::led_color(50, 0, 0);
+else               ws::led_color(0, 50, 0);
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{チェックポイント / Checkpoint}
+  \begin{alertblock}{確認事項}
+    \begin{itemize}
+      \item[$\square$] \code{sf log wifi} でデータを取得できた
+      \item[$\square$] 波形でオーバーシュートを確認
+      \item[$\square$] 整定時間を計測（目安: 0.3s 以内）
+    \end{itemize}
+  \end{alertblock}
+
+  \vspace{1em}
+
+  \begin{block}{次のレッスン}
+    Lesson 8: モデリング --- 運動方程式からミキサーを導出
+  \end{block}
+\end{frame}
+
+\end{document}

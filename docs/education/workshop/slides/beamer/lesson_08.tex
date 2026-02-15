@@ -1,0 +1,102 @@
+\documentclass[aspectratio=169, 14pt]{beamer}
+\usepackage{stampfly_slides}
+
+\lesson{8}{モデリング}{Quadrotor Dynamics}
+
+\begin{document}
+
+% ------------------------------------------------------------------
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{今日のゴール / Today's Goal}
+  \begin{block}{目標}
+    運動方程式から第一原理でモーターミキサーを自力導出する
+  \end{block}
+
+  \vspace{1em}
+
+  \begin{itemize}
+    \item クアッドロータの力学モデル
+    \item 推力 $T$、ロール $\tau_\phi$、ピッチ $\tau_\theta$、ヨー $\tau_\psi$
+    \item \api{motor\_mixer()} を使わず個別モータ制御
+  \end{itemize}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{ミキサー行列 / Motor Mixer Matrix}
+  \begin{center}
+    \resizebox{!}{0.78\textheight}{\input{../tikz/mixer_matrix}}
+  \end{center}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{物理パラメータ / Physical Parameters}
+  \begin{table}
+    \centering
+    \begin{tabular}{lll}
+      \hline
+      \textbf{パラメータ} & \textbf{値} & \textbf{説明} \\
+      \hline
+      $L$ & 0.023\,m & アーム長（中心$\to$モータ）\\
+      $k_q$ & 0.01 & トルク対推力比 \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.5em}
+
+  \begin{block}{ミキサー方程式}
+    \begin{itemize}
+      \item $M_1 = T/4 + \tau_\phi/(4L) - \tau_\theta/(4L) - \tau_\psi/(4k_q)$
+      \item $M_2 = T/4 + \tau_\phi/(4L) + \tau_\theta/(4L) + \tau_\psi/(4k_q)$
+      \item $M_3 = T/4 - \tau_\phi/(4L) + \tau_\theta/(4L) - \tau_\psi/(4k_q)$
+      \item $M_4 = T/4 - \tau_\phi/(4L) - \tau_\theta/(4L) + \tau_\psi/(4k_q)$
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{実習: カスタムミキサー / Hands-on}
+  \begin{lstlisting}[style=sfcpp, title={student.cpp (excerpt)}]
+// Custom mixer from first principles
+float L = 0.023f, kq = 0.01f;
+float T = throttle;
+float R = roll_cmd, P = pitch_cmd, Y = yaw_cmd;
+
+float m1 = T/4 + R/(4*L) - P/(4*L) - Y/(4*kq);
+float m2 = T/4 + R/(4*L) + P/(4*L) + Y/(4*kq);
+float m3 = T/4 - R/(4*L) + P/(4*L) - Y/(4*kq);
+float m4 = T/4 - R/(4*L) - P/(4*L) + Y/(4*kq);
+
+// Clamp [0.0, 1.0]
+if (m1 < 0) m1 = 0; if (m1 > 1) m1 = 1;
+if (m2 < 0) m2 = 0; if (m2 > 1) m2 = 1;
+if (m3 < 0) m3 = 0; if (m3 > 1) m3 = 1;
+if (m4 < 0) m4 = 0; if (m4 > 1) m4 = 1;
+
+ws::motor_set_duty(1, m1); ws::motor_set_duty(2, m2);
+ws::motor_set_duty(3, m3); ws::motor_set_duty(4, m4);
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{チェックポイント / Checkpoint}
+  \begin{alertblock}{確認事項}
+    \begin{itemize}
+      \item[$\square$] \api{motor\_mixer()} なしで飛行できた
+      \item[$\square$] \api{motor\_mixer()} 使用時と同等の飛行性能
+      \item[$\square$] $L$ や $k_q$ を変えて挙動の変化を確認
+    \end{itemize}
+  \end{alertblock}
+
+  \vspace{1em}
+
+  \begin{block}{次のレッスン}
+    Lesson 9: 姿勢推定 --- センサフュージョンで角度を推定
+  \end{block}
+\end{frame}
+
+\end{document}

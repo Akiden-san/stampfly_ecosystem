@@ -1,0 +1,120 @@
+\documentclass[aspectratio=169, 14pt]{beamer}
+\usepackage{stampfly_slides}
+
+\lesson{4}{IMU センサ}{IMU Sensor}
+
+\begin{document}
+
+% ------------------------------------------------------------------
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{今日のゴール / Today's Goal}
+  \begin{block}{目標}
+    IMU（ジャイロ+加速度）データを読み取り、テレメトリで可視化する
+  \end{block}
+
+  \vspace{1em}
+
+  \begin{itemize}
+    \item NED 座標系（北-東-下）の理解
+    \item ジャイロスコープで角速度を取得
+    \item 加速度センサで並進加速度を取得
+    \item WiFi テレメトリでリアルタイム表示
+  \end{itemize}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{NED 座標系 / NED Coordinate System}
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \begin{center}
+        \resizebox{!}{0.72\textheight}{\input{../tikz/imu_axes}}
+      \end{center}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item \textbf{X}: 前方 (Forward)
+        \item \textbf{Y}: 右方 (Right)
+        \item \textbf{Z}: 下方 (Down)
+      \end{itemize}
+
+      \vspace{1em}
+
+      \begin{block}{BMI270 IMU}
+        \begin{itemize}
+          \item 6 軸: 3軸ジャイロ + 3軸加速度
+          \item サンプリングレート: 400\,Hz
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{IMU API}
+  \begin{table}
+    \centering\small
+    \begin{tabular}{lll}
+      \hline
+      \textbf{関数} & \textbf{説明} & \textbf{単位} \\
+      \hline
+      \api{gyro\_x/y/z()}  & 角速度 (Roll/Pitch/Yaw) & rad/s \\
+      \api{accel\_x/y/z()} & 加速度 (X/Y/Z) & m/s\textsuperscript{2} \\
+      \api{telemetry\_send(name, val)} & WiFi 送信 & --- \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.5em}
+
+  \begin{block}{静止時の値}
+    ジャイロ $\approx 0$、加速度 Z $\approx 9.81$\,m/s\textsuperscript{2}（重力）
+  \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{実習: 6軸読み取り + テレメトリ / Hands-on}
+  \begin{lstlisting}[style=sfcpp, title={student.cpp}]
+#include "workshop_api.hpp"
+static uint32_t tick = 0;
+void setup() {
+    ws::print("Lesson 4: IMU Sensor");
+}
+void loop_400Hz(float dt) {
+    tick++;
+    float gx = ws::gyro_x();
+    float gy = ws::gyro_y();
+    float gz = ws::gyro_z();
+    // Send via WiFi telemetry
+    ws::telemetry_send("gyro_x", gx);
+    ws::telemetry_send("gyro_y", gy);
+    ws::telemetry_send("gyro_z", gz);
+    // Print every 200ms (80 ticks)
+    if (tick % 80 == 0) {
+        ws::print("gx=%.2f gy=%.2f gz=%.2f", gx, gy, gz);
+    }
+}
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{チェックポイント / Checkpoint}
+  \begin{alertblock}{確認事項}
+    \begin{itemize}
+      \item[$\square$] 手で傾けるとジャイロ値が変化する
+      \item[$\square$] 静止時に accel\_z $\approx 9.81$ を確認
+      \item[$\square$] \code{sf log wifi} でテレメトリデータを受信できる
+    \end{itemize}
+  \end{alertblock}
+
+  \vspace{1em}
+
+  \begin{block}{次のレッスン}
+    Lesson 5: レート P 制御 --- ジャイロフィードバックで初フライト
+  \end{block}
+\end{frame}
+
+\end{document}
