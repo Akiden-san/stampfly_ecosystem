@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate StampFly Workshop slides (Lesson 0-8) as PowerPoint files.
+"""Generate StampFly Workshop slides (Lesson 0-9) as PowerPoint files.
 
 Usage:
     python generate_slides.py              # Generate all lessons
@@ -985,6 +985,80 @@ ws::motor_set_duty(3, m3); ws::motor_set_duty(4, m4);
     return prs
 
 
+def build_lesson_09() -> Presentation:
+    prs = new_presentation()
+
+    add_title_slide(prs, "Lesson 9: 姿勢推定", "Attitude Estimation")
+
+    add_content_slide(prs, "今日のゴール / Today's Goal", [
+        "相補フィルタを実装し、ESKFの推定値と比較する",
+        "",
+        "• ジャイロ積分のドリフト問題を理解",
+        "• 相補フィルタで加速度センサとジャイロを融合",
+        "• テレメトリで CF vs ESKF をリアルタイム比較",
+    ])
+
+    add_content_slide(
+        prs, "ジャイロドリフト問題 / Gyro Drift Problem",
+        [
+            "ジャイロは角速度 ω を測定 → 角度 = ∫ω dt",
+            "微小なバイアスが時間と共に蓄積（ドリフト）",
+            "ジャイロ単体では長時間の姿勢推定は不可能",
+            "",
+            "→ 加速度センサと組み合わせて解決",
+        ],
+        image_path=IMAGES_DIR / "gyro_drift.png",
+    )
+
+    add_content_slide(
+        prs, "相補フィルタ / Complementary Filter",
+        [
+            "θ̂ = α·(θ̂_prev + ω·dt) + (1−α)·θ_accel",
+            "",
+            "α = 0.98（ジャイロ 98% + 加速度 2%）",
+            "",
+            "ジャイロ: 短期精度◎ / 長期ドリフト✕",
+            "加速度: 長期安定◎ / 振動ノイズ✕",
+            "→ 両者の長所を融合",
+        ],
+        image_path=IMAGES_DIR / "comp_filter.png",
+    )
+
+    add_code_slide(prs, "実習: 相補フィルタ実装", """
+#include "workshop_api.hpp"
+#include <cmath>
+static float cf_roll = 0.0f, cf_pitch = 0.0f;
+
+void setup() { ws::print("Lesson 9: Attitude Estimation"); }
+
+void loop_400Hz(float dt) {
+    float gx = ws::gyro_x(), gy = ws::gyro_y();
+    float ax = ws::accel_x(), ay = ws::accel_y(),
+          az = ws::accel_z();
+    float accel_roll  = atan2f(ay, az);
+    float accel_pitch = atan2f(-ax, az);
+
+    constexpr float alpha = 0.98f;
+    cf_roll  = alpha*(cf_roll  + gx*dt)
+             + (1-alpha)*accel_roll;
+    cf_pitch = alpha*(cf_pitch + gy*dt)
+             + (1-alpha)*accel_pitch;
+
+    ws::telemetry_send("cf_roll",  cf_roll*57.3f);
+    ws::telemetry_send("eskf_roll",
+                       ws::estimated_roll()*57.3f);
+}
+""")
+
+    add_checkpoint_slide(prs, [
+        "手で傾けると CF のロール・ピッチが変化する",
+        "CF と ESKF の値が概ね一致する",
+        "α を変えて応答の違いを観察した",
+    ], "TBD")
+
+    return prs
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -999,12 +1073,13 @@ BUILDERS = {
     6: build_lesson_06,
     7: build_lesson_07,
     8: build_lesson_08,
+    9: build_lesson_09,
 }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate StampFly workshop PPTX")
-    parser.add_argument("--lesson", type=int, help="Lesson number (0-8)")
+    parser.add_argument("--lesson", type=int, help="Lesson number (0-9)")
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

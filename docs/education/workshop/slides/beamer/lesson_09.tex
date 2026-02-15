@@ -1,0 +1,113 @@
+\documentclass[aspectratio=169, 14pt]{beamer}
+\usepackage{stampfly_slides}
+
+\lesson{9}{姿勢推定}{Attitude Estimation}
+
+\begin{document}
+
+% ------------------------------------------------------------------
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{今日のゴール / Today's Goal}
+  \begin{block}{目標}
+    相補フィルタを実装し、ESKFの推定値と比較する
+  \end{block}
+
+  \vspace{1em}
+
+  \begin{itemize}
+    \item ジャイロ積分のドリフト問題を理解
+    \item 相補フィルタで加速度センサとジャイロを融合
+    \item テレメトリで CF vs ESKF をリアルタイム比較
+  \end{itemize}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{ジャイロドリフト問題 / Gyro Drift Problem}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \centering
+      \resizebox{!}{0.65\textheight}{\input{../tikz/gyro_drift}}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{itemize}
+        \item ジャイロは\textbf{角速度}を測定
+        \item 角度を得るには積分 $\theta = \int \omega\,dt$
+        \item バイアス（微小な定常誤差）が蓄積
+        \item 時間と共にドリフトが増大
+        \item \warn{ジャイロ単体では姿勢推定不可}
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{相補フィルタ / Complementary Filter}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \centering
+      \resizebox{!}{0.6\textheight}{\input{../tikz/comp_filter}}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{block}{数式}
+        $\hat{\theta}_k = \alpha\,(\hat{\theta}_{k-1} + \omega\,\Delta t) + (1-\alpha)\,\theta_{\mathrm{accel}}$
+      \end{block}
+
+      \vspace{0.5em}
+
+      \begin{itemize}
+        \item $\alpha = 0.98$（ジャイロ重視）
+        \item ジャイロ: 短期精度◎、長期ドリフト✕
+        \item 加速度: 長期安定◎、振動ノイズ✕
+        \item 両者の長所を融合
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{実習: 相補フィルタ実装 / Hands-on}
+  \begin{lstlisting}[style=sfcpp, title={student.cpp (excerpt)}]
+#include "workshop_api.hpp"
+#include <cmath>
+static float cf_roll = 0.0f, cf_pitch = 0.0f;
+void setup() { ws::print("Lesson 9: Attitude Estimation"); }
+void loop_400Hz(float dt) {
+    float gx = ws::gyro_x(), gy = ws::gyro_y();
+    float ax = ws::accel_x(), ay = ws::accel_y(),
+          az = ws::accel_z();
+    float accel_roll  = atan2f(ay, az);
+    float accel_pitch = atan2f(-ax, az);
+    constexpr float alpha = 0.98f;
+    cf_roll  = alpha*(cf_roll  + gx*dt)
+             + (1-alpha)*accel_roll;
+    cf_pitch = alpha*(cf_pitch + gy*dt)
+             + (1-alpha)*accel_pitch;
+    ws::telemetry_send("cf_roll",  cf_roll*57.3f);
+    ws::telemetry_send("eskf_roll",
+                       ws::estimated_roll()*57.3f);
+}
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{チェックポイント / Checkpoint}
+  \begin{alertblock}{確認事項}
+    \begin{itemize}
+      \item[$\square$] 手で傾けると CF のロール・ピッチが変化する
+      \item[$\square$] CF と ESKF の値が概ね一致する
+      \item[$\square$] $\alpha$ を変えて応答の違いを観察
+    \end{itemize}
+  \end{alertblock}
+
+  \vspace{1em}
+
+  \begin{block}{次のレッスン}
+    TBD --- 今後のカリキュラムで決定
+  \end{block}
+\end{frame}
+
+\end{document}
