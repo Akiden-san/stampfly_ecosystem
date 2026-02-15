@@ -14,6 +14,7 @@
 
 TIKZ_DIR   := tikz
 IMAGES_DIR := images
+TIKZ_DPI   := 600
 
 TIKZ_SOURCES := $(wildcard $(TIKZ_DIR)/*.tex)
 TIKZ_PDFS    := $(TIKZ_SOURCES:.tex=.pdf)
@@ -26,7 +27,7 @@ $(TIKZ_DIR)/%.pdf: $(TIKZ_DIR)/%.tex
 
 $(IMAGES_DIR)/%.png: $(TIKZ_DIR)/%.pdf
 	@mkdir -p $(IMAGES_DIR)
-	sips -s format png -s dpiWidth 288 -s dpiHeight 288 $< --out $@
+	pdftoppm -png -r $(TIKZ_DPI) -singlefile $< $(IMAGES_DIR)/$*
 
 # ---------------------------------------------------------------------------
 # LaTeX Beamer slides
