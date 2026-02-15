@@ -1105,6 +1105,87 @@ void loop_400Hz(float dt) {
     return prs
 
 
+def build_lesson_10() -> Presentation:
+    prs = new_presentation()
+
+    add_title_slide(prs, "Lesson 10: Python SDK プログラム飛行", "Python SDK Flight")
+
+    add_content_slide(prs, "今日のゴール / Today's Goal", [
+        "Python SDK でプログラム飛行を実現する",
+        "",
+        "• WiFi 経由で PC から StampFly を制御",
+        "• SDK API で離陸・移動・着陸をプログラム化",
+        "• RC 制御値の送信とテレメトリの取得",
+    ])
+
+    add_content_slide(
+        prs, "SDK アーキテクチャ / SDK Architecture",
+        [
+            "PC (Python SDK) ↔ WiFi AP ↔ StampFly ESP32-S3",
+            "",
+            "TCP CLI (port 23): コマンド送受信（takeoff, land, move...）",
+            "WebSocket (port 81): テレメトリ受信（400 Hz リアルタイム）",
+            "",
+            "WiFi AP アドレス: 192.168.4.1",
+        ],
+        image_path=IMAGES_DIR / "python_sdk_arch.png",
+    )
+
+    add_table_slide(prs, "Python SDK API", ["関数", "説明", "備考"], [
+        ["StampFly(host)", "インスタンス生成", "デフォルト 192.168.4.1"],
+        ["connect()", "WiFi 接続", "TCP CLI + WS"],
+        ["takeoff()", "離陸", "ブロッキング"],
+        ["land()", "着陸", "ブロッキング"],
+        ["move_forward(cm)", "前進", "20-200 cm"],
+        ["rotate_clockwise(deg)", "時計回り回転", "1-360°"],
+        ["send_rc_control(lr,fb,ud,yaw)", "RC 制御値送信", "-100〜+100"],
+        ["get_telemetry()", "テレメトリ取得", "400 Hz dict"],
+        ["end()", "切断", "リソース解放"],
+    ])
+
+    add_code_slide(prs, "実習1: 基本プログラム飛行", """
+from stampfly import StampFly
+
+drone = StampFly()
+drone.connect()
+
+drone.takeoff()
+drone.move_forward(50)    # 50 cm forward
+drone.rotate_clockwise(90)
+drone.move_forward(50)
+drone.land()
+
+drone.end()
+""", filename="flight_basic.py")
+
+    add_code_slide(prs, "実習2: RC制御 + テレメトリ", """
+import time
+from stampfly import StampFly
+
+drone = StampFly()
+drone.connect()
+drone.takeoff()
+
+# Hover + read telemetry for 5 seconds
+for _ in range(50):
+    drone.send_rc_control(0, 0, 0, 0)
+    t = drone.get_telemetry()
+    print(f"alt={t.get('alt',0):.1f}")
+    time.sleep(0.1)
+
+drone.land()
+drone.end()
+""", filename="flight_rc.py")
+
+    add_checkpoint_slide(prs, [
+        "WiFi AP に接続し connect() が成功する",
+        "takeoff() → move_forward() → land() が動作する",
+        "get_telemetry() で高度データを取得できる",
+    ], "Lesson 11: ホバリングタイム競技会 ルール説明")
+
+    return prs
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1120,12 +1201,13 @@ BUILDERS = {
     7: build_lesson_07,
     8: build_lesson_08,
     9: build_lesson_09,
+    10: build_lesson_10,
 }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate StampFly workshop PPTX")
-    parser.add_argument("--lesson", type=int, help="Lesson number (0-9)")
+    parser.add_argument("--lesson", type=int, help="Lesson number (0-11)")
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
