@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate StampFly Workshop slides (Lesson 0-3) as PowerPoint files.
+"""Generate StampFly Workshop slides (Lesson 0-8) as PowerPoint files.
 
 Usage:
     python generate_slides.py              # Generate all lessons
@@ -630,6 +630,321 @@ void loop_400Hz(float dt) {
     return prs
 
 
+def build_lesson_04() -> Presentation:
+    prs = new_presentation()
+
+    add_title_slide(prs, "Lesson 4: IMU センサ", "IMU Sensor")
+
+    add_content_slide(prs, "今日のゴール / Today's Goal", [
+        "IMU（ジャイロ+加速度）データを読み取り、テレメトリで可視化する",
+        "",
+        "• NED 座標系（北-東-下）の理解",
+        "• ジャイロスコープで角速度を取得",
+        "• 加速度センサで並進加速度を取得",
+        "• WiFi テレメトリでリアルタイム表示",
+    ])
+
+    add_content_slide(
+        prs, "NED 座標系 / NED Coordinate System",
+        [
+            "X = 前方 (Forward)",
+            "Y = 右方 (Right)",
+            "Z = 下方 (Down)",
+            "",
+            "BMI270: 6軸 IMU（3軸ジャイロ + 3軸加速度）400Hz",
+        ],
+        image_path=IMAGES_DIR / "imu_axes.png",
+    )
+
+    add_table_slide(prs, "IMU API", [
+        "関数", "説明", "単位",
+    ], [
+        ["gyro_x/y/z()", "角速度 (Roll/Pitch/Yaw)", "rad/s"],
+        ["accel_x/y/z()", "加速度 (X/Y/Z)", "m/s²"],
+        ["telemetry_send(name, val)", "WiFi テレメトリ送信", "---"],
+    ])
+
+    add_code_slide(prs, "実習: 6軸読み取り + テレメトリ", """
+#include "workshop_api.hpp"
+static uint32_t tick = 0;
+void setup() {
+    ws::print("Lesson 4: IMU Sensor");
+}
+void loop_400Hz(float dt) {
+    tick++;
+    float gx = ws::gyro_x();
+    float gy = ws::gyro_y();
+    float gz = ws::gyro_z();
+    // Send via WiFi telemetry
+    ws::telemetry_send("gyro_x", gx);
+    ws::telemetry_send("gyro_y", gy);
+    ws::telemetry_send("gyro_z", gz);
+    // Print every 200ms (80 ticks)
+    if (tick % 80 == 0) {
+        ws::print("gx=%.2f gy=%.2f gz=%.2f", gx, gy, gz);
+    }
+}
+""")
+
+    add_checkpoint_slide(prs, [
+        "手で傾けるとジャイロ値が変化する",
+        "静止時に accel_z ≈ 9.81 を確認",
+        "sf log wifi でテレメトリデータを受信できる",
+    ], "Lesson 5: レート P 制御 + 初フライト")
+
+    return prs
+
+
+def build_lesson_05() -> Presentation:
+    prs = new_presentation()
+
+    add_title_slide(prs, "Lesson 5: レート P 制御 + 初フライト", "Rate P-Control + First Flight")
+
+    add_content_slide(prs, "今日のゴール / Today's Goal", [
+        "比例フィードバック制御を実装し、初の制御飛行を行う",
+        "",
+        "• 閉ループ制御の考え方",
+        "• P 制御で角速度を安定化",
+        "• ARM/DISARM による安全管理",
+    ])
+
+    add_content_slide(
+        prs, "閉ループ制御 / Closed-Loop Control",
+        [
+            "目標値とセンサ値の差（誤差）を計算",
+            "誤差に比例ゲイン Kp を掛けて制御出力",
+            "ジャイロセンサが帰還（フィードバック）を提供",
+        ],
+        image_path=IMAGES_DIR / "feedback_block.png",
+    )
+
+    add_table_slide(prs, "制御 API", [
+        "関数", "説明", "値域",
+    ], [
+        ["gyro_x/y/z()", "ジャイロ角速度", "rad/s"],
+        ["rc_roll/pitch/yaw()", "スティック入力", "-1.0 -- +1.0"],
+        ["rc_throttle()", "スロットル", "0.0 -- 1.0"],
+        ["motor_mixer(T,R,P,Y)", "モーターミキサー", "---"],
+        ["is_armed()", "ARM 状態確認", "true / false"],
+    ])
+
+    add_code_slide(prs, "実習: 3軸 P 制御", """
+#include "workshop_api.hpp"
+void setup() { ws::print("Lesson 5: Rate P-Control"); }
+void loop_400Hz(float dt) {
+    if (!ws::is_armed()) {
+        ws::motor_stop_all();
+        ws::led_color(50, 0, 0);  // Red = DISARM
+        return;
+    }
+    ws::led_color(0, 50, 0);  // Green = ARM
+    float Kp_rp = 0.5f, Kp_yaw = 2.0f;
+    float rate_max = 1.0f, yaw_max = 5.0f;
+    float roll_e  = ws::rc_roll()*rate_max  - ws::gyro_x();
+    float pitch_e = ws::rc_pitch()*rate_max - ws::gyro_y();
+    float yaw_e   = ws::rc_yaw()*yaw_max   - ws::gyro_z();
+    ws::motor_mixer(ws::rc_throttle(),
+        Kp_rp*roll_e, Kp_rp*pitch_e, Kp_yaw*yaw_e);
+}
+""")
+
+    add_checkpoint_slide(prs, [
+        "ARM 後スロットル上げて安定ホバー",
+        "スティック操作で機体が応答する",
+        "保護メガネ着用、低スロットルから開始",
+    ], "Lesson 6: PID 制御")
+
+    return prs
+
+
+def build_lesson_06() -> Presentation:
+    prs = new_presentation()
+
+    add_title_slide(prs, "Lesson 6: PID 制御", "PID Control")
+
+    add_content_slide(prs, "今日のゴール / Today's Goal", [
+        "I 項・D 項を追加し、定常偏差除去とオーバーシュート低減を実現する",
+        "",
+        "• P 制御の限界（定常偏差が残る）",
+        "• I 項: 偏差の積分で定常偏差を除去",
+        "• D 項: 偏差の微分でオーバーシュートを低減",
+    ])
+
+    add_content_slide(
+        prs, "PID 制御器 / PID Controller",
+        [
+            "P（比例）: 現在の誤差に比例した出力",
+            "I（積分）: 誤差の蓄積を補正",
+            "D（微分）: 誤差の変化率で振動を抑制",
+        ],
+        image_path=IMAGES_DIR / "pid_block.png",
+    )
+
+    add_table_slide(prs, "推奨ゲイン / Recommended Gains", [
+        "軸", "Kp", "Ki", "Kd",
+    ], [
+        ["Roll", "0.5", "0.3", "0.005"],
+        ["Pitch", "0.5", "0.3", "0.005"],
+        ["Yaw", "2.0", "0.5", "0.01"],
+    ])
+
+    add_code_slide(prs, "実習: ロール軸 PID", """
+#include "workshop_api.hpp"
+float Kp=0.5f, Ki=0.3f, Kd=0.005f;
+float integral=0, prev_err=0;
+void setup() { ws::print("Lesson 6: PID"); }
+void loop_400Hz(float dt) {
+    if (!ws::is_armed()) {
+        ws::motor_stop_all();
+        integral = 0; prev_err = 0;  // Reset
+        return;
+    }
+    float target = ws::rc_roll() * 1.0f;
+    float error  = target - ws::gyro_x();
+    float P = Kp * error;
+    integral += error * dt;
+    if (integral >  0.5f) integral =  0.5f;
+    if (integral < -0.5f) integral = -0.5f;
+    float I = Ki * integral;
+    float D = Kd * (error - prev_err) / dt;
+    prev_err = error;
+    float roll_out = P + I + D;
+    // ... same for pitch, yaw ...
+    ws::motor_mixer(ws::rc_throttle(), roll_out, 0, 0);
+}
+""")
+
+    add_checkpoint_slide(prs, [
+        "定常偏差がなくなった（P のみと比較）",
+        "振動なく安定してホバリング",
+        "ゲインを変更して応答の変化を確認",
+    ], "Lesson 7: テレメトリ + ステップ応答")
+
+    return prs
+
+
+def build_lesson_07() -> Presentation:
+    prs = new_presentation()
+
+    add_title_slide(prs, "Lesson 7: テレメトリ + ステップ応答",
+                    "Telemetry + Step Response")
+
+    add_content_slide(prs, "今日のゴール / Today's Goal", [
+        "WiFi テレメトリでステップ応答データを取得し、制御性能を分析する",
+        "",
+        "• ステップ応答とは何か",
+        "• 立ち上がり時間・オーバーシュート・整定時間",
+        "• sf log wifi でデータ取得",
+    ])
+
+    add_content_slide(
+        prs, "ステップ応答 / Step Response",
+        [
+            "Rise Time: 目標値の 10%→90% に到達する時間",
+            "Overshoot: 目標値を超える量",
+            "Settling Time: ±5% 以内に収まる時間",
+        ],
+        image_path=IMAGES_DIR / "step_response.png",
+    )
+
+    add_table_slide(prs, "テレメトリ API", [
+        "関数", "説明", "引数",
+    ], [
+        ["telemetry_send(name, val)", "テレメトリ送信", "名前, float 値"],
+        ["led_color(r, g, b)", "LED 色設定", "各 0-255"],
+    ])
+
+    add_code_slide(prs, "実習: ステップ応答実験", """
+// Step response experiment (excerpt)
+float step_rate = 0.5f;    // Step amplitude [rad/s]
+uint32_t delay  = 800;     // 2s wait at 400Hz
+uint32_t dur    = 400;     // 1s step
+
+float roll_step = 0.0f;
+if (elapsed >= delay && elapsed < delay + dur)
+    roll_step = step_rate;  // Step ON!
+
+// Override roll target with step input
+float roll_target = roll_step;
+
+// Send telemetry at 400Hz
+ws::telemetry_send("step_target", roll_step);
+ws::telemetry_send("step_actual", ws::gyro_x());
+
+// LED: red during step, green otherwise
+if (roll_step > 0) ws::led_color(50, 0, 0);
+else               ws::led_color(0, 50, 0);
+""")
+
+    add_checkpoint_slide(prs, [
+        "sf log wifi でデータを取得できた",
+        "波形でオーバーシュートを確認",
+        "整定時間を計測（目安: 0.3s 以内）",
+    ], "Lesson 8: モデリング")
+
+    return prs
+
+
+def build_lesson_08() -> Presentation:
+    prs = new_presentation()
+
+    add_title_slide(prs, "Lesson 8: モデリング", "Quadrotor Dynamics")
+
+    add_content_slide(prs, "今日のゴール / Today's Goal", [
+        "運動方程式から第一原理でモーターミキサーを自力導出する",
+        "",
+        "• クアッドロータの力学モデル",
+        "• 推力 T、ロール/ピッチ/ヨー トルク",
+        "• motor_mixer() を使わず個別モータ制御",
+    ])
+
+    add_content_slide(
+        prs, "ミキサー行列 / Motor Mixer Matrix",
+        [
+            "T/R/P/Y → M1-M4 の符号付き結線",
+            "アーム長 L = 0.023 m",
+            "トルク対推力比 kq = 0.01",
+        ],
+        image_path=IMAGES_DIR / "mixer_matrix.png",
+    )
+
+    add_table_slide(prs, "物理パラメータ / Physical Parameters", [
+        "パラメータ", "値", "説明",
+    ], [
+        ["L", "0.023 m", "アーム長（中心→モータ）"],
+        ["kq", "0.01", "トルク対推力比"],
+    ])
+
+    add_code_slide(prs, "実習: カスタムミキサー", """
+// Custom mixer from first principles
+float L = 0.023f, kq = 0.01f;
+float T = throttle;
+float R = roll_cmd, P = pitch_cmd, Y = yaw_cmd;
+
+float m1 = T/4 + R/(4*L) - P/(4*L) - Y/(4*kq);
+float m2 = T/4 + R/(4*L) + P/(4*L) + Y/(4*kq);
+float m3 = T/4 - R/(4*L) + P/(4*L) - Y/(4*kq);
+float m4 = T/4 - R/(4*L) - P/(4*L) + Y/(4*kq);
+
+// Clamp [0.0, 1.0]
+if (m1 < 0) m1 = 0; if (m1 > 1) m1 = 1;
+if (m2 < 0) m2 = 0; if (m2 > 1) m2 = 1;
+if (m3 < 0) m3 = 0; if (m3 > 1) m3 = 1;
+if (m4 < 0) m4 = 0; if (m4 > 1) m4 = 1;
+
+ws::motor_set_duty(1, m1); ws::motor_set_duty(2, m2);
+ws::motor_set_duty(3, m3); ws::motor_set_duty(4, m4);
+""")
+
+    add_checkpoint_slide(prs, [
+        "motor_mixer() なしで飛行できた",
+        "motor_mixer() 使用時と同等の飛行性能",
+        "L や kq を変えて挙動の変化を確認",
+    ], "Lesson 9: 姿勢推定")
+
+    return prs
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -639,12 +954,17 @@ BUILDERS = {
     1: build_lesson_01,
     2: build_lesson_02,
     3: build_lesson_03,
+    4: build_lesson_04,
+    5: build_lesson_05,
+    6: build_lesson_06,
+    7: build_lesson_07,
+    8: build_lesson_08,
 }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate StampFly workshop PPTX")
-    parser.add_argument("--lesson", type=int, help="Lesson number (0-3)")
+    parser.add_argument("--lesson", type=int, help="Lesson number (0-8)")
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
