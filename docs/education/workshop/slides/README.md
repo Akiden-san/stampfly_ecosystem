@@ -6,7 +6,7 @@
 
 ### このディレクトリについて
 
-StampFly ワークショップ（Lesson 0--3）の講義スライドを LaTeX Beamer と PowerPoint の2形式で提供します。全ダイアグラムは TikZ で作成し、両形式で共有しています。
+StampFly ワークショップ（Lesson 0--8）の講義スライドを LaTeX Beamer と PowerPoint の2形式で提供します。全ダイアグラムは TikZ で作成し、両形式で共有しています。
 
 ### ディレクトリ構成
 
@@ -57,12 +57,17 @@ python3 pptx/generate_slides.py --lesson 0
 
 | ファイル | 内容 | 使用レッスン |
 |---------|------|------------|
+| `build_flash_flow.tex` | ビルド→フラッシュ→モニタフロー | L0 |
 | `motor_layout.tex` | モータ配置・回転方向 | L1 |
 | `pwm_waveform.tex` | PWM 波形概念図 | L1 |
 | `open_loop.tex` | オープンループ制御ブロック図 | L2 |
-| `build_flash_flow.tex` | ビルド→フラッシュ→モニタフロー | L0 |
 | `espnow_dataflow.tex` | ESP-NOW 通信フロー | L2 |
 | `led_state_machine.tex` | LED 状態遷移図 | L3 |
+| `imu_axes.tex` | IMU 座標系（NED/FRD） | L4 |
+| `feedback_block.tex` | フィードバック制御ブロック図 | L5 |
+| `pid_block.tex` | PID 制御器ブロック図 | L6 |
+| `step_response.tex` | ステップ応答波形 | L7 |
+| `mixer_matrix.tex` | モーターミキサー行列 | L8 |
 
 ## 4. カスタマイズ
 
@@ -94,7 +99,7 @@ python3 pptx/generate_slides.py --lesson 0
 
 ### About This Directory
 
-Workshop slides for StampFly Lessons 0--3, available in both LaTeX Beamer and PowerPoint formats. All diagrams are created with TikZ and shared between both formats.
+Workshop slides for StampFly Lessons 0--8, available in both LaTeX Beamer and PowerPoint formats. All diagrams are created with TikZ and shared between both formats.
 
 ## 2. Build Instructions
 
@@ -122,12 +127,17 @@ make clean    # Remove build artifacts
 
 | File | Content | Lesson |
 |------|---------|--------|
+| `build_flash_flow.tex` | Build → Flash → Monitor flow | L0 |
 | `motor_layout.tex` | Motor layout & rotation | L1 |
 | `pwm_waveform.tex` | PWM waveform | L1 |
 | `open_loop.tex` | Open-loop control block diagram | L2 |
-| `build_flash_flow.tex` | Build → Flash → Monitor flow | L0 |
 | `espnow_dataflow.tex` | ESP-NOW communication flow | L2 |
 | `led_state_machine.tex` | LED state machine | L3 |
+| `imu_axes.tex` | IMU axes (NED/FRD) | L4 |
+| `feedback_block.tex` | Feedback control block diagram | L5 |
+| `pid_block.tex` | PID controller block diagram | L6 |
+| `step_response.tex` | Step response waveform | L7 |
+| `mixer_matrix.tex` | Motor mixer matrix | L8 |
 
 ## 4. Customization
 

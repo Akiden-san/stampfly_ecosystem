@@ -748,10 +748,19 @@ void loop_400Hz(float dt) {
 }
 """)
 
+    add_content_slide(prs, "安全注意 / Safety", [
+        "⚠ フライト前チェック:",
+        "",
+        "☐ 保護メガネを着用",
+        "☐ 低スロットルから徐々に上げる（最初は 30% 以下）",
+        "☐ プロペラの回転方向を確認（M1=CW, M2=CCW, M3=CW, M4=CCW）",
+        "☐ 異常時はすぐにスロットルを下げて DISARM",
+    ])
+
     add_checkpoint_slide(prs, [
-        "ARM 後スロットル上げて安定ホバー",
+        "ARM 後スロットルを上げて安定ホバリング",
         "スティック操作で機体が応答する",
-        "保護メガネ着用、低スロットルから開始",
+        "DISARM で即座にモーターが停止する",
     ], "Lesson 6: PID 制御")
 
     return prs
@@ -788,6 +797,12 @@ def build_lesson_06() -> Presentation:
         ["Yaw", "2.0", "0.5", "0.01"],
     ])
 
+    add_content_slide(prs, "チューニングの順序 / Tuning Procedure", [
+        "1. Ki = Kd = 0 にして Kp を調整（振動しない最大値）",
+        "2. Ki を少しずつ追加（定常偏差が消えるまで）",
+        "3. Kd を少しずつ追加（振動が収まるまで）",
+    ])
+
     add_code_slide(prs, "実習: ロール軸 PID", """
 #include "workshop_api.hpp"
 float Kp=0.5f, Ki=0.3f, Kd=0.005f;
@@ -809,8 +824,9 @@ void loop_400Hz(float dt) {
     float D = Kd * (error - prev_err) / dt;
     prev_err = error;
     float roll_out = P + I + D;
-    // ... same for pitch, yaw ...
-    ws::motor_mixer(ws::rc_throttle(), roll_out, 0, 0);
+    // Repeat for pitch and yaw axes
+    ws::motor_mixer(ws::rc_throttle(), roll_out,
+                    pitch_out, yaw_out);
 }
 """)
 
@@ -852,6 +868,12 @@ def build_lesson_07() -> Presentation:
     ], [
         ["telemetry_send(name, val)", "テレメトリ送信", "名前, float 値"],
         ["led_color(r, g, b)", "LED 色設定", "各 0-255"],
+    ])
+
+    add_content_slide(prs, "実験手順 / Experiment Procedure", [
+        "1. ホバリング状態でステップ入力を自動付加",
+        "2. sf log wifi でリアルタイム記録",
+        "3. CSV を分析して性能指標を計測",
     ])
 
     add_code_slide(prs, "実習: ステップ応答実験", """
