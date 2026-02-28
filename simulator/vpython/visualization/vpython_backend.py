@@ -173,7 +173,7 @@ class render():
         for pos, ax in zip(position, axis_list):
             ring(pos=vec(*pos), axis=vec(*ax), radius = 0.3, thickness = 0.015, color=color.purple)
 
-        Ring_Num = 500
+        Ring_Num = 50
         rings=[]
         for i in range(Ring_Num):
             angle=np.random.randint(0,90)
@@ -208,25 +208,26 @@ class render():
         print("  Minimal floor: 1 object")
 
     def _create_ringworld_floor(self):
-        # 0.5m四方の白と緑の市松模様タイル（リングワールド用）
-        # 0.5m x 0.5m white and green checkerboard tiles (for ring world)
-        tile_size = 0.5
-        tile_range = 60  # -30m to +30m の範囲（広めに）
-        white_color = vector(0.95, 0.95, 0.95)
-        green_color = vector(0.1, 0.6, 0.2)
+        # Single ground plane + sparse grid lines for visual reference
+        # 1枚の地面 + 疎なグリッド線で視覚的参照
+        floor_size = 60  # 60m x 60m
+        box(pos=vector(0, 0, 0.001), size=vector(floor_size, floor_size, 0.002),
+            color=vector(0.1, 0.6, 0.2))
 
-        tile_count = 0
-        for i in range(-tile_range, tile_range):
-            for j in range(-tile_range, tile_range):
-                x = (i + 0.5) * tile_size
-                y = (j + 0.5) * tile_size
-                if (i + j) % 2 == 0:
-                    tile_color = white_color
-                else:
-                    tile_color = green_color
-                box(pos=vector(x, y, 0), size=vector(tile_size, tile_size, 0.001), color=tile_color)
-                tile_count += 1
-        print(f"  Floor tiles created: {tile_count}")
+        # Grid lines every 5m for spatial reference
+        # 5mごとのグリッド線（空間把握用）
+        grid_count = 0
+        grid_spacing = 5
+        half = floor_size // 2
+        for i in range(-half, half + 1, grid_spacing):
+            # Lines along X axis
+            box(pos=vector(0, i, 0), size=vector(floor_size, 0.02, 0.003),
+                color=vector(0.95, 0.95, 0.95))
+            # Lines along Y axis
+            box(pos=vector(i, 0, 0), size=vector(0.02, floor_size, 0.003),
+                color=vector(0.95, 0.95, 0.95))
+            grid_count += 2
+        print(f"  Floor: 1 plane + {grid_count} grid lines")
 
     def _create_voxel_world(self):
         # マインクラフト風ボクセルワールド
@@ -834,9 +835,18 @@ class render():
 
 
     def rendering(self, sim_time, drone):
-        #3D描画        
+        #3D描画
         if(sim_time >= self.anim_time):
+            # Measure rate() blocking time
+            # rate()のブロック時間を計測
+            t_rate_start = time.perf_counter()
             rate(self.fps)
+            t_rate_end = time.perf_counter()
+            rate_duration = t_rate_end - t_rate_start
+
+            # Measure rendering overhead (scene update excluding rate())
+            # レンダリングオーバーヘッド計測（rate()以外のシーン更新）
+            t_render_start = time.perf_counter()
             self.copter.pos = vector(drone.body.position[0][0], drone.body.position[1][0], drone.body.position[2][0])
             axis_x = vector(drone.body.DCM[0,0], drone.body.DCM[1,0], drone.body.DCM[2,0])
             axis_z = vector(drone.body.DCM[0,2], drone.body.DCM[1,2], drone.body.DCM[2,2])
@@ -847,4 +857,85 @@ class render():
             #self.fix_camera_setting(drone, t=sim_time)
             #self.fix_human_setting(drone, t=sim_time)  # 操縦者視点の設定を使用
             self.timer_text.text = f"Elapsed Time: {sim_time:.1f} s"  # 表示を更新
+            t_render_end = time.perf_counter()
+            render_overhead = t_render_end - t_render_start
+
+            # Store timing data for diagnostics
+            # 診断用タイミングデータを保存
+            self.frame_num += 1
+            if not hasattr(self, '_timing_data'):
+                self._timing_data = {
+                    'rate_durations': [],
+                    'render_overheads': [],
+                    'physics_steps_per_frame': [],
+                }
+            self._timing_data['rate_durations'].append(rate_duration)
+            self._timing_data['render_overheads'].append(render_overhead)
+
         return self.keyname
+
+    def record_physics_steps(self, count):
+        """Record physics steps executed between frames
+        フレーム間に実行された物理ステップ数を記録"""
+        if hasattr(self, '_timing_data'):
+            self._timing_data['physics_steps_per_frame'].append(count)
+
+    def get_timing_report(self):
+        """Generate timing analysis report
+        タイミング解析レポートを生成"""
+        if not hasattr(self, '_timing_data') or not self._timing_data['rate_durations']:
+            return "No timing data collected / タイミングデータなし"
+
+        import statistics
+        td = self._timing_data
+        rd = td['rate_durations']
+        ro = td['render_overheads']
+        ps = td['physics_steps_per_frame']
+
+        # Skip first 5 frames (warm-up)
+        # 最初の5フレームをスキップ（ウォームアップ）
+        if len(rd) > 10:
+            rd = rd[5:]
+            ro = ro[5:]
+        if len(ps) > 10:
+            ps = ps[5:]
+
+        report = []
+        report.append("=" * 70)
+        report.append("FRAME TIMING ANALYSIS REPORT / フレームタイミング解析レポート")
+        report.append("=" * 70)
+        report.append(f"Total frames analyzed: {len(rd)}")
+        report.append(f"Target FPS: {self.fps}")
+        report.append(f"Target frame time: {1000.0/self.fps:.2f} ms")
+        report.append("")
+
+        # rate() duration statistics
+        report.append("--- rate() blocking time / rate()ブロック時間 ---")
+        report.append(f"  Average:  {statistics.mean(rd)*1000:.2f} ms")
+        report.append(f"  Median:   {statistics.median(rd)*1000:.2f} ms")
+        report.append(f"  Min:      {min(rd)*1000:.2f} ms")
+        report.append(f"  Max:      {max(rd)*1000:.2f} ms")
+        if len(rd) > 1:
+            report.append(f"  Stdev:    {statistics.stdev(rd)*1000:.2f} ms")
+        report.append(f"  Actual FPS from rate(): {1.0/statistics.mean(rd):.1f}")
+        report.append("")
+
+        # Render overhead statistics
+        report.append("--- Render overhead (excl. rate()) / レンダリングオーバーヘッド ---")
+        report.append(f"  Average:  {statistics.mean(ro)*1000:.3f} ms")
+        report.append(f"  Median:   {statistics.median(ro)*1000:.3f} ms")
+        report.append(f"  Min:      {min(ro)*1000:.3f} ms")
+        report.append(f"  Max:      {max(ro)*1000:.3f} ms")
+        report.append("")
+
+        # Physics steps per frame
+        if ps:
+            report.append("--- Physics steps per frame / フレームあたり物理ステップ数 ---")
+            report.append(f"  Average:  {statistics.mean(ps):.1f}")
+            report.append(f"  Median:   {statistics.median(ps):.1f}")
+            report.append(f"  Min:      {min(ps)}")
+            report.append(f"  Max:      {max(ps)}")
+            report.append(f"  Target (2000Hz/60FPS): 33.3 steps/frame")
+            report.append("")
+
+        return "\n".join(report)

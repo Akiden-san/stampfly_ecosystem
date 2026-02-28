@@ -347,6 +347,13 @@ def flight_sim_2000hz(world_type='voxel', seed=None, control_mode='rate'):
     perf_control_count = 0
     perf_render_count = 0
 
+    # Frame timing diagnostics
+    # フレームタイミング診断
+    physics_step_times = []  # Per-step physics computation time / 1ステップの物理演算時間
+    control_step_times = []  # Per-step control computation time / 1ステップの制御演算時間
+    steps_since_last_frame = 0  # Physics steps counter between frames / フレーム間物理ステップカウンタ
+    last_frame_num = 0  # Track renderer frame number / レンダラフレーム番号追跡
+
     print("\n" + "=" * 60)
     print(f"Roll Rate PID: Kp={cfg.roll_kp:.2e} Nm/(rad/s)")
     print(f"Pitch Rate PID: Kp={cfg.pitch_kp:.2e} Nm/(rad/s)")
@@ -401,6 +408,7 @@ def flight_sim_2000hz(world_type='voxel', seed=None, control_mode='rate'):
             # 制御更新 400Hz
             # ===========================================
             if sim_time >= next_control_time:
+                t_ctrl_start = time.perf_counter()
                 rate_p = stampfly.body.pqr[0][0]
                 rate_q = stampfly.body.pqr[1][0]
                 rate_r = stampfly.body.pqr[2][0]
@@ -437,14 +445,20 @@ def flight_sim_2000hz(world_type='voxel', seed=None, control_mode='rate'):
 
                 control_steps += 1
                 next_control_time = control_steps * CONTROL_DT
+                t_ctrl_end = time.perf_counter()
+                control_step_times.append(t_ctrl_end - t_ctrl_start)
 
             # ===========================================
             # Physics step (2000Hz)
             # 物理ステップ (2000Hz)
             # ===========================================
+            t_phys_start = time.perf_counter()
             stampfly.step(voltage, PHYSICS_DT)
+            t_phys_end = time.perf_counter()
             physics_steps += 1
             sim_time = physics_steps * PHYSICS_DT
+            steps_since_last_frame += 1
+            physics_step_times.append(t_phys_end - t_phys_start)
 
             # Data logging (reduced frequency)
             if physics_steps % LOG_INTERVAL == 0:
@@ -462,6 +476,12 @@ def flight_sim_2000hz(world_type='voxel', seed=None, control_mode='rate'):
             # rate()呼び出し間はCPU全速力でループが回る。
             # ===========================================
             keyname = Render.rendering(sim_time, stampfly)
+            # Track physics steps between frames
+            # フレーム間の物理ステップ数を追跡
+            if Render.frame_num > last_frame_num:
+                Render.record_physics_steps(steps_since_last_frame)
+                steps_since_last_frame = 0
+                last_frame_num = Render.frame_num
             if keyname == 'q':
                 raise KeyboardInterrupt
 
@@ -492,6 +512,117 @@ def flight_sim_2000hz(world_type='voxel', seed=None, control_mode='rate'):
     print(f"Total control steps: {control_steps}")
     print(f"Sim time: {sim_time:.2f}s  Wall time: {wall_total:.2f}s  RT: {sim_time/wall_total:.2f}x")
     print(f"Effective physics: {physics_steps/wall_total:.0f} Hz")
+
+    # ===========================================
+    # Detailed Frame Timing Report
+    # 詳細フレームタイミングレポート
+    # ===========================================
+    import statistics
+
+    print()
+    print(Render.get_timing_report())
+
+    # Physics step timing report
+    # 物理演算ステップタイミングレポート
+    if len(physics_step_times) > 100:
+        pst = physics_step_times[100:]  # Skip warm-up / ウォームアップをスキップ
+        print("--- Physics step time / 物理演算ステップ時間 ---")
+        print(f"  Average:  {statistics.mean(pst)*1e6:.1f} us ({statistics.mean(pst)*1000:.4f} ms)")
+        print(f"  Median:   {statistics.median(pst)*1e6:.1f} us")
+        print(f"  Min:      {min(pst)*1e6:.1f} us")
+        print(f"  Max:      {max(pst)*1e6:.1f} us")
+        if len(pst) > 1:
+            print(f"  Stdev:    {statistics.stdev(pst)*1e6:.1f} us")
+        max_physics_hz = 1.0 / statistics.mean(pst)
+        print(f"  Max achievable physics rate: {max_physics_hz:.0f} Hz")
+        print()
+
+    # Control step timing report
+    # 制御ステップタイミングレポート
+    if len(control_step_times) > 20:
+        cst = control_step_times[20:]  # Skip warm-up / ウォームアップをスキップ
+        print("--- Control step time / 制御ステップ時間 ---")
+        print(f"  Average:  {statistics.mean(cst)*1e6:.1f} us ({statistics.mean(cst)*1000:.4f} ms)")
+        print(f"  Median:   {statistics.median(cst)*1e6:.1f} us")
+        print(f"  Min:      {min(cst)*1e6:.1f} us")
+        print(f"  Max:      {max(cst)*1e6:.1f} us")
+        print()
+
+    # Feasibility analysis
+    # 実現可能性分析
+    print("=" * 70)
+    print("60FPS FEASIBILITY ANALYSIS / 60FPS実現可能性分析")
+    print("=" * 70)
+    if len(physics_step_times) > 100:
+        pst = physics_step_times[100:]
+        avg_physics_us = statistics.mean(pst) * 1e6
+        avg_physics_ms = statistics.mean(pst) * 1000
+
+        # Time budget per frame at 60FPS
+        frame_budget_ms = 1000.0 / 60.0  # 16.67 ms
+
+        # How many physics steps fit in one frame budget
+        steps_per_budget = frame_budget_ms / avg_physics_ms
+        physics_hz_at_60fps = steps_per_budget * 60
+
+        # Required steps for 2000Hz physics at 60FPS
+        required_steps = 2000 / 60  # 33.3
+
+        # Control overhead per frame (400Hz/60FPS ≈ 6.67 control steps per frame)
+        controls_per_frame = 400 / 60
+        if len(control_step_times) > 20:
+            avg_ctrl_ms = statistics.mean(control_step_times[20:]) * 1000
+            ctrl_overhead_ms = controls_per_frame * avg_ctrl_ms
+        else:
+            avg_ctrl_ms = 0
+            ctrl_overhead_ms = 0
+
+        # Render overhead from renderer timing data
+        td = Render._timing_data if hasattr(Render, '_timing_data') else {}
+        if td.get('render_overheads') and len(td['render_overheads']) > 5:
+            avg_render_overhead_ms = statistics.mean(td['render_overheads'][5:]) * 1000
+        else:
+            avg_render_overhead_ms = 0
+
+        # Total computation per frame
+        physics_compute_ms = required_steps * avg_physics_ms
+        total_compute_ms = physics_compute_ms + ctrl_overhead_ms + avg_render_overhead_ms
+
+        print(f"\n  Frame budget at 60FPS: {frame_budget_ms:.2f} ms")
+        print(f"\n  Per-frame computation breakdown:")
+        print(f"    Physics  ({required_steps:.1f} steps x {avg_physics_us:.1f} us): {physics_compute_ms:.3f} ms")
+        print(f"    Control  ({controls_per_frame:.1f} steps x {avg_ctrl_ms*1000:.1f} us): {ctrl_overhead_ms:.3f} ms")
+        print(f"    Render overhead:                      {avg_render_overhead_ms:.3f} ms")
+        print(f"    ─────────────────────────────────────")
+        print(f"    Total computation:                    {total_compute_ms:.3f} ms")
+        print(f"    Remaining for rate() wait:             {frame_budget_ms - total_compute_ms:.3f} ms")
+        print()
+
+        if total_compute_ms < frame_budget_ms:
+            utilization = total_compute_ms / frame_budget_ms * 100
+            print(f"  RESULT: 60FPS is FEASIBLE / 60FPS は実現可能")
+            print(f"  CPU utilization: {utilization:.1f}% of frame budget")
+            print(f"  rate() will wait {frame_budget_ms - total_compute_ms:.2f} ms per frame")
+        else:
+            max_fps = 1000.0 / total_compute_ms
+            print(f"  RESULT: 60FPS is NOT FEASIBLE / 60FPS は実現不可能")
+            print(f"  Computation exceeds frame budget by {total_compute_ms - frame_budget_ms:.2f} ms")
+            print(f"  Maximum achievable FPS: {max_fps:.1f}")
+            print(f"  Recommended target FPS: {int(max_fps * 0.8)}")
+            # Suggest reduced physics rate
+            avail_for_physics = frame_budget_ms - ctrl_overhead_ms - avg_render_overhead_ms
+            if avail_for_physics > 0:
+                max_steps = avail_for_physics / avg_physics_ms
+                max_phys_hz = max_steps * 60
+                print(f"  Alternative: reduce physics to {int(max_phys_hz)} Hz at 60FPS")
+
+        print()
+        print(f"  Max physics steps per frame: {steps_per_budget:.1f}")
+        print(f"  Required for 2000Hz at 60FPS: {required_steps:.1f}")
+        print(f"  Max achievable physics Hz at 60FPS: {physics_hz_at_60fps:.0f}")
+
+    print()
+    print("=" * 70)
 
     # ===========================================
     # Plot Results
