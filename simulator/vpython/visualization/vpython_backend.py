@@ -97,12 +97,23 @@ class render():
         self.frame_num = 0
         self.keyname = ''
 
+        # First VPython 3D object creation blocks until browser WebSocket connects.
+        # On Windows cold start, this can take 20-30s (browser launch + page load).
+        # Subsequent runs with browser already open are instant.
+        # 最初のVPython 3Dオブジェクト生成でブラウザWebSocket接続完了までブロック。
+        # Windows初回起動時は20-30秒かかる（ブラウザ起動＋ページ読み込み）。
+        # ブラウザが既に開いていれば即座に完了。
+        print("  Connecting to browser (first launch may take 20-30s)...", flush=True)
+        t_browser = time.perf_counter()
+
         #Cameraの設定
         self.camera_init()
 
         arrow(pos=vec(0, 0, 0), axis=vec(0.2, 0, 0), shaftwidth=0.005, color=color.red, round=True)
         arrow(pos=vec(0, 0, 0), axis=vec(0, 0.2, 0), shaftwidth=0.005, color=color.green, round=True)
         arrow(pos=vec(0, 0, 0), axis=vec(0, 0, 0.2), shaftwidth=0.005, color=color.blue, round=True)
+        t_browser = time.perf_counter() - t_browser
+        print(f"  Browser connected: {t_browser:.2f}s", flush=True)
 
         # Performance: measure world generation time
         # 性能計測: ワールド生成時間
@@ -135,10 +146,10 @@ class render():
         # Performance summary
         # 性能サマリー
         print(f"\n=== Renderer Init Performance ===")
-        print(f"  Canvas (browser): {t_canvas:.2f}s")
+        print(f"  Browser connect:  {t_browser:.2f}s")
         print(f"  World generation: {t_world:.2f}s")
         print(f"  STL loading:     {t_stl:.2f}s")
-        print(f"  Total init:      {t_canvas + t_world + t_stl:.2f}s")
+        print(f"  Total init:      {t_browser + t_world + t_stl:.2f}s")
         print(f"=================================\n")
 
     def _create_ringworld_objects(self):
