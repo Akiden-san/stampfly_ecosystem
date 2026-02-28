@@ -123,19 +123,56 @@ def _clean_env_for_cmd() -> dict:
 
     - Strips MSYSTEM (ESP-IDF .bat refuses to run under MINGW/Git Bash)
     - Appends current Python's directory to PATH as fallback so ESP-IDF
-      export.bat/install.bat can pass their python.exe prerequisite check.
-      Appending (not prepending) ensures ESP-IDF's venv Python takes
-      priority when export.bat adds it to PATH.
+      install.bat can pass its python.exe prerequisite check.
     """
     env = os.environ.copy()
     env.pop("MSYSTEM", None)
-    # Append Python as fallback (must not shadow ESP-IDF venv Python)
-    # フォールバックとしてPythonを末尾に追加（ESP-IDF仮想環境のPythonを優先させる）
+    # Append Python as fallback for install.bat prerequisite check
+    # install.batの前提条件チェック用フォールバックとしてPythonを末尾に追加
     python_dir = str(Path(sys.executable).parent)
     current_path = env.get("PATH", "")
     if python_dir.lower() not in current_path.lower():
         env["PATH"] = current_path + os.pathsep + python_dir
     return env
+
+
+def _find_idf_python(idf_path: Path) -> Optional[Path]:
+    """Find ESP-IDF's virtual environment Python directly.
+    ESP-IDFの仮想環境Pythonを直接検索する
+
+    Scans IDF_TOOLS_PATH (default: ~/.espressif or C:\\Espressif) for
+    python_env/idf*_py*/Scripts/python.exe (Windows) or bin/python (Unix).
+    """
+    # Determine IDF_TOOLS_PATH
+    # IDF_TOOLS_PATH を決定
+    tools_path = os.environ.get("IDF_TOOLS_PATH")
+    if tools_path:
+        candidates = [Path(tools_path)]
+    elif sys.platform == "win32":
+        candidates = [Path("C:/Espressif"), Path.home() / ".espressif"]
+    else:
+        candidates = [Path.home() / ".espressif"]
+
+    for base in candidates:
+        python_env_dir = base / "python_env"
+        if not python_env_dir.exists():
+            continue
+        # Find the newest idf*_py*_env directory
+        # 最新の idf*_py*_env ディレクトリを探す
+        try:
+            venvs = sorted(python_env_dir.iterdir(), reverse=True)
+        except OSError:
+            continue
+        for venv_dir in venvs:
+            if not venv_dir.is_dir():
+                continue
+            if sys.platform == "win32":
+                python_exe = venv_dir / "Scripts" / "python.exe"
+            else:
+                python_exe = venv_dir / "bin" / "python"
+            if python_exe.exists():
+                return python_exe
+    return None
 
 
 def _build_idf_env_command(idf_path: Path) -> str:
@@ -155,10 +192,18 @@ def _run_in_idf_env(idf_path: Path, pip_args: list[str]) -> int:
     """Run pip in ESP-IDF Python environment.
     ESP-IDFのPython環境でpipを実行"""
     if sys.platform == "win32":
+        # Use venv Python directly instead of export.bat to avoid PATH conflicts
+        # PATH競合を避けるため、export.batではなくvenv Pythonを直接使用
+        venv_python = _find_idf_python(idf_path)
+        if venv_python:
+            # Strip shell quotes from args (not needed for list-based subprocess)
+            # リスト形式のsubprocessではシェル引用符は不要なので除去
+            clean_args = [a.strip('"') for a in pip_args]
+            cmd = [str(venv_python), "-m", "pip"] + clean_args
+            return subprocess.run(cmd).returncode
+        # Fallback: export.bat (if venv not found yet, e.g. during initial install)
         export_script = idf_path / "export.bat"
         escaped = " ".join(pip_args)
-        # shell=True adds cmd /c automatically, so use call + quoted path
-        # shell=Trueがcmd /cを自動追加するためcall + パス引用で対応
         cmd = f'call "{export_script}" && python -m pip {escaped}'
         return subprocess.run(cmd, shell=True, env=_clean_env_for_cmd()).returncode
     else:
@@ -254,21 +299,11 @@ class ESPIDFDetector:
         """Get the Python environment for an ESP-IDF installation.
         ESP-IDFインストールのPython環境を取得"""
         if sys.platform == "win32":
-            export_script = idf_path / "export.bat"
-            cmd = f'call "{export_script}" && where python'
-            try:
-                result = subprocess.run(
-                    cmd,
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                    env=_clean_env_for_cmd(),
-                )
-                if result.returncode == 0:
-                    python_path = result.stdout.strip().split('\n')[0]
-                    return Path(python_path)
-            except Exception:
-                pass
+            # Find venv Python directly (avoids export.bat PATH issues)
+            # venv Pythonを直接検索（export.batのPATH問題を回避）
+            venv_python = _find_idf_python(idf_path)
+            if venv_python:
+                return venv_python
         else:
             # Use _build_idf_env_command to handle WSL2 PATH filtering
             # WSL2 PATH除外を含むコマンドを使用
@@ -420,16 +455,19 @@ class Installer:
         """Check if sfcli is installed in ESP-IDF Python environment.
         sfcliがESP-IDF Python環境にインストール済みか確認"""
         if sys.platform == "win32":
-            export_script = idf_path / "export.bat"
-            cmd = f'call "{export_script}" && python -c "import sfcli"'
-            try:
-                result = subprocess.run(
-                    cmd, shell=True, capture_output=True, text=True,
-                    env=_clean_env_for_cmd(),
-                )
-                return result.returncode == 0
-            except Exception:
-                return False
+            # Use venv Python directly
+            # venv Pythonを直接使用
+            venv_python = _find_idf_python(idf_path)
+            if venv_python:
+                try:
+                    result = subprocess.run(
+                        [str(venv_python), "-c", "import sfcli"],
+                        capture_output=True, text=True,
+                    )
+                    return result.returncode == 0
+                except Exception:
+                    return False
+            return False
         else:
             env_prefix = _build_idf_env_command(idf_path)
             inner = f'{env_prefix} && python -c "import sfcli"'
