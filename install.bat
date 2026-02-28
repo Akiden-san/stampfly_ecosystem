@@ -29,27 +29,41 @@ if errorlevel 1 (
 echo [OK] git found
 echo.
 
-REM Discover python.exe in common install locations
-for %%d in (
-    "%USERPROFILE%\.pyenv\pyenv-win\versions\3.13.7"
-    "%USERPROFILE%\.pyenv\pyenv-win\versions\3.12.0"
-    "%USERPROFILE%\.pyenv\pyenv-win\versions\3.11.0"
-    "%USERPROFILE%\.pyenv\pyenv-win\versions\3.10.11"
-    "%LOCALAPPDATA%\Programs\Python\Python313"
-    "%LOCALAPPDATA%\Programs\Python\Python312"
-    "%LOCALAPPDATA%\Programs\Python\Python311"
-    "%LOCALAPPDATA%\Programs\Python\Python310"
-    "C:\Python313"
-    "C:\Python312"
-    "C:\Python311"
-    "C:\Python310"
-    "%USERPROFILE%\scoop\apps\python\current"
-    "%USERPROFILE%\anaconda3"
-    "%USERPROFILE%\miniconda3"
-) do (
-    if exist "%%~d\python.exe" (
-        set "PATH=%%~d;!PATH!"
+REM --- Discover python.exe ---
+set "PYTHON_DIR="
+
+REM 1. pyenv-win: read configured version from version file
+set "PYENV_ROOT=%USERPROFILE%\.pyenv\pyenv-win"
+if exist "%PYENV_ROOT%\version" (
+    set /p PYENV_VER=<"%PYENV_ROOT%\version"
+    if exist "%PYENV_ROOT%\versions\!PYENV_VER!\python.exe" (
+        set "PYTHON_DIR=%PYENV_ROOT%\versions\!PYENV_VER!"
     )
+)
+
+REM 2. Common install locations (only if pyenv-win not found)
+if not defined PYTHON_DIR (
+    for %%d in (
+        "%LOCALAPPDATA%\Programs\Python\Python313"
+        "%LOCALAPPDATA%\Programs\Python\Python312"
+        "%LOCALAPPDATA%\Programs\Python\Python311"
+        "%LOCALAPPDATA%\Programs\Python\Python310"
+        "C:\Python313"
+        "C:\Python312"
+        "C:\Python311"
+        "C:\Python310"
+        "%USERPROFILE%\scoop\apps\python\current"
+        "%USERPROFILE%\anaconda3"
+        "%USERPROFILE%\miniconda3"
+    ) do (
+        if not defined PYTHON_DIR (
+            if exist "%%~d\python.exe" set "PYTHON_DIR=%%~d"
+        )
+    )
+)
+
+if defined PYTHON_DIR (
+    set "PATH=!PYTHON_DIR!;!PATH!"
 )
 
 REM Check for Python
@@ -58,7 +72,6 @@ echo [INFO] Checking Python...
 set "PYTHON_CMD="
 set "PYTHON_VERSION="
 
-REM Try different Python commands (validate version >= 3.10)
 for %%p in (python3 python py) do (
     if not defined PYTHON_CMD (
         for /f "tokens=*" %%v in ('%%p -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2^>nul') do (
