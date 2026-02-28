@@ -122,17 +122,19 @@ def _clean_env_for_cmd() -> dict:
     cmd.exe 経由で .bat を実行するための環境を構築
 
     - Strips MSYSTEM (ESP-IDF .bat refuses to run under MINGW/Git Bash)
-    - Prepends current Python's directory to PATH so ESP-IDF install.bat
-      can find python.exe (pyenv-win shims may not be in CMD PATH)
+    - Appends current Python's directory to PATH as fallback so ESP-IDF
+      export.bat/install.bat can pass their python.exe prerequisite check.
+      Appending (not prepending) ensures ESP-IDF's venv Python takes
+      priority when export.bat adds it to PATH.
     """
     env = os.environ.copy()
     env.pop("MSYSTEM", None)
-    # Ensure the Python running this script is visible to .bat subprocesses
-    # このスクリプトを実行中の Python を .bat サブプロセスから見えるようにする
+    # Append Python as fallback (must not shadow ESP-IDF venv Python)
+    # フォールバックとしてPythonを末尾に追加（ESP-IDF仮想環境のPythonを優先させる）
     python_dir = str(Path(sys.executable).parent)
     current_path = env.get("PATH", "")
     if python_dir.lower() not in current_path.lower():
-        env["PATH"] = python_dir + os.pathsep + current_path
+        env["PATH"] = current_path + os.pathsep + python_dir
     return env
 
 
