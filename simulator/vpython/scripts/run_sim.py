@@ -395,7 +395,7 @@ def flight_sim_2000hz(world_type='voxel', seed=None, control_mode='rate'):
     # Cache frequently used references (avoid repeated attribute lookups)
     # 頻繁にアクセスする参照をキャッシュ（属性ルックアップの繰り返しを回避）
     body = stampfly.body
-    _step = stampfly.step
+    _step = stampfly.step_fast  # Use scalar fast path / スカラー高速パスを使用
     _joy_read = joystick.read
     _check_collision = Render.check_collision
     _rendering = Render.rendering
