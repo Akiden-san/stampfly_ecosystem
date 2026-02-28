@@ -27,6 +27,7 @@ import numpy as np
 import cv2
 import os
 import time
+import math as _math
 
 # Get the path to assets directory
 # アセットディレクトリへのパスを取得
@@ -394,65 +395,66 @@ class render():
             # リングワールドでは地面のみ判定（z=0）
             return z > -0.02  # ドローンの高さ考慮
 
-        cube_size = self.cube_size
+        # Early exit: if drone is high enough, no collision possible
+        # 早期リターン: ドローンが十分高ければ衝突不可
+        # Max terrain: 12 blocks × 0.5m + trees ~4 blocks = -8m
+        if z < -9.0:
+            return False
 
-        # ドローンのバウンディングボックス（半径）
-        # Drone bounding box (half-size)
-        drone_hx = 0.05  # ~8cm / 2
-        drone_hy = 0.05
-        drone_hz = 0.02  # ~3cm / 2
+        # Use pre-computed collision constants
+        # 事前計算された衝突判定定数を使用
+        cs = self.cube_size
+        hm = self.height_map
 
-        # グリッドインデックスに変換
-        # Convert to grid index
-        i = int(np.floor(x / cube_size))
-        j = int(np.floor(y / cube_size))
+        drone_hz = 0.02
+        drone_bottom = z + drone_hz
+        margin_x = 0.05 + cs * 0.5  # drone_hx + cube_size/2
+        margin_y = 0.05 + cs * 0.5  # drone_hy + cube_size/2
 
-        # 地形との衝突判定
-        # Terrain collision check
-        for di in [-1, 0, 1]:
-            for dj in [-1, 0, 1]:
-                ni, nj = i + di, j + dj
-                if (ni, nj) in self.height_map:
-                    terrain_h = self.height_map[(ni, nj)]
-                    # 地形の上面の高さ（Z座標、上向きが負）
-                    terrain_top_z = -(terrain_h + 1) * cube_size
+        # Grid index (use math.floor instead of np.floor — 10x faster for scalars)
+        # グリッドインデックス（np.floorの代わりにmath.floor — スカラーでは10倍速）
+        inv_cs = 1.0 / cs
+        i = _math.floor(x * inv_cs)
+        j = _math.floor(y * inv_cs)
 
-                    # ドローンの底面
-                    drone_bottom = z + drone_hz
+        # Terrain collision (3×3 neighborhood)
+        # 地形衝突（3×3近傍）
+        for di in range(-1, 2):
+            ni = i + di
+            for dj in range(-1, 2):
+                nj = j + dj
+                terrain_h = hm.get((ni, nj))
+                if terrain_h is None:
+                    continue
+                terrain_top_z = -(terrain_h + 1) * cs
+                if drone_bottom <= terrain_top_z:
+                    continue
+                voxel_x = (ni + 0.5) * cs
+                voxel_y = (nj + 0.5) * cs
+                if abs(x - voxel_x) < margin_x and abs(y - voxel_y) < margin_y:
+                    return True
 
-                    # AABBによる簡易衝突判定
-                    voxel_x = (ni + 0.5) * cube_size
-                    voxel_y = (nj + 0.5) * cube_size
-
-                    # X, Y軸でオーバーラップ確認
-                    if (abs(x - voxel_x) < drone_hx + cube_size / 2 and
-                        abs(y - voxel_y) < drone_hy + cube_size / 2):
-                        # Z軸でオーバーラップ確認（地形の上面とドローンの底面）
-                        if drone_bottom > terrain_top_z:
-                            return True
-
-        # 木との衝突判定
-        # Tree collision check
+        # Tree collision (only nearby trees)
+        # 木との衝突（近くの木のみ）
         for tx, ty, ground_h, trunk_height in self.tree_data:
-            # 近くの木のみチェック（2m以内）
-            if abs(x - tx) > 2.0 or abs(y - ty) > 2.0:
+            dx = abs(x - tx)
+            if dx > 2.0:
+                continue
+            dy = abs(y - ty)
+            if dy > 2.0:
                 continue
 
-            # 幹との衝突
-            trunk_bottom_z = -(ground_h + 1) * cube_size
-            trunk_top_z = -(ground_h + trunk_height + 1) * cube_size
-
-            if (abs(x - tx) < drone_hx + cube_size / 2 and
-                abs(y - ty) < drone_hy + cube_size / 2):
-                # Z軸（幹の範囲内）
+            # Trunk check
+            if dx < margin_x and dy < margin_y:
+                trunk_top_z = -(ground_h + trunk_height + 1) * cs
+                trunk_bottom_z = -(ground_h + 1) * cs
                 if trunk_top_z < z < trunk_bottom_z:
                     return True
 
-            # 葉との衝突（球状、半径約1.1m）
-            leaf_center_z = -(ground_h + trunk_height + 2) * cube_size
-            leaf_radius = 1.1  # 約2.2ブロック * 0.5m
-            dist_sq = (x - tx)**2 + (y - ty)**2 + (z - leaf_center_z)**2
-            if dist_sq < (leaf_radius + drone_hx)**2:
+            # Leaf check (sphere, radius ~1.1m)
+            leaf_center_z = -(ground_h + trunk_height + 2) * cs
+            dist_sq = dx * dx + dy * dy + (z - leaf_center_z) ** 2
+            if dist_sq < 1.3225:  # (1.1 + 0.05)² = 1.3225
                 return True
 
         return False

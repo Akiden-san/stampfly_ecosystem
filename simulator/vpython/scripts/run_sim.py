@@ -39,6 +39,7 @@ VPython rate()によるリアルタイム同期。
 
 import sys
 import os
+import gc
 import math
 import time
 import numpy as np
@@ -382,6 +383,11 @@ def flight_sim_2000hz(world_type='voxel', seed=None, control_mode='rate'):
     # then the outer loop handles rendering via rate().
     # This reduces render-check overhead from 200/sec to 30/sec.
     # ===========================================
+    # Disable GC during simulation to prevent GC pauses from inflating physics time
+    # GCポーズによる物理演算時間の膨張を防ぐためGCを無効化
+    gc.collect()  # Run final GC before disabling / 無効化前に最終GC実行
+    gc.disable()
+
     wall_start = time.perf_counter()
     last_print_time = -1
     keyname = ''
@@ -561,6 +567,11 @@ def flight_sim_2000hz(world_type='voxel', seed=None, control_mode='rate'):
 
     except KeyboardInterrupt:
         pass
+
+    # Re-enable GC after simulation
+    # シミュレーション後にGCを再有効化
+    gc.enable()
+    gc.collect()
 
     wall_total = time.perf_counter() - wall_start
     print("\nSimulation ended.")
