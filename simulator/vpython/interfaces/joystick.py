@@ -14,24 +14,32 @@ class Joystick:
 
     def open(self):
         try:
-            self.device = hid.Device(self.vendor_id, self.product_id)
-            print("デバイスをオープンしました:", self.device.manufacturer, self.device.product)
-            
+            # hidapi package: hid.device() (lowercase), then open(vid, pid)
+            # hidapi パッケージ: hid.device()（小文字）で生成し、open(vid, pid)で接続
+            self.device = hid.device()
+            self.device.open(self.vendor_id, self.product_id)
+            manufacturer = self.device.get_manufacturer_string()
+            product = self.device.get_product_string()
+            print("デバイスをオープンしました:", manufacturer, product)
+
             # 非ブロッキングモードに設定
-            self.device.nonblocking = True
+            # Set non-blocking mode
+            self.device.set_nonblocking(1)
         except Exception as e:
             print("エラー:", e)
+            self.device = None
 
     def close(self):
         try:
-            self.device.close()
+            if self.device is not None:
+                self.device.close()
         except Exception:
             print("デバイスをクローズ失敗")
 
     def read(self):
         if self.device is None:
             return None
-        data = self.device.read(8)  # 1回の読み込みで最大 64 バイト取得
+        data = self.device.read(8)  # 1回の読み込みで最大8バイト取得
         if data:
             return data
         return None
@@ -45,7 +53,8 @@ class Joystick:
         self.close()
 
     def list_hid_devices(self):
-        """接続されているHIDデバイスの情報を列挙する"""
+        """接続されているHIDデバイスの情報を列挙する
+        List connected HID devices"""
         print("=== 接続されているHIDデバイス一覧 ===")
         for d in hid.enumerate():
             info = {
