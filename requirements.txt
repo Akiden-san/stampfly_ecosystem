@@ -2,6 +2,12 @@
 # Install with: pip install -r requirements.txt
 
 # ============================================================
+# Build Tools - Pin setuptools to keep pkg_resources for vpython
+# ESP-IDF install.sh upgrades to setuptools 82+ which removed it
+# ============================================================
+setuptools>=68.0,<81
+
+# ============================================================
 # Core - Required for all functionality
 # ============================================================
 numpy>=1.24.0
