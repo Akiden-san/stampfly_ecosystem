@@ -29,20 +29,40 @@ if errorlevel 1 (
 echo [OK] git found
 echo.
 
+REM Discover Python in common install locations and prepend to PATH
+REM 一般的なインストール場所からPythonを探してPATHに追加
+for %%d in (
+    "%USERPROFILE%\.pyenv\pyenv-win\shims"
+    "%LOCALAPPDATA%\Programs\Python\Python313"
+    "%LOCALAPPDATA%\Programs\Python\Python312"
+    "%LOCALAPPDATA%\Programs\Python\Python311"
+    "%LOCALAPPDATA%\Programs\Python\Python310"
+    "C:\Python313"
+    "C:\Python312"
+    "C:\Python311"
+    "C:\Python310"
+    "%USERPROFILE%\scoop\apps\python\current"
+    "%USERPROFILE%\anaconda3"
+    "%USERPROFILE%\miniconda3"
+) do (
+    if exist "%%~d\python.exe" (
+        set "PATH=%%~d;!PATH!"
+    )
+)
+
 REM Check for Python
 echo [INFO] Checking Python...
 
 set "PYTHON_CMD="
 set "PYTHON_VERSION="
 
-REM Try different Python commands
+REM Try different Python commands (validate version >= 3.10)
 for %%p in (python3 python py) do (
     if not defined PYTHON_CMD (
-        where %%p >nul 2>&1
-        if !errorlevel! equ 0 (
-            for /f "tokens=*" %%v in ('%%p -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2^>nul') do (
-                set "ver=%%v"
-            )
+        for /f "tokens=*" %%v in ('%%p -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2^>nul') do (
+            set "ver=%%v"
+        )
+        if defined ver (
             for /f "tokens=1,2 delims=." %%a in ("!ver!") do (
                 if %%a geq 3 if %%b geq 10 (
                     set "PYTHON_CMD=%%p"
@@ -50,6 +70,7 @@ for %%p in (python3 python py) do (
                 )
             )
         )
+        set "ver="
     )
 )
 
