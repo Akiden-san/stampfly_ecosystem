@@ -117,6 +117,15 @@ def prompt_choice(message: str, choices: List[str], default: int = 1) -> int:
         print(f"Please enter a number between 1 and {len(choices)}")
 
 
+def _clean_env_for_cmd() -> dict:
+    """Return a copy of os.environ without MSYSTEM.
+    ESP-IDF .bat scripts refuse to run when MSYSTEM is set (MINGW/Git Bash).
+    MSYSTEM が設定されていると ESP-IDF の .bat が実行を拒否するため除去"""
+    env = os.environ.copy()
+    env.pop("MSYSTEM", None)
+    return env
+
+
 def _build_idf_env_command(idf_path: Path) -> str:
     """Build shell prefix that sources ESP-IDF and filters WSL2 PATH.
     ESP-IDF環境を読み込み、WSL2ではWindowsパスを除外するシェルプレフィックスを構築"""
@@ -139,7 +148,7 @@ def _run_in_idf_env(idf_path: Path, pip_args: list[str]) -> int:
         # shell=True adds cmd /c automatically, so use call + quoted path
         # shell=Trueがcmd /cを自動追加するためcall + パス引用で対応
         cmd = f'call "{export_script}" && python -m pip {escaped}'
-        return subprocess.run(cmd, shell=True).returncode
+        return subprocess.run(cmd, shell=True, env=_clean_env_for_cmd()).returncode
     else:
         escaped = " ".join(pip_args)
         env_prefix = _build_idf_env_command(idf_path)
@@ -241,6 +250,7 @@ class ESPIDFDetector:
                     shell=True,
                     capture_output=True,
                     text=True,
+                    env=_clean_env_for_cmd(),
                 )
                 if result.returncode == 0:
                     python_path = result.stdout.strip().split('\n')[0]
@@ -372,7 +382,7 @@ class ESPIDFInstaller:
                 # Use shell=True + call for .bat execution from any shell
                 # shell=True + call で任意のシェルから .bat を確実に実行
                 cmd = f'call "{install_script}" esp32s3'
-                subprocess.run(cmd, shell=True, check=True)
+                subprocess.run(cmd, shell=True, check=True, env=_clean_env_for_cmd())
             else:
                 install_script = target_dir / "install.sh"
                 subprocess.run(
@@ -403,6 +413,7 @@ class Installer:
             try:
                 result = subprocess.run(
                     cmd, shell=True, capture_output=True, text=True,
+                    env=_clean_env_for_cmd(),
                 )
                 return result.returncode == 0
             except Exception:
