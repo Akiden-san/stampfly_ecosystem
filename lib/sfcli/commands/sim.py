@@ -294,15 +294,24 @@ def _get_python_cmd(backend: dict) -> Optional[str]:
     """Get Python command for backend"""
     if backend.get("requires_venv"):
         # Use venv Python
+        # Windows uses Scripts/python.exe, Unix uses bin/python
+        # WindowsはScripts/python.exe、Unixはbin/pythonを使用
         venv_path = paths.root() / backend["venv_path"]
-        python_path = venv_path / "bin" / "python"
+        if sys.platform == "win32":
+            python_path = venv_path / "Scripts" / "python.exe"
+        else:
+            python_path = venv_path / "bin" / "python"
 
         if not python_path.exists():
             console.error(f"Venv not found: {venv_path}")
             console.print("  To create the venv:")
             console.print(f"    cd {venv_path.parent}")
-            console.print(f"    python3 -m venv venv")
-            console.print(f"    source venv/bin/activate")
+            if sys.platform == "win32":
+                console.print(f"    python -m venv venv")
+                console.print(f"    venv\\Scripts\\activate")
+            else:
+                console.print(f"    python3 -m venv venv")
+                console.print(f"    source venv/bin/activate")
             console.print(f"    pip install genesis-world pygame")
             return None
 

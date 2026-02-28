@@ -136,7 +136,9 @@ def _run_in_idf_env(idf_path: Path, pip_args: list[str]) -> int:
     if sys.platform == "win32":
         export_script = idf_path / "export.bat"
         escaped = " ".join(pip_args)
-        cmd = f'cmd /c "{export_script}" && python -m pip {escaped}'
+        # shell=True adds cmd /c automatically, so use call + quoted path
+        # shell=Trueがcmd /cを自動追加するためcall + パス引用で対応
+        cmd = f'call "{export_script}" && python -m pip {escaped}'
         return subprocess.run(cmd, shell=True).returncode
     else:
         escaped = " ".join(pip_args)
@@ -236,7 +238,7 @@ class ESPIDFDetector:
         ESP-IDFインストールのPython環境を取得"""
         if sys.platform == "win32":
             export_script = idf_path / "export.bat"
-            cmd = f'cmd /c "{export_script}" && where python'
+            cmd = f'call "{export_script}" && where python'
             try:
                 result = subprocess.run(
                     cmd,
@@ -281,9 +283,14 @@ class ESPIDFInstaller:
 
     @classmethod
     def _is_partial_clone(cls, path: Path) -> bool:
-        """Detect incomplete clone (has .git but no export.sh).
-        不完全なクローンを検出（.gitはあるがexport.shがない）"""
-        return path.exists() and (path / ".git").exists() and not (path / "export.sh").exists()
+        """Detect incomplete clone (has .git but no export script).
+        不完全なクローンを検出（.gitはあるがexportスクリプトがない）"""
+        if not path.exists() or not (path / ".git").exists():
+            return False
+        # Check for platform-appropriate export script
+        # プラットフォームに応じたexportスクリプトを確認
+        export_script = "export.bat" if sys.platform == "win32" else "export.sh"
+        return not (path / export_script).exists()
 
     @classmethod
     def install(cls, target_dir: Optional[Path] = None, version: str = DEFAULT_VERSION) -> Optional[Path]:
@@ -394,7 +401,7 @@ class Installer:
         sfcliがESP-IDF Python環境にインストール済みか確認"""
         if sys.platform == "win32":
             export_script = idf_path / "export.bat"
-            cmd = f'cmd /c "{export_script}" && python -c "import sfcli"'
+            cmd = f'call "{export_script}" && python -c "import sfcli"'
             try:
                 result = subprocess.run(
                     cmd, shell=True, capture_output=True, text=True,
