@@ -544,7 +544,13 @@ def main():
     print("=" * 60)
 
     # Path setup
-    assets_dir = script_dir.parent / "assets" / "meshes" / "parts"
+    # Resolve symlink stored as text file (Windows without symlink support)
+    # シンボリックリンクがテキストファイルの場合を解決（Windowsシンボリックリンク非対応時）
+    _assets_path = script_dir.parent / "assets"
+    if _assets_path.is_file():
+        _symlink_target = _assets_path.read_text().strip()
+        _assets_path = (script_dir.parent / _symlink_target).resolve()
+    assets_dir = _assets_path / "meshes" / "parts"
     urdf_file = assets_dir / "stampfly_fixed.urdf"
 
     if not urdf_file.exists():

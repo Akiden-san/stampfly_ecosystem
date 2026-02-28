@@ -143,7 +143,13 @@ def run_headless(input_file, output_file, duration=10.0):
     print(f"\nPhysics: {PHYSICS_HZ}Hz, Control: {CONTROL_HZ}Hz, Log: {LOG_HZ}Hz")
 
     # URDF path
-    assets_dir = script_dir.parent / "assets" / "meshes" / "parts"
+    # Resolve symlink stored as text file (Windows without symlink support)
+    # シンボリックリンクがテキストファイルの場合を解決
+    _assets_path = script_dir.parent / "assets"
+    if _assets_path.is_file():
+        _symlink_target = _assets_path.read_text().strip()
+        _assets_path = (script_dir.parent / _symlink_target).resolve()
+    assets_dir = _assets_path / "meshes" / "parts"
     urdf_file = assets_dir / "stampfly_fixed.urdf"
     if not urdf_file.exists():
         print(f"ERROR: URDF not found: {urdf_file}")

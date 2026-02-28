@@ -29,9 +29,20 @@ import os
 
 # Get the path to assets directory
 # アセットディレクトリへのパスを取得
+# On Windows with core.symlinks=false, git symlinks become text files
+# containing the target path. Resolve them manually.
+# Windows (core.symlinks=false) ではgitシンボリックリンクがテキストファイルになるため手動解決する
 _VISUALIZATION_DIR = os.path.dirname(os.path.abspath(__file__))
 _SIMULATOR_DIR = os.path.dirname(_VISUALIZATION_DIR)
 _ASSETS_DIR = os.path.join(_SIMULATOR_DIR, 'assets')
+
+if os.path.isfile(_ASSETS_DIR):
+    # Symlink stored as text file (Windows without symlink support)
+    # シンボリックリンクがテキストファイルとして保存されている場合
+    with open(_ASSETS_DIR, 'r') as f:
+        _symlink_target = f.read().strip()
+    _ASSETS_DIR = os.path.normpath(os.path.join(_SIMULATOR_DIR, _symlink_target))
+
 _MESHES_DIR = os.path.join(_ASSETS_DIR, 'meshes')
 _TEXTURES_DIR = os.path.join(_ASSETS_DIR, 'textures')
 
