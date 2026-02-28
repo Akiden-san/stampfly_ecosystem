@@ -118,11 +118,21 @@ def prompt_choice(message: str, choices: List[str], default: int = 1) -> int:
 
 
 def _clean_env_for_cmd() -> dict:
-    """Return a copy of os.environ without MSYSTEM.
-    ESP-IDF .bat scripts refuse to run when MSYSTEM is set (MINGW/Git Bash).
-    MSYSTEM が設定されていると ESP-IDF の .bat が実行を拒否するため除去"""
+    """Return environment suitable for running .bat scripts via cmd.exe.
+    cmd.exe 経由で .bat を実行するための環境を構築
+
+    - Strips MSYSTEM (ESP-IDF .bat refuses to run under MINGW/Git Bash)
+    - Prepends current Python's directory to PATH so ESP-IDF install.bat
+      can find python.exe (pyenv-win shims may not be in CMD PATH)
+    """
     env = os.environ.copy()
     env.pop("MSYSTEM", None)
+    # Ensure the Python running this script is visible to .bat subprocesses
+    # このスクリプトを実行中の Python を .bat サブプロセスから見えるようにする
+    python_dir = str(Path(sys.executable).parent)
+    current_path = env.get("PATH", "")
+    if python_dir.lower() not in current_path.lower():
+        env["PATH"] = python_dir + os.pathsep + current_path
     return env
 
 
