@@ -10,6 +10,9 @@
 \definecolor{purple1}{RGB}{120, 80, 150}
 \definecolor{gray1}{RGB}{120, 120, 120}
 
+% Inline command for sublabel text inside nodes
+\newcommand{\sublabel}[1]{{\scriptsize\color{black!50}#1}}
+
 \begin{tikzpicture}[
     layer/.style={
       rectangle, rounded corners=4pt, draw=#1, line width=1.5pt,
@@ -20,9 +23,6 @@
       rectangle, rounded corners=4pt, draw=red1, line width=2.5pt,
       fill=red1!10, minimum width=62mm, minimum height=14mm,
       font=\bfseries\large, text=red1, align=center
-    },
-    sublabel/.style={
-      font=\scriptsize, text=black!50
     },
     api/.style={
       font=\small, text=black!70, anchor=west
@@ -36,10 +36,10 @@
   ]
 
   % Layers (bottom to top, spacing=8mm)
-  \node[layer=gray1]   (L1) at (0, 0)    {Hardware\\[-1pt]{\sublabel ESP32-S3, BMI270, BMP280}};
-  \node[layer=purple1, above=8mm of L1] (L2) {ESP-IDF / FreeRTOS\\[-1pt]{\sublabel Tasks, timers, queues}};
-  \node[layer=green1,  above=8mm of L2] (L3) {Vehicle Components\\[-1pt]{\sublabel IMU, baro, motor driver}};
-  \node[layer=blue1,   above=8mm of L3] (L4) {ws:: API\\[-1pt]{\sublabel gyro\_x(), motor\_set\_duty()}};
+  \node[layer=gray1]   (L1) at (0, 0)    {Hardware\\[-1pt]{\sublabel{ESP32-S3, BMI270, BMP280}}};
+  \node[layer=purple1, above=8mm of L1] (L2) {ESP-IDF / FreeRTOS\\[-1pt]{\sublabel{Tasks, timers, queues}}};
+  \node[layer=green1,  above=8mm of L2] (L3) {Vehicle Components\\[-1pt]{\sublabel{IMU, baro, motor driver}}};
+  \node[layer=blue1,   above=8mm of L3] (L4) {ws:: API\\[-1pt]{\sublabel{gyro\_x(), motor\_set\_duty()}}};
   \node[toplayer,      above=8mm of L4] (L5) {student.cpp};
 
   % Arrows between layers
@@ -56,7 +56,6 @@
 
   % "You are here!" annotation
   \node[ann] at ($(L5.east) + (8mm, 0)$) {\(\leftarrow\) You are here!};
-
 
 \end{tikzpicture}
 \end{document}
