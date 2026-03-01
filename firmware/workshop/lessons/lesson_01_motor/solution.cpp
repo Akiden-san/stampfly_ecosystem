@@ -11,6 +11,10 @@ static int current_motor = 1;
 void setup()
 {
     ws::print("Lesson 1: Motor Control - Solution");
+
+    // Enable motor output (motors won't spin without this)
+    // モーター出力を有効化（これがないとモーターは回らない）
+    ws::arm();
 }
 
 void loop_400Hz(float dt)

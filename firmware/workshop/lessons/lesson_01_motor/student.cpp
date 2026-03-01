@@ -24,6 +24,10 @@
 void setup()
 {
     ws::print("Lesson 1: Motor Control");
+
+    // TODO: Enable motor output
+    // TODO: モーター出力を有効化する
+    // ヒント: ws::arm();
 }
 
 void loop_400Hz(float dt)

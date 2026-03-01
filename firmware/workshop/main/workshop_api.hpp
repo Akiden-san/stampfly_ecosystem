@@ -107,6 +107,21 @@ float rc_pitch();
 float rc_yaw();
 
 /**
+ * @brief ARM motors (enable motor output)
+ *        モーターをARM（モーター出力を有効化）
+ *
+ * Motors will not spin until arm() is called.
+ * モーターは arm() を呼ぶまで回りません。
+ */
+void arm();
+
+/**
+ * @brief DISARM motors (disable motor output and stop all motors)
+ *        モーターをDISARM（モーター出力を無効化し全停止）
+ */
+void disarm();
+
+/**
  * @brief Check if motors are armed
  *        モーターがARMされているか確認
  */

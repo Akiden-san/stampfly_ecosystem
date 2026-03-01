@@ -94,6 +94,20 @@ float ws::rc_yaw()
     return y;
 }
 
+void ws::arm()
+{
+    auto& state = stampfly::StampFlyState::getInstance();
+    state.requestArm();
+    g_motor.arm();
+}
+
+void ws::disarm()
+{
+    auto& state = stampfly::StampFlyState::getInstance();
+    state.requestDisarm();
+    g_motor.disarm();
+}
+
 bool ws::is_armed()
 {
     auto& state = stampfly::StampFlyState::getInstance();
