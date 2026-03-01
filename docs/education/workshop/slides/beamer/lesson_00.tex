@@ -95,6 +95,57 @@
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}[fragile]{Windows 環境構築 (1/2) / Windows Setup}
+  \begin{table}
+    \centering\small
+    \begin{tabular}{lll}
+      \hline
+      \textbf{確認コマンド (CMD)} & \textbf{期待される結果} & \textbf{なければ} \\
+      \hline
+      \code{git --version}    & git version 2.x   & \code{winget install Git.Git} \\
+      \code{python --version} & Python 3.10 以上   & \code{winget install Python.Python.3.12} \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.3em}
+
+  \begin{block}{インストール手順（CMD で実行）}
+    \footnotesize
+    \textbf{1.}~リポジトリをクローン\\
+    \textbf{2.}~\code{install.bat} を実行（ESP-IDF + sfcli 自動インストール）\\
+    \textbf{3.}~\code{setup\_env.bat} で開発環境をアクティベート
+  \end{block}
+
+  \begin{lstlisting}[style=sfbash]
+git clone https://github.com/.../stampfly-ecosystem.git
+cd stampfly-ecosystem
+install.bat
+setup_env.bat
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Windows 環境構築 (2/2) / Driver \& Verification}
+  \begin{block}{USB シリアルドライバ}
+    CH9102F ドライバをインストール（M5Stack 製品用）\\
+    \footnotesize\url{https://docs.m5stack.com/en/download}
+  \end{block}
+
+  \vspace{0.5em}
+
+  \begin{block}{動作確認}
+    \code{sf doctor} で環境診断 --- すべて \textcolor{sfgreen}{OK} になれば完了
+  \end{block}
+
+  \vspace{0.5em}
+
+  \begin{exampleblock}{macOS / Linux ユーザー}
+    \code{install.sh} + \code{setup\_env.sh} を使用してください
+  \end{exampleblock}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}{今日のゴール / Today's Goal}
   \begin{block}{目標}
     ワークショップファームウェアをビルド・書き込み・動作確認する

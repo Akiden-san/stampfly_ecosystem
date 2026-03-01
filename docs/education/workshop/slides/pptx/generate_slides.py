@@ -402,6 +402,34 @@ def build_lesson_00() -> Presentation:
         ["キャリブレーション", "sf cal gyro/accel/mag", "センサ校正"],
     ])
 
+    # P6: Windows setup (1/2) — Prerequisites & install
+    add_content_slide(prs, "Windows 環境構築 (1/2) / Windows Setup", [
+        "【前提条件の確認】（CMD で実行）",
+        "  git --version → git version 2.x（なければ winget install Git.Git）",
+        "  python --version → Python 3.10 以上（なければ winget install Python.Python.3.12）",
+        "",
+        "【インストール手順】（CMD で実行）",
+        "  1. リポジトリをクローン",
+        "  2. install.bat を実行（ESP-IDF + sfcli 自動インストール）",
+        "  3. setup_env.bat で開発環境をアクティベート",
+        "",
+        "  git clone https://github.com/.../stampfly-ecosystem.git",
+        "  cd stampfly-ecosystem && install.bat && setup_env.bat",
+    ])
+
+    # P7: Windows setup (2/2) — Driver & verification
+    add_content_slide(prs, "Windows 環境構築 (2/2) / Driver & Verification", [
+        "【USB シリアルドライバ】",
+        "• CH9102F ドライバをインストール（M5Stack 製品用）",
+        "• https://docs.m5stack.com/en/download",
+        "",
+        "【動作確認】",
+        "• sf doctor で環境診断 — すべて OK になれば完了",
+        "",
+        "【macOS / Linux ユーザー】",
+        "• install.sh + setup_env.sh を使用してください",
+    ])
+
     add_content_slide(prs, "今日のゴール / Today's Goal", [
         "ワークショップファームウェアをビルド・書き込み・動作確認する",
         "",
