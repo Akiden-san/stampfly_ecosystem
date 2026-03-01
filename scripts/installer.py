@@ -647,7 +647,8 @@ class Installer:
             setup_env = self.root / "setup_env.bat"
             print(f"  {setup_env}")
         else:
-            print(f"  source {idf_path}/export.sh")
+            setup_env = self.root / "setup_env.sh"
+            print(f"  source {setup_env}")
         print()
         print("Then run:")
         print("  sf --help          # Show all commands")

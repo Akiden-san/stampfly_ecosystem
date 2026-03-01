@@ -52,10 +52,26 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set "DISCOVERED_PATH=!PATH!"
-endlocal & set "PATH=%DISCOVERED_PATH%"
+REM --- Determine IDF_PATH: .sf/config.toml > default ---
+REM IDF_PATHの決定: 設定ファイル > デフォルトパス
+set "SF_IDF_PATH="
+set "SF_CONFIG=%~dp0.sf\config.toml"
+if exist "%SF_CONFIG%" (
+    for /f "tokens=1,* delims==" %%a in ('findstr /b "path" "%SF_CONFIG%"') do (
+        set "SF_RAW=%%b"
+    )
+    if defined SF_RAW (
+        set "SF_RAW=!SF_RAW: =!"
+        set "SF_RAW=!SF_RAW:"=!"
+        set "SF_IDF_PATH=!SF_RAW!"
+    )
+)
 
-set "IDF_PATH=%USERPROFILE%\esp\esp-idf"
+if not defined SF_IDF_PATH set "SF_IDF_PATH=%USERPROFILE%\esp\esp-idf"
+
+set "DISCOVERED_PATH=!PATH!"
+endlocal & set "PATH=%DISCOVERED_PATH%" & set "IDF_PATH=%SF_IDF_PATH%"
+
 if not exist "%IDF_PATH%\export.bat" (
     echo [ERROR] ESP-IDF not found at %IDF_PATH%
     echo   Run install.bat first.
