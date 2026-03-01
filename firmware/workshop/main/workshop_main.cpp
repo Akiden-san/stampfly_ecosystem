@@ -24,6 +24,7 @@
 #include "config.hpp"
 #include "init.hpp"
 #include "tasks/tasks.hpp"
+#include "control_arbiter.hpp"
 
 static const char* TAG = "workshop";
 

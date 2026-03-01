@@ -1,0 +1,7 @@
+## IDF Component Manager Manifest File
+## Workshop reuses vehicle components, so it needs the same managed dependencies.
+## vehicle コンポーネントを再利用するため、同じ外部依存が必要
+dependencies:
+  idf:
+    version: '>=4.1.0'
+  espressif/led_strip: '*'

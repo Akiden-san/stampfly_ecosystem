@@ -32,6 +32,7 @@ idf_component_register(
         sf_svc_flight_command
 )
 
-# main/rate_controller.hpp へのアクセス（コンソールからゲイン調整用）
-# Access to main/rate_controller.hpp (for gain adjustment from console)
-target_include_directories(${COMPONENT_LIB} PRIVATE ${CMAKE_SOURCE_DIR}/main)
+# vehicle/main/rate_controller.hpp へのアクセス（コンソールからゲイン調整用）
+# Access to vehicle/main/rate_controller.hpp (for gain adjustment from console)
+# Use path relative to component location so it works for both vehicle and workshop builds
+target_include_directories(${COMPONENT_LIB} PRIVATE ${COMPONENT_DIR}/../../main)

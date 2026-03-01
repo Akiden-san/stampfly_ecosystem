@@ -14,6 +14,7 @@ idf_component_register(
         sf_algo_pid
 )
 
-# Access to main/ directory for globals.hpp
-# main/ディレクトリへのアクセス（globals.hpp用）
-target_include_directories(${COMPONENT_LIB} PRIVATE ${CMAKE_SOURCE_DIR}/main)
+# Access to vehicle/main/ directory for globals.hpp, landing_handler.hpp, etc.
+# vehicle/main/ディレクトリへのアクセス（globals.hpp, landing_handler.hpp等）
+# Use path relative to component location so it works for both vehicle and workshop builds
+target_include_directories(${COMPONENT_LIB} PRIVATE ${COMPONENT_DIR}/../../main)

@@ -162,6 +162,16 @@ stampfly::Buzzer* g_buzzer_ptr = nullptr;
 sf::SensorFusion* g_fusion_ptr = nullptr;
 
 // =============================================================================
+// Stubs for vehicle symbols not used in workshop
+// workshopで使用しないvehicleシンボルのスタブ
+// =============================================================================
+
+// cmd_control.cpp references this (for CLI gain tuning)
+// Forward-declare to avoid pulling in rate_controller.hpp
+struct RateController;
+RateController* g_rate_controller_ptr = nullptr;
+
+// =============================================================================
 // Debug Checkpoints
 // =============================================================================
 

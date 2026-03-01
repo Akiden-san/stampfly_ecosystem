@@ -66,7 +66,7 @@ float ws::rc_throttle()
 {
     auto& state = stampfly::StampFlyState::getInstance();
     float t, r, p, y;
-    state.getNormalizedControlInput(t, r, p, y);
+    state.getControlInput(t, r, p, y);
     return t;
 }
 
@@ -74,7 +74,7 @@ float ws::rc_roll()
 {
     auto& state = stampfly::StampFlyState::getInstance();
     float t, r, p, y;
-    state.getNormalizedControlInput(t, r, p, y);
+    state.getControlInput(t, r, p, y);
     return r;
 }
 
@@ -82,7 +82,7 @@ float ws::rc_pitch()
 {
     auto& state = stampfly::StampFlyState::getInstance();
     float t, r, p, y;
-    state.getNormalizedControlInput(t, r, p, y);
+    state.getControlInput(t, r, p, y);
     return p;
 }
 
@@ -90,7 +90,7 @@ float ws::rc_yaw()
 {
     auto& state = stampfly::StampFlyState::getInstance();
     float t, r, p, y;
-    state.getNormalizedControlInput(t, r, p, y);
+    state.getControlInput(t, r, p, y);
     return y;
 }
 
@@ -113,7 +113,7 @@ void ws::led_color(uint8_t r, uint8_t g, uint8_t b)
                      static_cast<uint32_t>(b);
     stampfly::LEDManager::getInstance().requestChannel(
         stampfly::LEDChannel::STATUS,
-        stampfly::LEDPriority::USER,
+        stampfly::LEDPriority::DEFAULT,
         stampfly::LEDPattern::SOLID,
         color);
 }

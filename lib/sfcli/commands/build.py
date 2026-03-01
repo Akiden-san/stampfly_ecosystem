@@ -126,7 +126,7 @@ def _get_project_name(project_dir: Path) -> str:
     """Get project name from CMakeLists.txt"""
     cmake_file = project_dir / "CMakeLists.txt"
     if cmake_file.exists():
-        content = cmake_file.read_text()
+        content = cmake_file.read_text(encoding="utf-8")
         for line in content.split("\n"):
             if "project(" in line:
                 # Extract project name from project(name)
