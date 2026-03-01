@@ -644,7 +644,8 @@ class Installer:
         print("To start using StampFly CLI:")
         print()
         if sys.platform == "win32":
-            print(f"  {idf_path}\\export.bat")
+            setup_env = self.root / "setup_env.bat"
+            print(f"  {setup_env}")
         else:
             print(f"  source {idf_path}/export.sh")
         print()
