@@ -7,6 +7,7 @@
 \definecolor{accentblue}{RGB}{0, 120, 200}
 \definecolor{accentred}{RGB}{220, 60, 20}
 \definecolor{accentgrn}{RGB}{0, 150, 60}
+\definecolor{accentylw}{RGB}{200, 160, 0}
 \definecolor{labelgray}{RGB}{60, 60, 60}
 \begin{tikzpicture}[
     lbl/.style={font=\small\bfseries, text=labelgray, align=center,
@@ -16,6 +17,9 @@
     stickbox/.style={font=\small\bfseries, align=center,
                      draw=accentblue, fill=accentblue!10,
                      rounded corners=3pt, inner sep=4pt},
+    btnbox/.style={font=\small\bfseries, align=center,
+                   draw=accentylw!80!black, fill=accentylw!15,
+                   rounded corners=3pt, inner sep=3pt},
   ]
 
   % Load controller photo
@@ -30,36 +34,42 @@
   ]
 
     % --- Left stick (MODE 3: Pitch / Roll) ---
-    \node[stickbox, anchor=east] (lstick) at (-0.05, 0.28)
+    \node[stickbox, anchor=east] (lstick) at (-0.05, 0.30)
       {Pitch $\updownarrow$\\Roll $\leftrightarrow$};
-    \draw[arr] (lstick.east) -- (0.18, 0.28);
+    \draw[arr] (lstick.east) -- (0.18, 0.30);
+    % Left stick push = Flip (planned)
+    \node[lbl, anchor=north east, font=\scriptsize\bfseries] (lpress) at (-0.05, 0.16)
+      {Push: Flip\\{\tiny (予定)}};
+    \draw[arr, densely dashed] (lpress.east) -- (0.18, 0.22);
 
     % --- Right stick (MODE 3: Throttle / Yaw) ---
-    \node[stickbox, anchor=west] (rstick) at (1.05, 0.26)
+    \node[stickbox, anchor=west] (rstick) at (1.05, 0.28)
       {Throttle $\updownarrow$\\Yaw $\leftrightarrow$};
-    \draw[arr] (rstick.west) -- (0.82, 0.26);
+    \draw[arr] (rstick.west) -- (0.82, 0.28);
+    % Right stick push = ARM
+    \node[lbl, anchor=north west, font=\scriptsize\bfseries,
+          draw=accentred, text=accentred] (rpress) at (1.05, 0.14)
+      {Push: ARM};
+    \draw[arr, accentred] (rpress.west) -- (0.82, 0.20);
 
     % --- Power switch ---
     \node[lbl, anchor=south] (pwr) at (0.53, 1.04) {Power SW};
-    \draw[arr] (pwr.south) -- (0.53, 0.95);
+    \draw[arr] (pwr.south) -- (0.52, 0.90);
 
-    % --- M5 button (green) ---
-    \node[lbl, anchor=south east] (m5) at (0.20, 1.04)
-      {M5 Button\\{\footnotesize (Pairing)}};
-    \draw[arr] (m5.south east) -- (0.35, 0.90);
+    % --- Yellow button LEFT (Alt Hold / Manual) ---
+    \node[btnbox, anchor=south east] (yleft) at (0.18, 1.04)
+      {Alt Hold /\\Manual\\{\tiny (予定)}};
+    \draw[arr, accentylw!80!black] (yleft.south) -- (0.16, 0.96);
 
-    % --- Switch 1 ---
-    \node[lbl, anchor=east] (sw1) at (-0.05, 0.68) {SW\,1};
-    \draw[arr] (sw1.east) -- (0.10, 0.68);
+    % --- Yellow button RIGHT (STABILIZE / ACRO) ---
+    \node[btnbox, anchor=south west] (yright) at (0.82, 1.04)
+      {STABILIZE /\\ACRO};
+    \draw[arr, accentylw!80!black] (yright.south) -- (0.84, 0.96);
 
-    % --- Switch 2 ---
-    \node[lbl, anchor=east] (sw2) at (-0.05, 0.56) {SW\,2};
-    \draw[arr] (sw2.east) -- (0.10, 0.56);
-
-    % --- LCD ---
-    \node[lbl, anchor=north] (lcd) at (0.50, -0.06)
-      {LCD\\{\footnotesize CH / MODE / BAT}};
-    \draw[arr] (lcd.north) -- (0.50, 0.22);
+    % --- M5 Button = LCD panel ---
+    \node[lbl, anchor=north, draw=accentgrn, text=accentgrn] (lcd) at (0.50, -0.06)
+      {M5 Button (LCD)\\{\footnotesize タップでペアリング等}};
+    \draw[arr, accentgrn] (lcd.north) -- (0.50, 0.18);
 
     % --- MODE 3 badge ---
     \node[font=\footnotesize\bfseries, text=white,

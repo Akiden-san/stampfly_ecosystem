@@ -682,11 +682,11 @@ def build_lesson_02() -> Presentation:
     add_content_slide(
         prs, "コントローラ各部 / Controller Layout (MODE 3)",
         [
-            "左スティック: Pitch ↑↓ / Roll ←→",
-            "右スティック: Throttle ↑↓ / Yaw ←→",
-            "M5ボタン（緑）: ペアリング / モード切替",
-            "SW1, SW2: 補助スイッチ",
-            "LCD: CH / MODE / BAT 表示",
+            "左スティック: Pitch ↑↓ / Roll ←→（押込み: Flip 予定）",
+            "右スティック: Throttle ↑↓ / Yaw ←→（押込み: ARM）",
+            "黄ボタン左: Alt Hold / Manual 切替（予定）",
+            "黄ボタン右: STABILIZE / ACRO 切替",
+            "M5ボタン = LCDパネル: タップでペアリング等",
         ],
         image_path=IMAGES_DIR / "controller.jpg",
     )
