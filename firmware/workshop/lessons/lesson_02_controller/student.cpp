@@ -11,10 +11,10 @@
 //
 // Motor sign convention (see motor_layout diagram):
 // モータ符号規則（motor_layout 図を参照）:
-//   M1 FR: T + R - P - Y
-//   M2 RR: T + R + P + Y
-//   M3 RL: T - R + P - Y
-//   M4 FL: T - R - P + Y
+//   M1 FR: T - R + P + Y
+//   M2 RR: T - R - P - Y
+//   M3 RL: T + R - P + Y
+//   M4 FL: T + R + P - Y
 
 static uint32_t tick = 0;
 
@@ -40,10 +40,10 @@ void loop_400Hz(float dt)
 
     // Step 2: Compute each motor's Duty and set it
     // Step 2: 各モータの Duty を計算して設定する
-    //   ws::motor_set_duty(1, t + r - p - y);  // FR
-    //   ws::motor_set_duty(2, t + r + p + y);  // RR
-    //   ws::motor_set_duty(3, t - r + p - y);  // RL
-    //   ws::motor_set_duty(4, t - r - p + y);  // FL
+    //   ws::motor_set_duty(1, t - r + p + y);  // FR
+    //   ws::motor_set_duty(2, t - r - p - y);  // RR
+    //   ws::motor_set_duty(3, t + r - p + y);  // RL
+    //   ws::motor_set_duty(4, t + r + p - y);  // FL
 
     // Step 3: Print values every 200ms (80 ticks at 400Hz)
     // Step 3: 200ms毎に値を表示（400Hzで80ティック）

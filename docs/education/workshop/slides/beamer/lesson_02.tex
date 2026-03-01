@@ -13,6 +13,7 @@
   \begin{block}{目標: スティック値を変数に読み取り、演算でモータを個別制御する}
     \begin{itemize}
       \item ESP-NOW 無線通信の仕組みを理解
+      \item チャンネル設定で他の受講生との混信を回避
       \item 変数と四則演算でスティック → モータ Duty を計算
       \item オープンループ手動操縦の限界を体感
     \end{itemize}
@@ -29,11 +30,12 @@
 % ------------------------------------------------------------------
 \begin{frame}{コントローラ API}
   \begin{table}
-    \centering
+    \centering\small
     \begin{tabular}{lll}
       \hline
       \textbf{関数} & \textbf{説明} & \textbf{値域} \\
       \hline
+      \api{set\_channel(ch)} & WiFiチャンネル設定 & 1, 6, 11 \\
       \api{rc\_throttle()} & スロットル & 0.0 -- 1.0 \\
       \api{rc\_roll()}     & ロール     & -1.0 -- +1.0 \\
       \api{rc\_pitch()}    & ピッチ     & -1.0 -- +1.0 \\
@@ -69,6 +71,35 @@
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}{チャンネル設定 / Channel Setting}
+  教室で複数の StampFly を同時に飛ばすと、同じチャンネル同士で
+  \textbf{混信}が起きる。チャンネルを分けて回避する。
+
+  \vspace{0.5em}
+
+  \begin{columns}[c]
+    \begin{column}{0.4\textwidth}
+      \centering
+      \begin{tabular}{cl}
+        \hline
+        \textbf{Ch} & \textbf{割り当て例} \\
+        \hline
+        1  & \textcolor{green!70!black}{グループ A（緑）} \\
+        6  & \textcolor{yellow!80!black}{グループ B（黄）} \\
+        11 & \textcolor{red!80!black}{グループ C（赤）} \\
+        \hline
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.55\textwidth}
+      \begin{alertblock}{設定方法}
+        \api{set\_channel(ch)} を \texttt{setup()} 内で呼ぶ\\
+        \textbf{機体とコントローラで同じ番号にすること！}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}{モータ配置とミキシング / Motor Layout \& Mixing}
   \begin{columns}[T]
     \begin{column}{0.45\textwidth}
@@ -82,10 +113,10 @@
           \hline
           \textbf{Motor} & \textbf{T} & \textbf{Roll} & \textbf{Pitch} & \textbf{Yaw} \\
           \hline
-          M1 FR & + & + & $-$ & $-$ \\
-          M2 RR & + & + & + & + \\
-          M3 RL & + & $-$ & + & $-$ \\
-          M4 FL & + & $-$ & $-$ & + \\
+          M1 FR & + & $-$ & + & + \\
+          M2 RR & + & $-$ & $-$ & $-$ \\
+          M3 RL & + & + & $-$ & + \\
+          M4 FL & + & + & + & $-$ \\
           \hline
         \end{tabular}
       \end{table}
@@ -94,8 +125,8 @@
 
       \begin{exampleblock}{\footnotesize 直感的に理解する}
         \scriptsize
-        Pitch+ → 前傾 → 前(M1,M4)弱 + 後(M2,M3)強\\
-        Roll+ → 右傾 → 左(M3,M4)弱 + 右(M1,M2)強
+        Pitch+ → 前傾 → 前(M1,M4)強 + 後(M2,M3)弱\\
+        Roll+ → 右傾 → 右(M1,M2)弱 + 左(M3,M4)強
       \end{exampleblock}
     \end{column}
   \end{columns}
@@ -116,21 +147,39 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{実習: 手動ミキシング / Hands-on: Manual Mixing}
-  \begin{lstlisting}[style=sfcpp, title={student.cpp}]
+\begin{frame}[fragile]{実習: 手動ミキシング (1/2) / Hands-on: Setup}
+  \begin{lstlisting}[style=sfcpp, title={student.cpp --- setup}]
 #include "workshop_api.hpp"
 static uint32_t tick = 0;
-void setup() { ws::print("L2: Open-Loop Control"); }
+
+void setup() {
+    ws::print("L2: Open-Loop Control");
+    ws::arm();              // Enable motor output
+    ws::set_channel(1);     // 1, 6, or 11
+}
+  \end{lstlisting}
+
+  \vspace{0.5em}
+
+  \begin{alertblock}{チャンネル番号}
+    講師が指定した番号（1 / 6 / 11）に書き換えること！\\
+    コントローラも同じチャンネルに設定する
+  \end{alertblock}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{実習: 手動ミキシング (2/2) / Hands-on: Loop}
+  \begin{lstlisting}[style=sfcpp, title={student.cpp --- loop}]
 void loop_400Hz(float dt) {
     tick++;
     float t = ws::rc_throttle();
     float r = ws::rc_roll()  * 0.3f;
     float p = ws::rc_pitch() * 0.3f;
     float y = ws::rc_yaw()   * 0.3f;
-    ws::motor_set_duty(1, t + r - p - y); // FR
-    ws::motor_set_duty(2, t + r + p + y); // RR
-    ws::motor_set_duty(3, t - r + p - y); // RL
-    ws::motor_set_duty(4, t - r - p + y); // FL
+    ws::motor_set_duty(1, t - r + p + y); // FR
+    ws::motor_set_duty(2, t - r - p - y); // RR
+    ws::motor_set_duty(3, t + r - p + y); // RL
+    ws::motor_set_duty(4, t + r + p - y); // FL
     if (tick % 80 == 0)
         ws::print("T=%.2f R=%.2f P=%.2f Y=%.2f",
             t, r, p, y);
@@ -142,10 +191,10 @@ void loop_400Hz(float dt) {
 \begin{frame}{チェックポイント / Checkpoint}
   \begin{alertblock}{確認事項}
     \begin{itemize}
+      \item[$\square$] 指定チャンネルで混信なく通信できた
       \item[$\square$] コントローラとペアリングできた
       \item[$\square$] スロットルで全モータが均等に回る
       \item[$\square$] ピッチスティックで前後モータの回転差が出る
-      \item[$\square$] ゲイン(0.3f)を変えて挙動の違いを確認した
     \end{itemize}
   \end{alertblock}
 

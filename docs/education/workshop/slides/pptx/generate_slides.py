@@ -665,6 +665,7 @@ def build_lesson_02() -> Presentation:
         "スティック値を変数に読み取り、演算でモータを個別制御する",
         "",
         "• ESP-NOW 無線通信の仕組みを理解",
+        "• チャンネル設定で他の受講生との混信を回避",
         "• 変数と四則演算でスティック → モータ Duty を計算",
         "• オープンループ手動操縦の限界を体感",
     ])
@@ -681,6 +682,7 @@ def build_lesson_02() -> Presentation:
     add_table_slide(prs, "コントローラ API", [
         "関数", "説明", "値域",
     ], [
+        ["set_channel(ch)", "WiFiチャンネル設定", "1, 6, 11"],
         ["rc_throttle()", "スロットル", "0.0 -- 1.0"],
         ["rc_roll()", "ロール", "-1.0 -- +1.0"],
         ["rc_pitch()", "ピッチ", "-1.0 -- +1.0"],
@@ -698,14 +700,25 @@ def build_lesson_02() -> Presentation:
         "⚠ うまくいかない場合: 両方を再起動して Step 1 からやり直す",
     ])
 
+    add_content_slide(prs, "チャンネル設定 / Channel Setting", [
+        "【なぜチャンネルを変えるのか？】",
+        "教室で複数の StampFly を同時に飛ばすと、同じチャンネル同士で混信が起きる。",
+        "チャンネルを分けることで回避できる。",
+        "",
+        "チャンネル 1 = グループ A（緑）/ 6 = グループ B（黄）/ 11 = グループ C（赤）",
+        "",
+        "⚠ set_channel(ch) を setup() 内で呼ぶ",
+        "⚠ 機体とコントローラで同じチャンネルにすること！",
+    ])
+
     # Motor layout + mixing sign table
     add_table_slide(prs, "モータ配置とミキシング / Motor Layout & Mixing", [
         "Motor", "T", "Roll", "Pitch", "Yaw",
     ], [
-        ["M1 FR", "+", "+", "-", "-"],
-        ["M2 RR", "+", "+", "+", "+"],
-        ["M3 RL", "+", "-", "+", "-"],
-        ["M4 FL", "+", "-", "-", "+"],
+        ["M1 FR", "+", "-", "+", "+"],
+        ["M2 RR", "+", "-", "-", "-"],
+        ["M3 RL", "+", "+", "-", "+"],
+        ["M4 FL", "+", "+", "+", "-"],
     ])
 
     add_content_slide(
@@ -718,20 +731,28 @@ def build_lesson_02() -> Presentation:
         image_path=IMAGES_DIR / "open_loop.png",
     )
 
-    add_code_slide(prs, "実習: 手動ミキシング", """
+    add_code_slide(prs, "実習: 手動ミキシング (1/2) Setup", """
 #include "workshop_api.hpp"
 static uint32_t tick = 0;
-void setup() { ws::print("L2: Open-Loop Control"); }
+
+void setup() {
+    ws::print("L2: Open-Loop Control");
+    ws::arm();              // Enable motor output
+    ws::set_channel(1);     // 1, 6, or 11
+}
+""")
+
+    add_code_slide(prs, "実習: 手動ミキシング (2/2) Loop", """
 void loop_400Hz(float dt) {
     tick++;
     float t = ws::rc_throttle();
     float r = ws::rc_roll()  * 0.3f;
     float p = ws::rc_pitch() * 0.3f;
     float y = ws::rc_yaw()   * 0.3f;
-    ws::motor_set_duty(1, t + r - p - y); // FR
-    ws::motor_set_duty(2, t + r + p + y); // RR
-    ws::motor_set_duty(3, t - r + p - y); // RL
-    ws::motor_set_duty(4, t - r - p + y); // FL
+    ws::motor_set_duty(1, t - r + p + y); // FR
+    ws::motor_set_duty(2, t - r - p - y); // RR
+    ws::motor_set_duty(3, t + r - p + y); // RL
+    ws::motor_set_duty(4, t + r + p - y); // FL
     if (tick % 80 == 0)
         ws::print("T=%.2f R=%.2f P=%.2f Y=%.2f",
             t, r, p, y);
@@ -739,10 +760,10 @@ void loop_400Hz(float dt) {
 """)
 
     add_checkpoint_slide(prs, [
+        "指定チャンネルで混信なく通信できた",
         "コントローラとペアリングできた",
         "スロットルで全モータが均等に回る",
         "ピッチスティックで前後モータの回転差が出る",
-        "ゲイン(0.3f)を変えて挙動の違いを確認した",
     ], "Lesson 3: LED 制御")
 
     return prs
