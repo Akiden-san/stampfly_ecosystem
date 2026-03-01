@@ -464,6 +464,43 @@ def build_lesson_00() -> Presentation:
         "FreeRTOS, SPI/I2C, センサーフュージョンを意識する必要なし",
     ])
 
+    # P12: Firmware architecture
+    add_content_slide(
+        prs, "ファームウェアの全体像 / Firmware Architecture",
+        [
+            "5層構造（下から上へ）:",
+            "",
+            "  5. student.cpp ← 皆さんのコードはここ！",
+            "  4. ws:: API（gyro_x(), motor_set_duty() 等）",
+            "  3. Vehicle Components（IMU, baro, motor driver）",
+            "  2. ESP-IDF / FreeRTOS（tasks, timers, queues）",
+            "  1. Hardware（ESP32-S3, BMI270, BMP280）",
+            "",
+            "ws::gyro_x() と書くだけで SPI通信→フィルタ→バイアス補正を全部やってくれる",
+            "下のレイヤーはワークショップ中意識する必要なし",
+        ],
+        image_path=IMAGES_DIR / "firmware_layers.png",
+    )
+
+    # P13: Behind the 400Hz loop
+    add_content_slide(
+        prs, "400Hz ループの裏側 / Behind the 400Hz Loop",
+        [
+            "loop_400Hz() が呼ばれるまでの流れ:",
+            "",
+            "  1. ESP Timer（2500μs）→ ハードウェアタイマ割り込み",
+            "  2. IMU Task（Read BMI270）→ SPI読み取り + バイアス補正",
+            "  3. Go!（data ready）→ データ準備完了",
+            "  4. loop_400Hz (Your Code) → student.cpp が実行される",
+            "",
+            "→ 2.5ms ごとに繰り返し = 400Hz",
+            "",
+            "【ポイント】loop_400Hz(dt) は常にIMUデータ更新後に呼ばれる",
+            "学生はタイマー管理不要、ただ関数を書くだけ！",
+        ],
+        image_path=IMAGES_DIR / "loop_400hz_timeline.png",
+    )
+
     add_code_slide(prs, "実習: Hello StampFly", """
 #include "workshop_api.hpp"
 

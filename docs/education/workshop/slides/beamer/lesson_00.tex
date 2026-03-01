@@ -210,6 +210,43 @@ setup_env.bat
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}{ファームウェアの全体像 / Firmware Architecture}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \centering
+      \vspace{-2mm}
+      \resizebox{0.95\columnwidth}{!}{\input{../tikz/firmware_layers}}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \footnotesize
+      \begin{itemize}\setlength{\itemsep}{4pt}
+        \item 皆さんのコードはここ！\\
+              \api{student.cpp} を編集するだけ
+        \item \api{ws::gyro\_x()} と書くだけで\\
+              SPI通信→フィルタ→バイアス補正を全部やってくれる
+        \item 下のレイヤーはワークショップ中\\
+              意識する必要なし
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{400Hz ループの裏側 / Behind the 400Hz Loop}
+  \begin{center}
+    \vspace{-2mm}
+    \resizebox{0.85\textwidth}{!}{\input{../tikz/loop_400hz_timeline}}
+  \end{center}
+
+  \vspace{-0.5em}
+
+  \begin{exampleblock}{ポイント}
+    \api{loop\_400Hz(dt)} は常にIMUデータ更新後に呼ばれる
+    --- 学生はタイマー管理不要、ただ関数を書くだけ！
+  \end{exampleblock}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: Hello StampFly / Hands-on}
   \begin{lstlisting}[style=sfcpp, title={student.cpp}]
 #include "workshop_api.hpp"
