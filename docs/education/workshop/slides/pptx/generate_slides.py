@@ -549,17 +549,19 @@ void loop_400Hz(float dt)
 
     # P17: Simulator
     add_content_slide(prs, "シミュレータで遊ぶ / Try the Simulator", [
+        "【USB HID モードに切替】",
+        "  1. 画面タッチでメニューを開く",
+        "  2. Comm: を選択",
+        "  3. USB HID に切替 → 自動再起動",
+        "",
         "【コマンド】",
         "  sf sim run                  ← デフォルト（VPython + ボクセルワールド）",
         "  sf sim run -w ringworld     ← 軽量ワールド",
         "",
-        "【操作方法】",
-        "  スロットル → 上昇",
-        "  ロール / ピッチ → 傾き",
-        "  ヨー → 回転",
+        "【操作】スロットル → 上昇 / ロール・ピッチ → 傾き / ヨー → 回転",
         "",
-        "コントローラを USB 接続すればジョイスティックで操縦可能！",
         "アクロモード（角速度制御）で飛行 → まずは感覚をつかもう",
+        "⚠ 終了後は Comm: を ESP-NOW に戻すこと（実機飛行用）",
     ])
 
     add_checkpoint_slide(prs, [

@@ -323,16 +323,23 @@ void loop_400Hz(float dt)
 \begin{frame}{シミュレータで遊ぶ / Try the Simulator}
   \begin{columns}[T]
     \begin{column}{0.48\textwidth}
-      \begin{block}{コマンド}
+      \begin{block}{USB HID モードに切替}\footnotesize
+        \begin{enumerate}\setlength{\itemsep}{0pt}
+          \item 画面タッチでメニューを開く
+          \item \texttt{Comm:} を選択
+          \item \texttt{USB HID} に切替 → 自動再起動
+        \end{enumerate}
+      \end{block}
+      \vspace{0.2em}
+      \begin{block}{コマンド}\footnotesize
         \code{sf sim run}\\
-        {\footnotesize デフォルト（VPython + ボクセルワールド）}\\[2pt]
-        \code{sf sim run -w ringworld}\\
-        {\footnotesize 軽量ワールド}
+        \code{sf sim run -w ringworld}
       \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
+      \footnotesize
       \begin{table}
-        \centering\small
+        \centering\footnotesize
         \begin{tabular}{ll}
           \hline
           \textbf{操作} & \textbf{説明} \\
@@ -343,15 +350,14 @@ void loop_400Hz(float dt)
           \hline
         \end{tabular}
       \end{table}
+      \vspace{-0.5em}
+      アクロモード（角速度制御）で飛行
     \end{column}
   \end{columns}
 
-  \vspace{0.3em}
-
-  \begin{exampleblock}{ヒント}
-    コントローラを USB 接続すればジョイスティックで操縦可能！\\
-    アクロモード（角速度制御）で飛行 → まずは感覚をつかもう
-  \end{exampleblock}
+  \begin{alertblock}{注意}\footnotesize
+    終了後は \texttt{Comm:} を \texttt{ESP-NOW} に戻すこと（実機飛行用）
+  \end{alertblock}
 \end{frame}
 
 % ------------------------------------------------------------------
