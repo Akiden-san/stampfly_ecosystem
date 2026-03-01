@@ -353,6 +353,11 @@ void onControlPacket(const stampfly::ControlPacket& packet)
         return;  // Ignore ESP-NOW packets in UDP mode
     }
 
+    // Feed control data to ControlArbiter for the control loop
+    // 制御ループ用にControlArbiterへデータを供給
+    arbiter.updateFromESPNOW(packet.throttle, packet.roll, packet.pitch,
+                             packet.yaw, packet.flags);
+
     handleControlInput(packet.throttle, packet.roll, packet.pitch,
                        packet.yaw, packet.flags);
 }
