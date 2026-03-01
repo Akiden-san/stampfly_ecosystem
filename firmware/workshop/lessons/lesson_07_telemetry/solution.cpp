@@ -46,6 +46,10 @@ void setup()
 {
     ws::print("Lesson 7: Telemetry + Step Response - Solution");
     ws::print("ARM and raise throttle > 30%% to start experiment");
+
+    // Set WiFi channel (use 1, 6, or 11 to avoid interference)
+    // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
+    ws::set_channel(1);
 }
 
 void loop_400Hz(float dt)

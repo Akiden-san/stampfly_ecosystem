@@ -11,6 +11,11 @@
 #include "led_manager.hpp"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_system.h"
+#include "nvs.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "controller_comm.hpp"
 
 #include <cstdarg>
 #include <cstdio>
@@ -19,6 +24,54 @@
 
 using namespace globals;
 using namespace ws_internal;
+
+// =============================================================================
+// Communication Setup
+// =============================================================================
+
+void ws::set_channel(int channel)
+{
+    if (channel != 1 && channel != 6 && channel != 11) {
+        ws::print("ERROR: channel must be 1, 6, or 11");
+        return;
+    }
+
+    // Check both NVS and actual running channel
+    // NVS と実際のチャンネルの両方を確認
+    int saved = stampfly::ControllerComm::loadChannelFromNVS();
+    int actual = g_comm.getChannel();
+    if (saved == channel && actual == channel) {
+        ws::print("WiFi channel: %d", channel);
+        return;
+    }
+
+    // Write channel to NVS
+    // チャンネルを NVS に書き込む
+    nvs_handle_t handle;
+    esp_err_t ret = nvs_open("stampfly", NVS_READWRITE, &handle);
+    if (ret != ESP_OK) {
+        ws::print("ERROR: NVS open failed (%d)", ret);
+        return;
+    }
+    nvs_set_u8(handle, "wifi_ch", static_cast<uint8_t>(channel));
+
+    // Disable STA auto-connect to prevent channel override
+    // STA 自動接続を無効化してチャンネル上書きを防止
+    nvs_set_u8(handle, "sta_auto", 0);
+
+    ret = nvs_commit(handle);
+    nvs_close(handle);
+    if (ret != ESP_OK) {
+        ws::print("ERROR: NVS commit failed (%d)", ret);
+        return;
+    }
+
+    // Reboot - init::communication() will start on the new channel without STA override
+    // 再起動 - STA 上書きなしで新チャンネルで起動する
+    ws::print("WiFi channel -> %d, rebooting...", channel);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_restart();
+}
 
 // =============================================================================
 // Motor Control

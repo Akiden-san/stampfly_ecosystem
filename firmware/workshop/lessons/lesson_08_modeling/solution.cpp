@@ -42,6 +42,10 @@ void setup()
 {
     ws::print("Lesson 8: Modeling - Custom Mixer - Solution");
     ws::print("L=%.3f m, kq=%.3f", L, kq);
+
+    // Set WiFi channel (use 1, 6, or 11 to avoid interference)
+    // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
+    ws::set_channel(1);
 }
 
 void loop_400Hz(float dt)

@@ -327,6 +327,17 @@ esp_err_t ControllerComm::setChannel(int channel, bool save_to_nvs)
 
     ESP_LOGI(TAG, "Setting WiFi channel to %d", channel);
 
+    // Update SoftAP config so the radio actually switches channel in APSTA mode
+    // APSTAモードでは SoftAP の config チャンネルが無線チャンネルを決定するため更新が必要
+    wifi_config_t ap_config = {};
+    if (esp_wifi_get_config(WIFI_IF_AP, &ap_config) == ESP_OK) {
+        ap_config.ap.channel = channel;
+        esp_err_t ap_ret = esp_wifi_set_config(WIFI_IF_AP, &ap_config);
+        if (ap_ret != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to update AP channel config: %s", esp_err_to_name(ap_ret));
+        }
+    }
+
     esp_err_t ret = esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set WiFi channel: %s", esp_err_to_name(ret));

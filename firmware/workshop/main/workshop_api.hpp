@@ -42,6 +42,26 @@ void loop_400Hz(float dt);
 namespace ws {
 
 // -----------------------------------------------------------------------------
+// Communication Setup
+// 通信設定
+// -----------------------------------------------------------------------------
+
+/**
+ * @brief Set WiFi channel for ESP-NOW communication
+ *        ESP-NOW通信のWiFiチャンネルを設定
+ *
+ * Use non-overlapping channels to avoid interference:
+ * 混信を避けるため非重複チャンネルを使用:
+ *   Channel 1, 6, or 11
+ *
+ * The channel is saved to flash memory and used on next boot.
+ * チャンネルはフラッシュメモリに保存され、次回起動時に使用されます。
+ *
+ * @param channel WiFi channel (1, 6, or 11)
+ */
+void set_channel(int channel);
+
+// -----------------------------------------------------------------------------
 // Motor Control (Lesson 1)
 // モーター制御
 // -----------------------------------------------------------------------------
