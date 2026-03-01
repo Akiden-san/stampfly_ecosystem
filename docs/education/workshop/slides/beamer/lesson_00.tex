@@ -90,7 +90,7 @@
   \vspace{0.5em}
 
   \begin{block}{ワークフロー}
-    \code{sf lesson switch N} → \code{sf build workshop} → \code{sf flash workshop -m}
+    \code{sf lesson switch N} → \code{sf lesson build} → \code{sf lesson flash}
   \end{block}
 \end{frame}
 
@@ -154,8 +154,8 @@ setup_env.bat
   \vspace{1em}
 
   \begin{enumerate}
-    \item \code{sf build workshop} でビルド
-    \item \code{sf flash workshop -m} で書き込み
+    \item \code{sf lesson build} でビルド
+    \item \code{sf lesson flash} で書き込み
     \item シリアルモニタで \texttt{"Hello StampFly!"} を確認
   \end{enumerate}
 \end{frame}
@@ -183,8 +183,8 @@ setup_env.bat
       \textbf{コマンド} & \textbf{説明} \\
       \hline
       \code{sf doctor}          & 環境診断 \\
-      \code{sf build workshop}  & ワークショップビルド \\
-      \code{sf flash workshop -m} & 書き込み＋モニタ \\
+      \code{sf lesson build}  & ワークショップビルド \\
+      \code{sf lesson flash} & 書き込み＋モニタ \\
       \code{sf lesson switch N} & レッスン切り替え \\
       \code{sf monitor}         & シリアルモニタ \\
       \hline
@@ -265,7 +265,7 @@ void loop_400Hz(float dt)
   \begin{exampleblock}{手順}\small
     \textbf{1.}~\code{sf lesson switch 0}\\
     \textbf{2.}~上のコードを \code{student.cpp} に書く\\
-    \textbf{3.}~\code{sf build workshop \&\& sf flash workshop -m}
+    \textbf{3.}~\code{sf lesson build \&\& sf lesson flash}
   \end{exampleblock}
 \end{frame}
 

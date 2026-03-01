@@ -433,8 +433,8 @@ def build_lesson_00() -> Presentation:
     add_content_slide(prs, "今日のゴール / Today's Goal", [
         "ワークショップファームウェアをビルド・書き込み・動作確認する",
         "",
-        "1. sf build workshop でビルド",
-        "2. sf flash workshop -m で書き込み",
+        "1. sf lesson build でビルド",
+        "2. sf lesson flash で書き込み",
         "3. シリアルモニタで \"Hello StampFly!\" を確認",
     ])
 
@@ -448,8 +448,8 @@ def build_lesson_00() -> Presentation:
         "コマンド", "説明",
     ], [
         ["sf doctor", "環境診断"],
-        ["sf build workshop", "ワークショップビルド"],
-        ["sf flash workshop -m", "書き込み＋モニタ"],
+        ["sf lesson build", "ワークショップビルド"],
+        ["sf lesson flash", "書き込み＋モニタ"],
         ["sf lesson switch N", "レッスン切り替え"],
         ["sf monitor", "シリアルモニタ"],
     ])
