@@ -500,24 +500,50 @@ esp_err_t peering_process(bool force_pairing)
         return ESP_OK;
     }
 
-    ESP_LOGI(TAG, "ペアリングモード開始...");
+    ESP_LOGI(TAG, "ペアリングモード開始（チャンネルスキャン）...");
+    // Pairing mode start (channel scanning)
     is_peering = 1;
     received_flag = 0;
 
+    uint8_t scan_channel = ESPNOW_CHANNEL_MIN;
     uint32_t beep_delay = 0;
 
-    // ペアリング待機
+    // CH 1-13をスキャンしてVehicleのペアリングパケットを探す
+    // Scan CH 1-13 to find Vehicle's pairing packet
     while (received_flag == 0) {
-        vTaskDelay(pdMS_TO_TICKS(10));
+        // チャンネルを切り替えて待機
+        // Switch channel and wait
+        esp_wifi_set_channel(scan_channel, WIFI_SECOND_CHAN_NONE);
+        ESP_LOGI(TAG, "スキャン中: CH %d", scan_channel);
 
+        // 200ms待機（10ms × 20回、パケット受信チェック付き）
+        // Wait 200ms (10ms x 20 iterations, checking for packet reception)
+        for (int i = 0; i < 20 && received_flag == 0; i++) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+
+        // ビープ音（約500ms間隔）
+        // Beep at ~500ms intervals
         if (millis_now() - beep_delay >= 500) {
             beep();
             beep_delay = millis_now();
         }
+
+        // 次のチャンネルへ
+        // Move to next channel
+        scan_channel++;
+        if (scan_channel > ESPNOW_CHANNEL_MAX) {
+            scan_channel = ESPNOW_CHANNEL_MIN;
+        }
     }
 
+    // ペアリング成功 - 受信したチャンネルに確定
+    // Pairing success - set to received channel
+    esp_wifi_set_channel(g_espnow_channel, WIFI_SECOND_CHAN_NONE);
+
     is_peering = 0;
-    ESP_LOGI(TAG, "ペアリング完了: MAC=%02X:%02X:%02X:%02X:%02X:%02X",
+    ESP_LOGI(TAG, "ペアリング完了: CH=%d MAC=%02X:%02X:%02X:%02X:%02X:%02X",
+             g_espnow_channel,
              Drone_mac[0], Drone_mac[1], Drone_mac[2],
              Drone_mac[3], Drone_mac[4], Drone_mac[5]);
 
