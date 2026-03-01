@@ -24,6 +24,13 @@
 // ワークショップ固有の追加（vehicleのglobalsにない）
 // =============================================================================
 
+// Boot sequence flags
+// 起動シーケンスフラグ
+namespace globals {
+extern volatile bool g_boot_complete;   // Set by app_main after init
+extern volatile bool g_setup_complete;  // Set by ControlTask after setup()
+} // namespace globals
+
 namespace ws_internal {
 
 inline constexpr int MAX_USER_TELEM = 8;

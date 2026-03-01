@@ -318,6 +318,10 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "Free heap: %lu bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "========================================");
 
+    // Signal boot complete - ControlTask will now call user's setup()
+    // 起動完了を通知 - ControlTaskがユーザーの setup() を呼び出す
+    g_boot_complete = true;
+
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }

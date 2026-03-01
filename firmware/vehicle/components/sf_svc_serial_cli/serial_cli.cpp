@@ -25,6 +25,14 @@
 
 static const char* TAG = "SerialCLI";
 
+// Workshop: user setup() completion flag
+// weak symbol - defined in workshop build, absent in vehicle build
+// ワークショップ: ユーザー setup() 完了フラグ
+// weak宣言 - workshopビルドでは定義あり、vehicleビルドでは未定義
+namespace globals {
+extern volatile bool g_setup_complete __attribute__((weak));
+}
+
 namespace stampfly {
 
 // =============================================================================
@@ -234,9 +242,17 @@ void SerialCLI::run()
 
     ESP_LOGI(TAG, "Starting Serial CLI");
 
-    // Wait for other tasks to finish initialization logging
-    // 他のタスクの初期化ログが出力されるのを待つ
-    vTaskDelay(pdMS_TO_TICKS(500));
+    // Wait for setup to complete before showing banner
+    // バナー表示前にセットアップ完了を待つ
+    // Workshop: waits for user setup() to finish (g_setup_complete defined)
+    // Vehicle:  weak symbol resolves to null → 500ms delay で代替
+    if (&globals::g_setup_complete) {
+        while (!globals::g_setup_complete) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+    } else {
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
 
     // Create LineEditor with stdio I/O callbacks
     // stdioI/Oコールバックを使用してLineEditorを作成

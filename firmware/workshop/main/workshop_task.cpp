@@ -58,10 +58,21 @@ void ControlTask(void* pvParameters)
 {
     ESP_LOGI(TAG, "WorkshopTask started (400Hz via semaphore)");
 
+    // Wait for boot sequence to complete before calling user code
+    // 起動シーケンス完了を待ってからユーザーコードを呼び出す
+    while (!g_boot_complete) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
     // Call user's setup function
+    // ユーザーの setup() を呼び出す
     ESP_LOGI(TAG, "Calling user setup()...");
     setup();
     ESP_LOGI(TAG, "User setup() complete");
+
+    // Signal that setup() is done - CLITask waits for this before showing banner
+    // setup() 完了を通知 - CLITaskはバナー表示前にこれを待つ
+    g_setup_complete = true;
 
     constexpr float dt = IMU_DT;
 

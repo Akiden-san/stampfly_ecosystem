@@ -10,6 +10,7 @@ void setup()
     // TODO: Print a message to confirm the build works
     // TODO: ビルドが成功したことを確認するメッセージを出力する
     // ヒント: ws::print("Hello StampFly!");
+    ws::print("Hello StampFly! Lesson 0 complete.");
 }
 
 void loop_400Hz(float dt)
