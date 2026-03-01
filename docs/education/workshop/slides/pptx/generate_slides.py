@@ -413,8 +413,8 @@ def build_lesson_00() -> Presentation:
         "  2. install.bat を実行（ESP-IDF + sfcli 自動インストール）",
         "  3. setup_env.bat で開発環境をアクティベート",
         "",
-        "  git clone https://github.com/.../stampfly-ecosystem.git",
-        "  cd stampfly-ecosystem && install.bat && setup_env.bat",
+        "  git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git",
+        "  cd stampfly_ecosystem && install.bat && setup_env.bat",
     ])
 
     # P7: Windows setup (2/2) — Driver & verification
