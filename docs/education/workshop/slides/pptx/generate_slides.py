@@ -679,6 +679,18 @@ def build_lesson_02() -> Presentation:
         image_path=IMAGES_DIR / "espnow_dataflow.png",
     )
 
+    add_content_slide(
+        prs, "コントローラ各部 / Controller Layout (MODE 3)",
+        [
+            "左スティック: Pitch ↑↓ / Roll ←→",
+            "右スティック: Throttle ↑↓ / Yaw ←→",
+            "M5ボタン（緑）: ペアリング / モード切替",
+            "SW1, SW2: 補助スイッチ",
+            "LCD: CH / MODE / BAT 表示",
+        ],
+        image_path=IMAGES_DIR / "controller.jpg",
+    )
+
     add_table_slide(prs, "コントローラ API", [
         "関数", "説明", "値域",
     ], [
