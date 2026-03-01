@@ -24,10 +24,15 @@ void loop_400Hz(float dt)
     int phase = (motor_timer / 800) % 4;
     current_motor = phase + 1;
 
-    // Stop all motors first, then spin current one
-    // 全モータ停止後、現在のモータを回転
-    ws::motor_stop_all();
-    ws::motor_set_duty(current_motor, 0.1f);
+    // Set only the current motor, stop the others
+    // 現在のモータのみ回転、他は停止
+    for (int m = 1; m <= 4; m++) {
+        if (m == current_motor) {
+            ws::motor_set_duty(m, 0.1f);
+        } else {
+            ws::motor_set_duty(m, 0.0f);
+        }
+    }
 
     // Print which motor is active every 2 seconds
     // 2秒ごとにアクティブなモータを表示
