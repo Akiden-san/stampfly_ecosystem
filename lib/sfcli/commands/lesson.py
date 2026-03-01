@@ -144,12 +144,18 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     build_parser = lesson_subparsers.add_parser(
         "build",
         help="Build workshop firmware",
-        description="Build the workshop firmware (equivalent to 'sf build workshop').",
+        description="Build the workshop firmware (equivalent to 'sf build workshop -c').",
     )
     build_parser.add_argument(
         "-c", "--clean",
         action="store_true",
-        help="Clean build (fullclean before build)",
+        default=True,
+        help="Clean build (default: enabled)",
+    )
+    build_parser.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="Skip clean (incremental build)",
     )
     build_parser.add_argument(
         "-v", "--verbose",
@@ -274,6 +280,13 @@ def run_switch(args: argparse.Namespace) -> int:
     # Copy file
     shutil.copy2(src, dst)
 
+    # Clean build directory to ensure the new user_code.cpp is compiled
+    # ビルドディレクトリを削除して新しいuser_code.cppが確実にコンパイルされるようにする
+    build_dir = paths.workshop() / "build"
+    if build_dir.exists():
+        shutil.rmtree(build_dir, ignore_errors=True)
+        console.info("Build directory cleaned")
+
     console.success(f"Switched to Lesson {args.number:02d} ({label})")
     console.print(f"  Source: {src}")
     console.print(f"  Target: {dst}")
@@ -321,9 +334,13 @@ def run_build(args: argparse.Namespace) -> int:
     """Build workshop firmware"""
     from . import build as build_cmd
 
+    # Default: clean build. --no-clean for incremental.
+    # デフォルト: クリーンビルド。--no-clean で増分ビルド。
+    clean = args.clean and not args.no_clean
+
     build_args = argparse.Namespace(
         target="workshop",
-        clean=args.clean,
+        clean=clean,
         jobs=None,
         verbose=args.verbose,
     )
