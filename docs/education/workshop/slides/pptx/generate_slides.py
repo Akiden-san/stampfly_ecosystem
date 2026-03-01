@@ -359,10 +359,11 @@ def build_lesson_00() -> Presentation:
     add_table_slide(prs, "ワークショップカリキュラム / Workshop Curriculum", [
         "Day", "Lesson", "テーマ",
     ], [
-        ["Day 1", "0 - 4", "環境セットアップ + ハードウェア入門"],
-        ["Day 2", "5 - 7", "フィードバック制御 + 初フライト"],
-        ["Day 3", "8 - 9", "モデリング + 姿勢推定"],
-        ["Day 4", "10 - 11", "Python SDK + 競技会"],
+        ["Day 1", "0 - 2", "環境セットアップ + モータ + コントローラ"],
+        ["Day 2", "3 - 5", "LED + IMU + 初フライト"],
+        ["Day 3", "6 - 8", "PID制御 + テレメトリ + モデリング"],
+        ["Day 4", "9 - 11", "姿勢推定 + Python SDK + 競技会準備"],
+        ["Day 5 AM", "", "ホバリングタイム競技会"],
     ])
 
     # P3: StampFly hardware specs
