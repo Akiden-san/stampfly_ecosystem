@@ -914,16 +914,15 @@ void loop_400Hz(float dt) {
         "手順:",
         "1. シリアルモニタで SSID を確認（StampFly_XXXX）",
         "2. PC の WiFi で StampFly に接続（IP: 192.168.4.1）",
-        "3. sf log wifi -d 30 でデータ取得（30秒キャプチャ）",
+        "3. sf log wifi -d 30 で30秒キャプチャ → CSV 自動保存",
         "",
-        "主要オプション:",
-        "• -d 30 … キャプチャ時間（秒）",
-        "• -o file.csv … 出力ファイル名",
-        "• --no-save … 統計のみ表示",
+        "→ logs/stampfly_wifi_20260303T143000.csv に保存されました",
+        "",
+        "-o name.csv でファイル名指定、--no-save で保存なし（統計のみ）",
     ])
 
     add_content_slide(prs, "データの可視化 / Data Visualization", [
-        "sf log viz <file>.csv で全センサデータをグラフ表示",
+        "保存した CSV を可視化: sf log viz logs/stampfly_wifi_*.csv",
         "",
         "可視化モード:",
         "• --mode all … 全パネル（デフォルト）",

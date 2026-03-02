@@ -106,30 +106,26 @@ void loop_400Hz(float dt) {
     \begin{enumerate}
       \item シリアルモニタで SSID を確認（\code{StampFly\_XXXX}）
       \item PC の WiFi で StampFly に接続（IP: \code{192.168.4.1}）
-      \item \code{sf log wifi -d 30} でデータ取得（30秒キャプチャ）
+      \item \code{sf log wifi -d 30} で30秒キャプチャ → CSV 自動保存
     \end{enumerate}
   \end{block}
 
   \vspace{0.5em}
 
-  \begin{table}
-    \centering\small
-    \begin{tabular}{ll}
-      \hline
-      \textbf{オプション} & \textbf{説明} \\
-      \hline
-      \code{-d 30}       & キャプチャ時間（秒） \\
-      \code{-o file.csv} & 出力ファイル名 \\
-      \code{--no-save}   & 統計のみ表示 \\
-      \hline
-    \end{tabular}
-  \end{table}
+  \begin{exampleblock}{出力例}
+    \code{logs/stampfly\_wifi\_20260303T143000.csv} に保存されました
+  \end{exampleblock}
+
+  \vspace{0.3em}
+  {\small
+  \code{-o name.csv} でファイル名指定、\code{--no-save} で保存なし（統計のみ）
+  }
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}{データの可視化 / Data Visualization}
-  \begin{block}{\code{sf log viz <file>.csv}}
-    全センサデータをグラフ表示
+  \begin{block}{保存した CSV を可視化}
+    \code{sf log viz logs/stampfly\_wifi\_*.csv}
   \end{block}
 
   \vspace{0.5em}
