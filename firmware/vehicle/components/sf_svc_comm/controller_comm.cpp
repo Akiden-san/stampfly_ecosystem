@@ -9,6 +9,7 @@
  */
 
 #include "controller_comm.hpp"
+#include "led_manager.hpp"
 #include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_netif.h"
@@ -634,6 +635,11 @@ void ControllerComm::onPairingComplete(const uint8_t* mac)
 
     connected_ = true;
     last_recv_time_ = xTaskGetTickCount() * portTICK_PERIOD_MS;
+
+    // ペアリングLED表示を解除
+    // Release pairing LED indicator
+    LEDManager::getInstance().releaseChannel(
+        LEDChannel::SYSTEM, LEDPriority::PAIRING);
 
     ESP_LOGI(TAG, "Pairing complete: %02X:%02X:%02X:%02X:%02X:%02X",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
