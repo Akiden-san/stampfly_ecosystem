@@ -421,6 +421,23 @@ static void on_device_id_changed(void) {
     }
 }
 
+// WiFiチャンネル変更コールバック（メニューから呼ばれる、ID 0 のみ）
+// WiFi channel change callback (called from menu, ID 0 only)
+static void on_channel_changed(void) {
+    uint8_t current = espnow_get_channel();
+    uint8_t new_ch;
+    if (current < 6)       new_ch = 6;
+    else if (current < 11) new_ch = 11;
+    else                   new_ch = 1;
+
+    espnow_set_channel(new_ch);
+    peer_info_save();
+    ESP_LOGI(TAG, "チャンネル変更: %d -> %d (再起動後に反映)", current, new_ch);
+    beep();
+    vTaskDelay(pdMS_TO_TICKS(100));
+    beep();
+}
+
 // スティックキャリブレーションをNVSから読み込み
 // Load stick calibration from NVS
 static void load_stick_cal_from_nvs(void) {
@@ -912,35 +929,91 @@ static void render_stick_test_screen(void)
     M5.Display.printf("Press BTN: Back ");
 }
 
-// Device ID / Channel 画面描画
-// Device ID / Channel screen rendering
+// WiFi Channel 画面描画
+// WiFi Channel screen rendering
 static void render_channel_screen(void)
+{
+    const int line_height = 17;
+    uint8_t device_id = tdma_get_device_id();
+
+    // 行0: タイトル
+    M5.Display.setCursor(4, 2 + 0 * line_height);
+    M5.Display.setTextColor(SF_CYAN, SF_BLACK);
+    M5.Display.printf("= WiFi Channel =");
+
+    // 行1: 空行
+    M5.Display.setCursor(4, 2 + 1 * line_height);
+    M5.Display.printf("                ");
+
+    // 行2: ESP-NOW Channel
+    M5.Display.setCursor(4, 2 + 2 * line_height);
+    if (device_id == 0) {
+        // ID 0: 変更可能（黄色ハイライト）
+        // ID 0: editable (yellow highlight)
+        M5.Display.setTextColor(SF_BLACK, SF_YELLOW);
+    } else {
+        // ID ≠ 0: 読み取り専用（グレー）
+        // ID ≠ 0: read-only (grey)
+        M5.Display.setTextColor(SF_GRAY, SF_BLACK);
+    }
+    M5.Display.printf(" Channel: %02d    ", espnow_get_channel());
+
+    // 行3: 空行
+    M5.Display.setCursor(4, 2 + 3 * line_height);
+    M5.Display.printf("                ");
+
+    // 行4: 説明
+    M5.Display.setCursor(4, 2 + 4 * line_height);
+    M5.Display.setTextColor(SF_GRAY, SF_BLACK);
+    if (device_id == 0) {
+        M5.Display.printf("(Reboot to apply)");
+    } else {
+        M5.Display.printf("(Set by pairing) ");
+    }
+
+    // 行5: 操作説明1
+    M5.Display.setCursor(4, 2 + 5 * line_height);
+    M5.Display.setTextColor(SF_GREEN, SF_BLACK);
+    if (device_id == 0) {
+        M5.Display.printf("Mode:Change CH  ");
+    } else {
+        M5.Display.printf("                ");
+    }
+
+    // 行6: 操作説明2
+    M5.Display.setCursor(4, 2 + 6 * line_height);
+    M5.Display.setTextColor(SF_GREEN, SF_BLACK);
+    M5.Display.printf("Btn:Back        ");
+}
+
+// Device ID 画面描画
+// Device ID screen rendering
+static void render_device_id_screen(void)
 {
     const int line_height = 17;
 
     // 行0: タイトル
     M5.Display.setCursor(4, 2 + 0 * line_height);
     M5.Display.setTextColor(SF_CYAN, SF_BLACK);
-    M5.Display.printf("== TDMA Setup ==");
+    M5.Display.printf("== Device ID == ");
 
     // 行1: 空行
     M5.Display.setCursor(4, 2 + 1 * line_height);
     M5.Display.printf("                ");
 
-    // 行2: ESP-NOW Channel（ペアリングで設定、変更不可）
+    // 行2: Device ID（変更可能、黄色ハイライト）
     M5.Display.setCursor(4, 2 + 2 * line_height);
-    M5.Display.setTextColor(SF_GRAY, SF_BLACK);
-    M5.Display.printf(" Channel: %02d    ", espnow_get_channel());
-
-    // 行3: Device ID（変更可能、ハイライト）
-    M5.Display.setCursor(4, 2 + 3 * line_height);
     M5.Display.setTextColor(SF_BLACK, SF_YELLOW);
     M5.Display.printf(" Device ID: %d   ", tdma_get_device_id());
 
-    // 行4: チャンネル説明
+    // 行3: 空行
+    M5.Display.setCursor(4, 2 + 3 * line_height);
+    M5.Display.printf("                ");
+
+    // 行4: 説明
     M5.Display.setCursor(4, 2 + 4 * line_height);
     M5.Display.setTextColor(SF_GRAY, SF_BLACK);
-    M5.Display.printf("(CH from pairing)");
+    M5.Display.printf("(Reboot to apply)");
 
     // 行5: 操作説明1
     M5.Display.setCursor(4, 2 + 5 * line_height);
@@ -949,7 +1022,7 @@ static void render_channel_screen(void)
 
     // 行6: 操作説明2
     M5.Display.setCursor(4, 2 + 6 * line_height);
-    M5.Display.printf("Btn:Back Reboot!");
+    M5.Display.printf("Btn:Back        ");
 }
 
 // MAC Address画面描画
@@ -1168,6 +1241,10 @@ static void display_task(void* parameter)
             render_channel_screen();
             continue;
         }
+        if (current_screen_state == SCREEN_STATE_DEVICE_ID) {
+            render_device_id_screen();
+            continue;
+        }
         if (current_screen_state == SCREEN_STATE_MAC) {
             render_mac_screen();
             continue;
@@ -1337,6 +1414,7 @@ static void usb_hid_main_loop(void)
         if (current_state == SCREEN_STATE_ABOUT ||
             current_state == SCREEN_STATE_BATTERY_WARN ||
             current_state == SCREEN_STATE_CHANNEL ||
+            current_state == SCREEN_STATE_DEVICE_ID ||
             current_state == SCREEN_STATE_MAC ||
             current_state == SCREEN_STATE_CALIBRATION ||
             current_state == SCREEN_STATE_STICK_TEST) {
@@ -1391,9 +1469,21 @@ static void usb_hid_main_loop(void)
         }
     }
 
-    // Channel screen: ModeボタンでDevice ID変更（チャンネルはペアリングで決定）
-    // Channel screen: Mode button changes Device ID (channel is set by pairing)
+    // Channel screen: Modeボタンでチャンネル変更（ID 0 のみ）
+    // Channel screen: Mode button changes channel (ID 0 only)
     if (menu_get_state() == SCREEN_STATE_CHANNEL) {
+        if (local_input.mode_changed == 1 && tdma_get_device_id() == 0) {
+            on_channel_changed();
+            if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+                shared_inputdata.mode_changed = 0;
+                xSemaphoreGive(input_mutex);
+            }
+        }
+    }
+
+    // Device ID screen: ModeボタンでDevice ID変更
+    // Device ID screen: Mode button changes Device ID
+    if (menu_get_state() == SCREEN_STATE_DEVICE_ID) {
         if (local_input.mode_changed == 1) {
             on_device_id_changed();
             if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
@@ -1542,6 +1632,7 @@ static void udp_main_loop(void)
         if (current_state == SCREEN_STATE_ABOUT ||
             current_state == SCREEN_STATE_BATTERY_WARN ||
             current_state == SCREEN_STATE_CHANNEL ||
+            current_state == SCREEN_STATE_DEVICE_ID ||
             current_state == SCREEN_STATE_MAC ||
             current_state == SCREEN_STATE_CALIBRATION ||
             current_state == SCREEN_STATE_STICK_TEST) {
@@ -1598,8 +1689,21 @@ static void udp_main_loop(void)
         }
     }
 
-    // Channel screen: ModeボタンでDevice ID変更（チャンネルはペアリングで決定）
+    // Channel screen: Modeボタンでチャンネル変更（ID 0 のみ）
+    // Channel screen: Mode button changes channel (ID 0 only)
     if (menu_get_state() == SCREEN_STATE_CHANNEL) {
+        if (local_input.mode_changed == 1 && tdma_get_device_id() == 0) {
+            on_channel_changed();
+            if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+                shared_inputdata.mode_changed = 0;
+                xSemaphoreGive(input_mutex);
+            }
+        }
+    }
+
+    // Device ID screen: ModeボタンでDevice ID変更
+    // Device ID screen: Mode button changes Device ID
+    if (menu_get_state() == SCREEN_STATE_DEVICE_ID) {
         if (local_input.mode_changed == 1) {
             on_device_id_changed();
             if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
@@ -1737,6 +1841,7 @@ static void main_loop(void)
         if (current_state == SCREEN_STATE_ABOUT ||
             current_state == SCREEN_STATE_BATTERY_WARN ||
             current_state == SCREEN_STATE_CHANNEL ||
+            current_state == SCREEN_STATE_DEVICE_ID ||
             current_state == SCREEN_STATE_MAC ||
             current_state == SCREEN_STATE_CALIBRATION ||
             current_state == SCREEN_STATE_STICK_TEST) {
@@ -1813,9 +1918,21 @@ static void main_loop(void)
         }
     }
 
-    // Channel screen: ModeボタンでDevice ID変更（チャンネルはペアリングで決定）
-    // Channel screen: Mode button changes Device ID (channel is set by pairing)
+    // Channel screen: Modeボタンでチャンネル変更（ID 0 のみ）
+    // Channel screen: Mode button changes channel (ID 0 only)
     if (menu_get_state() == SCREEN_STATE_CHANNEL) {
+        if (local_input.mode_changed == 1 && tdma_get_device_id() == 0) {
+            on_channel_changed();
+            if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+                shared_inputdata.mode_changed = 0;
+                xSemaphoreGive(input_mutex);
+            }
+        }
+    }
+
+    // Device ID screen: ModeボタンでDevice ID変更
+    // Device ID screen: Mode button changes Device ID
+    if (menu_get_state() == SCREEN_STATE_DEVICE_ID) {
         if (local_input.mode_changed == 1) {
             on_device_id_changed();
             if (xSemaphoreTake(input_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {

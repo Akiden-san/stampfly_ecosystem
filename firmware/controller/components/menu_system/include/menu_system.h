@@ -26,7 +26,8 @@ typedef enum {
     SCREEN_STATE_SETTING,       // Setting screen / 設定画面
     SCREEN_STATE_ABOUT,         // About screen / バージョン情報画面
     SCREEN_STATE_BATTERY_WARN,  // Battery warning setting / バッテリー警告設定画面
-    SCREEN_STATE_CHANNEL,       // Channel display / チャンネル表示画面
+    SCREEN_STATE_CHANNEL,       // Channel setting / チャンネル設定画面
+    SCREEN_STATE_DEVICE_ID,     // Device ID setting / デバイスID設定画面
     SCREEN_STATE_MAC,           // MAC address display / MACアドレス表示画面
     SCREEN_STATE_CALIBRATION,   // Stick calibration / スティックキャリブレーション画面
     SCREEN_STATE_STICK_TEST     // Stick/button test / スティック・ボタンテスト画面

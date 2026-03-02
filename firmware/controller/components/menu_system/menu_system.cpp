@@ -29,7 +29,7 @@ static screen_state_t current_state = SCREEN_STATE_FLIGHT;
 static uint8_t selected_index = 0;
 static uint8_t scroll_offset = 0;
 
-#define MAX_MENU_ITEMS 10
+#define MAX_MENU_ITEMS 12
 #define VISIBLE_LINES 6
 
 static menu_item_t menu_items[MAX_MENU_ITEMS];
@@ -116,9 +116,15 @@ static void action_stick_test(void) {
 }
 
 static void action_channel_setting(void) {
-    // Show channel display screen
-    // チャンネル表示画面を表示
+    // Show channel setting screen
+    // チャンネル設定画面を表示
     menu_set_state(SCREEN_STATE_CHANNEL);
+}
+
+static void action_device_id_setting(void) {
+    // Show device ID setting screen
+    // デバイスID設定画面を表示
+    menu_set_state(SCREEN_STATE_DEVICE_ID);
 }
 
 static void action_mac_setting(void) {
@@ -171,6 +177,7 @@ void menu_init(void) {
     menu_items[menu_item_count++] = {g_deadband_label_buf, action_deadband, false};
     menu_items[menu_item_count++] = {"Stick Test", action_stick_test, false};
     menu_items[menu_item_count++] = {"Calibration", action_stick_calibration, false};
+    menu_items[menu_item_count++] = {"Device ID", action_device_id_setting, false};
     menu_items[menu_item_count++] = {"Channel", action_channel_setting, false};
     menu_items[menu_item_count++] = {"MAC Address", action_mac_setting, false};
     menu_items[menu_item_count++] = {"About", action_about, false};
