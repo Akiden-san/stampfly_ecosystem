@@ -13,7 +13,7 @@
 % ------------------------------------------------------------------
 \begin{frame}{今日のゴール / Today's Goal}
   \begin{block}{目標}
-    LED でシステムの状態（ARM / DISARM / バッテリー）を可視化する
+    LED でシステムの状態（ARM / DISARM）とバッテリー残量を可視化する
   \end{block}
 
   \vspace{1em}
@@ -53,6 +53,7 @@
     \begin{itemize}
       \item RGB フルカラー（各チャンネル 8bit = 1677万色）
       \item 1本のデータ線で制御（ESP32 RMT ペリフェラル使用）
+      \item \texttt{led\_color()} は裏表両方の LED を同じ色に設定
     \end{itemize}
   \end{block}
 \end{frame}

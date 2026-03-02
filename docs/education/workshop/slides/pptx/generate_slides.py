@@ -787,7 +787,7 @@ def build_lesson_03() -> Presentation:
     add_title_slide(prs, "Lesson 3: LED 制御", "LED Control")
 
     add_content_slide(prs, "今日のゴール / Today's Goal", [
-        "LED でシステムの状態を可視化する",
+        "LED でシステムの状態（ARM / DISARM）とバッテリー残量を可視化する",
         "",
         "• WS2812 アドレサブル LED の制御",
         "• 状態遷移の考え方（ステートマシン）",
@@ -797,7 +797,7 @@ def build_lesson_03() -> Presentation:
     add_content_slide(
         prs, "LED 状態遷移 / LED State Machine",
         [
-            "DISARM → 赤、ARM → 緑、低バッテリー → 橙",
+            "DISARM → バッテリー電圧グラデーション（赤〜緑）、ARM → 緑",
             "is_armed() と battery_voltage() で状態判定",
         ],
         image_path=IMAGES_DIR / "led_state_machine.png",
@@ -806,7 +806,7 @@ def build_lesson_03() -> Presentation:
     add_table_slide(prs, "LED 制御 API", [
         "関数", "説明", "引数",
     ], [
-        ["led_color(r, g, b)", "LED 色設定", "各 0-255"],
+        ["led_color(r, g, b)", "LED 色設定（裏表両方）", "各 0-255"],
         ["is_armed()", "ARM 状態確認", "true / false"],
         ["battery_voltage()", "バッテリー電圧", "3.0-4.2 V"],
     ])
