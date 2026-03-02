@@ -47,33 +47,33 @@
   \draw[plus] (T.east) -- (M3.west);
   \draw[plus] (T.east) -- (M4.west);
 
-  % --- Roll: +M1,+M2, -M3,-M4 ---
-  \draw[plus]  (R.east) -- (M1.west);
-  \draw[plus]  (R.east) -- (M2.west);
-  \draw[minus] (R.east) -- (M3.west);
-  \draw[minus] (R.east) -- (M4.west);
+  % --- Roll: -M1,-M2, +M3,+M4 ---
+  \draw[minus] (R.east) -- (M1.west);
+  \draw[minus] (R.east) -- (M2.west);
+  \draw[plus]  (R.east) -- (M3.west);
+  \draw[plus]  (R.east) -- (M4.west);
 
-  % --- Pitch: -M1,+M2,+M3,-M4 ---
-  \draw[minus] (P.east) -- (M1.west);
-  \draw[plus]  (P.east) -- (M2.west);
-  \draw[plus]  (P.east) -- (M3.west);
-  \draw[minus] (P.east) -- (M4.west);
+  % --- Pitch: +M1,-M2,-M3,+M4 ---
+  \draw[plus]  (P.east) -- (M1.west);
+  \draw[minus] (P.east) -- (M2.west);
+  \draw[minus] (P.east) -- (M3.west);
+  \draw[plus]  (P.east) -- (M4.west);
 
-  % --- Yaw: -M1,+M2,-M3,+M4 ---
-  \draw[minus] (Y.east) -- (M1.west);
-  \draw[plus]  (Y.east) -- (M2.west);
-  \draw[minus] (Y.east) -- (M3.west);
-  \draw[plus]  (Y.east) -- (M4.west);
+  % --- Yaw: +M1,-M2,+M3,-M4 ---
+  \draw[plus]  (Y.east) -- (M1.west);
+  \draw[minus] (Y.east) -- (M2.west);
+  \draw[plus]  (Y.east) -- (M3.west);
+  \draw[minus] (Y.east) -- (M4.west);
 
   % Matrix representation (below)
   \node[font=\large, motorcolor, anchor=north] at (4, -5) {%
     $\begin{bmatrix} M_1 \\ M_2 \\ M_3 \\ M_4 \end{bmatrix}
     = \frac{1}{4}
     \begin{bmatrix}
-      1 & +\frac{1}{L} & -\frac{1}{L} & -\frac{1}{k_q} \\[3pt]
-      1 & +\frac{1}{L} & +\frac{1}{L} & +\frac{1}{k_q} \\[3pt]
-      1 & -\frac{1}{L} & +\frac{1}{L} & -\frac{1}{k_q} \\[3pt]
-      1 & -\frac{1}{L} & -\frac{1}{L} & +\frac{1}{k_q}
+      1 & -\frac{1}{L} & +\frac{1}{L} & +\frac{1}{k_q} \\[3pt]
+      1 & -\frac{1}{L} & -\frac{1}{L} & -\frac{1}{k_q} \\[3pt]
+      1 & +\frac{1}{L} & -\frac{1}{L} & +\frac{1}{k_q} \\[3pt]
+      1 & +\frac{1}{L} & +\frac{1}{L} & -\frac{1}{k_q}
     \end{bmatrix}
     \begin{bmatrix} T \\ \tau_\phi \\ \tau_\theta \\ \tau_\psi \end{bmatrix}$
   };

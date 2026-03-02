@@ -591,8 +591,8 @@ def build_lesson_01() -> Presentation:
         prs, "モータ配置 / Motor Layout",
         [
             "対角のモータが同じ方向に回転（トルクバランス）",
-            "M1(FR), M3(RL) = CW（時計回り）",
-            "M2(RR), M4(FL) = CCW（反時計回り）",
+            "M1(FR), M3(RL) = CCW（反時計回り）",
+            "M2(RR), M4(FL) = CW（時計回り）",
         ],
         image_path=IMAGES_DIR / "motor_layout.png",
     )
@@ -1001,7 +1001,7 @@ void loop_400Hz(float dt) {
         "",
         "☐ 保護メガネを着用",
         "☐ 低スロットルから徐々に上げる（最初は 30% 以下）",
-        "☐ プロペラの回転方向を確認（M1=CW, M2=CCW, M3=CW, M4=CCW）",
+        "☐ プロペラの回転方向を確認（M1=CCW, M2=CW, M3=CCW, M4=CW）",
         "☐ 異常時はすぐにスロットルを下げて DISARM",
     ])
 
