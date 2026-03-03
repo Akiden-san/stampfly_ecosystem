@@ -197,6 +197,81 @@
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}{開ループボード線図 / Open-Loop Bode Plot}
+  \begin{columns}[c]
+    \begin{column}{0.50\textwidth}
+      \centering
+      \resizebox{\columnwidth}{!}{\input{../tikz/bode_loop_shaping}}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{block}{開ループ伝達関数}\small
+        \vspace{-0.5em}
+        \[
+          L(s) = K_p \cdot G_p(s)
+               = \frac{K_p K}{s(\tau_m s + 1)}
+        \]
+        \vspace{-1.2em}
+      \end{block}
+
+      \vspace{0.3em}
+
+      \begin{block}{位相余裕 PM}\small
+        \vspace{-0.3em}
+        \begin{itemize}\setlength{\itemsep}{0.2em}
+          \item $\omega_{gc}$: $|L(j\omega_{gc})| = 1$ となる周波数
+          \item $\text{PM} = 90° - \arctan(\tau_m \omega_{gc})$
+        \end{itemize}
+        \vspace{-0.3em}
+      \end{block}
+
+      \vspace{0.3em}
+
+      {\small $K_p$ を上げると $\omega_{gc} \uparrow$
+       → PM $\downarrow$ → 振動的に}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{無駄時間の影響 / Dead Time Effect}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \centering
+      \resizebox{\columnwidth}{!}{\input{../tikz/bode_dead_time}}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{block}{制御ループの無駄時間}\small
+        $\tau_d \approx 5$\,ms（センサ処理 + 制御演算 + PWM 更新）
+        \vspace{-0.3em}
+        \[
+          L_{delay}(s) = L(s) \cdot e^{-\tau_d s}
+        \]
+        \vspace{-1.5em}
+      \end{block}
+
+      \vspace{0.2em}
+
+      {\small
+      \begin{tabular}{lccc}
+        \hline
+        & \textbf{モデル} & \textbf{実機} & \\
+        \hline
+        $K_p\!=\!0.5$  & PM=51° & PM$\approx$40° & {\color{red}60°未達!} \\
+        $K_p\!=\!0.25$ & PM=65° & PM$\approx$59° & ギリギリ \\
+        \hline
+      \end{tabular}}
+
+      \vspace{0.5em}
+
+      \begin{alertblock}{\small 実用上 PM $\geq$ 60° が必要}\scriptsize
+        $\zeta\!=\!0.7$ 設計でも遅延込みでボーダーライン
+        → 「モデル上は安定」でも実機で振動する理由
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}{ゲイン設計表 / Gain Design Table}
   \begin{table}
     \centering

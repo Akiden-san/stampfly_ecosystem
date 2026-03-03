@@ -1263,6 +1263,40 @@ def build_lesson_08() -> Presentation:
         image_path=IMAGES_DIR / "closed_loop_model.png",
     )
 
+    add_content_slide(
+        prs, "開ループボード線図 / Open-Loop Bode Plot",
+        [
+            "開ループ伝達関数:",
+            "  L(s) = Kp · G_p(s) = Kp·K / (s·(τm·s + 1))",
+            "",
+            "位相余裕 PM:",
+            "• ωgc: |L(jωgc)| = 1 となる周波数",
+            "• PM = 90° − arctan(τm·ωgc)",
+            "",
+            "Kp を上げると ωgc ↑ → PM ↓ → 振動的に",
+        ],
+        image_path=IMAGES_DIR / "bode_loop_shaping.png",
+    )
+
+    add_content_slide(
+        prs, "無駄時間の影響 / Dead Time Effect",
+        [
+            "制御ループの無駄時間 τd ≈ 5ms:",
+            "  センサ処理 + 制御演算 + PWM更新",
+            "",
+            "L_delay(s) = L(s) · e^(−τd·s)",
+            "• ゲインは変わらない（|e^(−jωτd)| = 1）",
+            "• 位相が −τd·ω だけ追加で低下",
+            "",
+            "PM 比較（Roll）:",
+            "  Kp=0.5:  モデル 51° → 実機 ≈40° (60° 未達!)",
+            "  Kp=0.25: モデル 65° → 実機 ≈59° (ギリギリ)",
+            "",
+            "→ 実用上 PM ≥ 60° が必要",
+        ],
+        image_path=IMAGES_DIR / "bode_dead_time.png",
+    )
+
     add_table_slide(prs, "ゲイン設計表 / Gain Design Table", [
         "軸", "K", "Kp=0.5 の ζ", "ζ=0.7 の Kp", "ζ=1.0 の Kp",
     ], [

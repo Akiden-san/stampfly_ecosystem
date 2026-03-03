@@ -145,7 +145,12 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric,
                  fit, decorations.pathmorphing, decorations.pathreplacing,
-                 automata, calc}
+                 automata, calc, patterns}
+
+% --- pgfplots (for Bode plots and frequency-domain figures) ---
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots, fillbetween}
 
 % --- Useful macros ---
 \newcommand{\api}[1]{\texttt{\color{sfblue}#1}}

@@ -80,7 +80,39 @@ Kp = 1 / (4·ζ²·K·τ_m)
 
 全軸同じ Kp では最適な応答が得られない。モデルベースの設計で軸ごとに調整する。
 
-## 5. 実習手順
+## 5. ループシェイピング（周波数領域）
+
+### 開ループ伝達関数
+
+```
+L(s) = Kp · G_p(s) = Kp·K / (s·(τm·s + 1))
+```
+
+- ωgc: |L(jωgc)| = 1 となるゲイン交差周波数
+- 位相余裕 PM = 90° − arctan(τm·ωgc)
+- Kp を上げると ωgc ↑ → PM ↓ → 振動的
+
+### 無駄時間の影響
+
+実システムには制御ループ遅延 τd ≈ 5ms（@400Hz）が存在する:
+
+```
+L_delay(s) = L(s) · e^(−τd·s)
+```
+
+- ゲインは変わらない（|e^(−jωτd)| = 1）
+- 位相が −τd·ω [rad] だけ追加で低下
+
+| 設定 | モデル PM | 実機 PM（τd=5ms） | 判定 |
+|------|---------|----------------|------|
+| Kp=0.5（ωgc=40） | 51° | ≈40° | 60° 未達 |
+| Kp=0.25（ωgc=23） | 65° | ≈59° | ギリギリ |
+
+- 実用上 PM ≥ 60° が必要
+- ζ=0.7 設計でも遅延込みでボーダーライン
+- 「モデル上は安定」でも実機で振動する理由の説明になる
+
+## 6. 実習手順
 
 ### ステップ 1: 設計式を実装
 
@@ -105,7 +137,7 @@ float Kp_yaw   = 1.0f / (4.0f * zeta * zeta * K_yaw   * tau_m);
 - `sf log wifi` でステップ応答を記録し、理論値と比較する
 - Roll と Yaw の応答の違いを ζ の差で説明する
 
-## 6. 参考資料
+## 7. 参考資料
 
 | リソース | 説明 |
 |---------|------|
@@ -196,7 +228,39 @@ Kp = 1 / (4·ζ²·K·τ_m)
 
 A single Kp for all axes cannot achieve optimal response. Model-based design enables per-axis tuning.
 
-## 5. Hands-on Procedure
+## 5. Loop Shaping (Frequency Domain)
+
+### Open-Loop Transfer Function
+
+```
+L(s) = Kp · G_p(s) = Kp·K / (s·(τm·s + 1))
+```
+
+- ωgc: gain crossover frequency where |L(jωgc)| = 1
+- Phase margin PM = 90° − arctan(τm·ωgc)
+- Increasing Kp → higher ωgc → lower PM → more oscillatory
+
+### Dead Time Effect
+
+Real systems have a control loop delay τd ≈ 5ms (@400Hz):
+
+```
+L_delay(s) = L(s) · e^(−τd·s)
+```
+
+- Magnitude is unchanged (|e^(−jωτd)| = 1)
+- Phase drops by an additional −τd·ω [rad]
+
+| Setting | Model PM | Actual PM (τd=5ms) | Verdict |
+|---------|----------|--------------------|---------|
+| Kp=0.5 (ωgc=40) | 51° | ≈40° | Below 60° |
+| Kp=0.25 (ωgc=23) | 65° | ≈59° | Borderline |
+
+- Practical requirement: PM ≥ 60°
+- Even ζ=0.7 design is borderline with delay
+- Explains why "stable on paper" can oscillate on real hardware
+
+## 6. Hands-on Procedure
 
 ### Step 1: Implement the Design Formula
 
@@ -221,7 +285,7 @@ float Kp_yaw   = 1.0f / (4.0f * zeta * zeta * K_yaw   * tau_m);
 - Record step responses with `sf log wifi` and compare with theoretical values
 - Explain the difference between Roll and Yaw responses using ζ
 
-## 6. References
+## 7. References
 
 | Resource | Description |
 |----------|-------------|
