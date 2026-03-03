@@ -158,7 +158,7 @@
 % Slide 8: Hands-on Step 1 -- Ideal PID (extension of L5)
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習 Step\,1: 理想 PID / Ideal PID}
-  \begin{lstlisting}[style=sfcpp, title={student.cpp (roll axis excerpt)}]
+  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp (roll axis excerpt)}]
 float Kp=0.5f, Ti=1.67f, Td=0.01f;
 float integral=0, prev_err=0;
 // inside loop_400Hz(dt)
@@ -181,7 +181,7 @@ float roll_out = P + I + D;
 % Slide 9: Hands-on Step 2 -- Incomplete Derivative Filter
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習 Step\,2: 不完全微分 / Incomplete Derivative}
-  \begin{lstlisting}[style=sfcpp, title={student.cpp (D term replacement)}]
+  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp (D term replacement)}]
 // Replace ideal D with incomplete derivative filter
 float eta = 0.125f;
 float d_filt = 0;  // persistent state

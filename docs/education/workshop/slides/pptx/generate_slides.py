@@ -158,7 +158,7 @@ def add_code_slide(
     title: str,
     code: str,
     *,
-    filename: str = "student.cpp",
+    filename: str = "user_code.cpp",
 ) -> None:
     """Add a slide with code listing."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -470,7 +470,7 @@ def build_lesson_00() -> Presentation:
         [
             "5層構造（下から上へ）:",
             "",
-            "  5. student.cpp ← 皆さんのコードはここ！",
+            "  5. user_code.cpp ← 皆さんのコードはここ！",
             "  4. ws:: API（gyro_x(), motor_set_duty() 等）",
             "  3. Vehicle Components（IMU, baro, motor driver）",
             "  2. ESP-IDF / FreeRTOS（tasks, timers, queues）",
@@ -491,7 +491,7 @@ def build_lesson_00() -> Presentation:
             "  1. ESP Timer（2500μs）→ ハードウェアタイマ割り込み",
             "  2. IMU Task（Read BMI270）→ SPI読み取り + バイアス補正",
             "  3. Go!（data ready）→ データ準備完了",
-            "  4. loop_400Hz (Your Code) → student.cpp が実行される",
+            "  4. loop_400Hz (Your Code) → user_code.cpp が実行される",
             "",
             "→ 2.5ms ごとに繰り返し = 400Hz",
             "",
@@ -1192,7 +1192,7 @@ else               ws::led_color(0, 50, 0);
         "sf log wifi でデータを取得できた",
         "波形でオーバーシュートを確認",
         "整定時間を計測（目安: 0.3s 以内）",
-    ], "Lesson 8: モデリング")
+    ], "Lesson 8: システムモデリング")
 
     return prs
 
@@ -1200,76 +1200,83 @@ else               ws::led_color(0, 50, 0);
 def build_lesson_08() -> Presentation:
     prs = new_presentation()
 
-    add_title_slide(prs, "Lesson 8: モデリング", "Quadrotor Dynamics")
+    add_title_slide(prs, "Lesson 8: システムモデリング", "System Modeling")
 
     add_content_slide(prs, "今日のゴール / Today's Goal", [
-        "運動方程式から第一原理でモーターミキサーを自力導出する",
+        "プラント伝達関数を導出し、モデルに基づいて P ゲインを設計する",
         "",
-        "• クアッドロータの力学モデル",
-        "• 推力 T、ロール/ピッチ/ヨー トルク",
-        "• motor_mixer() を使わず個別モータ制御",
+        "1. モータ+機体のプラント伝達関数 G_p(s) を理解",
+        "2. P 制御の閉ループ特性（ωn, ζ）を導出",
+        "3. ζ から Kp を設計 — L05/L07 の経験をモデルで裏付け",
     ])
 
-    # Motor layout + Mixer matrix side by side (matching Beamer columns layout)
-    slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
-    title_shape = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),
-        SLIDE_WIDTH, Inches(1.1),
+    add_content_slide(
+        prs, "プラントモデル / Plant Model",
+        [
+            "2つのブロック:",
+            "",
+            "  u → [Mixer + Motor: Km/(τm·s+1)] → τ → [Body: 1/(I·s)] → ω",
+            "",
+            "統合伝達関数: G_p(s) = K / (s·(τm·s + 1)),  K = Km/I",
+            "",
+            "• Mixer + Motor: duty 入力 → トルク — 1次遅れ τm ≈ 20ms",
+            "• Body: トルク → 角速度 — 剛体回転の積分器 1/(I·s)",
+        ],
+        image_path=IMAGES_DIR / "plant_model.png",
     )
-    title_shape.fill.solid()
-    title_shape.fill.fore_color.rgb = SF_BLUE
-    title_shape.line.fill.background()
-    tf = title_shape.text_frame
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.text = "  ミキサー行列 / Motor Mixer Matrix"
-    p.font.size = Pt(28)
-    p.font.bold = True
-    p.font.color.rgb = WHITE
-    p.font.name = FONT_JP
-    motor_img = IMAGES_DIR / "motor_layout.png"
-    mixer_img = IMAGES_DIR / "mixer_matrix.png"
-    if motor_img.exists():
-        slide.shapes.add_picture(
-            str(motor_img), Inches(0.3), Inches(1.3), width=Inches(4.5),
-        )
-    if mixer_img.exists():
-        slide.shapes.add_picture(
-            str(mixer_img), Inches(5.5), Inches(1.3), width=Inches(7.3),
-        )
 
-    add_table_slide(prs, "物理パラメータ / Physical Parameters", [
-        "パラメータ", "値", "説明",
+    add_table_slide(prs, "線形化とパラメータ / Linearization & Parameters", [
+        "パラメータ", "記号", "Roll", "Pitch", "Yaw",
     ], [
-        ["L", "0.023 m", "アーム長（中心→モータ）"],
-        ["kq", "0.01", "トルク対推力比"],
+        ["慣性モーメント", "I", "9.16e-6", "13.3e-6", "20.4e-6 kg·m²"],
+        ["モータ時定数", "τm", "0.02 s", "0.02 s", "0.02 s"],
+        ["実効プラントゲイン", "K", "~102", "~70", "~19 rad/s²"],
     ])
 
-    add_code_slide(prs, "実習: カスタムミキサー", """
-// Custom mixer from first principles
-float L = 0.023f, kq = 0.01f;
-float T = throttle;
-float R = roll_cmd, P = pitch_cmd, Y = yaw_cmd;
+    add_content_slide(
+        prs, "P 制御の閉ループ / P Control Closed Loop",
+        [
+            "閉ループ伝達関数:",
+            "  G_cl(s) = Kp·K / (τm·s² + s + Kp·K)  ← 2次系！",
+            "",
+            "固有振動数: ωn = √(Kp·K / τm)",
+            "減衰比: ζ = 1 / (2·√(Kp·K·τm))",
+            "",
+            "設計式: Kp = 1 / (4·ζ²·K·τm)",
+        ],
+        image_path=IMAGES_DIR / "closed_loop_model.png",
+    )
 
-float m1 = T/4 + R/(4*L) - P/(4*L) - Y/(4*kq);
-float m2 = T/4 + R/(4*L) + P/(4*L) + Y/(4*kq);
-float m3 = T/4 - R/(4*L) + P/(4*L) - Y/(4*kq);
-float m4 = T/4 - R/(4*L) - P/(4*L) + Y/(4*kq);
+    add_table_slide(prs, "ゲイン設計表 / Gain Design Table", [
+        "軸", "K", "Kp=0.5 の ζ", "ζ=0.7 の Kp", "ζ=1.0 の Kp",
+    ], [
+        ["Roll", "102", "0.50", "0.25", "0.12"],
+        ["Pitch", "70", "0.60", "0.36", "0.18"],
+        ["Yaw", "19", "1.15", "1.34", "0.66"],
+    ])
 
-// Clamp [0.0, 1.0]
-if (m1 < 0) m1 = 0; if (m1 > 1) m1 = 1;
-if (m2 < 0) m2 = 0; if (m2 > 1) m2 = 1;
-if (m3 < 0) m3 = 0; if (m3 > 1) m3 = 1;
-if (m4 < 0) m4 = 0; if (m4 > 1) m4 = 1;
+    add_code_slide(prs, "実習: モデルベースゲイン設計", """
+// Model-based Kp design (target zeta = 0.7)
+const float tau_m = 0.02f;
+const float K_roll  = 102.0f;
+const float K_pitch =  70.0f;
+const float K_yaw   =  19.0f;
+float zeta = 0.7f;
 
-ws::motor_set_duty(1, m1); ws::motor_set_duty(2, m2);
-ws::motor_set_duty(3, m3); ws::motor_set_duty(4, m4);
+float Kp_roll  = 1.0f/(4*zeta*zeta*K_roll *tau_m);
+float Kp_pitch = 1.0f/(4*zeta*zeta*K_pitch*tau_m);
+float Kp_yaw   = 1.0f/(4*zeta*zeta*K_yaw  *tau_m);
+
+// Apply per-axis Kp in control loop
+float roll_cmd  = Kp_roll  * (target_roll  - ws::gyro_x());
+float pitch_cmd = Kp_pitch * (target_pitch - ws::gyro_y());
+float yaw_cmd   = Kp_yaw   * (target_yaw   - ws::gyro_z());
 """)
 
     add_checkpoint_slide(prs, [
-        "motor_mixer() なしで飛行できた",
-        "motor_mixer() 使用時と同等の飛行性能",
-        "L や kq を変えて挙動の変化を確認",
+        "G_p(s) = K/(s(τm·s+1)) を説明できる",
+        "モデルベース Kp と L05 の Kp=0.5 を比較飛行",
+        "Roll/Pitch/Yaw の ζ 差を体感で理解",
     ], "Lesson 9: 姿勢推定")
 
     return prs

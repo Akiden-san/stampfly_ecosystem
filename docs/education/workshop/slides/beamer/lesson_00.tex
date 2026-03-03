@@ -219,7 +219,7 @@ setup_env.bat
       \footnotesize
       \begin{itemize}\setlength{\itemsep}{4pt}
         \item 皆さんのコードはここ！\\
-              \api{student.cpp} を編集するだけ
+              \api{user\_code.cpp} を編集するだけ
         \item \api{ws::gyro\_x()} と書くだけで\\
               SPI通信→フィルタ→バイアス補正を全部やってくれる
         \item 下のレイヤーはワークショップ中\\
@@ -246,7 +246,7 @@ setup_env.bat
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: Hello StampFly / Hands-on}
-  \begin{lstlisting}[style=sfcpp, title={student.cpp}]
+  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp}]
 #include "workshop_api.hpp"
 
 void setup()
@@ -262,7 +262,7 @@ void loop_400Hz(float dt)
   \vspace{-0.8em}
   \begin{exampleblock}{手順}\small
     \textbf{1.}~\code{sf lesson switch 0}\\
-    \textbf{2.}~上のコードを \code{student.cpp} に書く\\
+    \textbf{2.}~上のコードを \code{user\_code.cpp} に書く\\
     \textbf{3.}~\code{sf lesson build \&\& sf lesson flash}
   \end{exampleblock}
 \end{frame}
