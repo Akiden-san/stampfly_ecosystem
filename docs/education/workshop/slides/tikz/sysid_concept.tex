@@ -20,43 +20,50 @@
     lbl/.style={font=\small, above, text=arrowcolor},
   ]
 
-  % Input
-  \node[font=\bfseries, arrowcolor] (input) at (-1.5, 0) {$u(t)$};
+  % ---------- Top row: u(t) → Plant → y(t) ----------
 
-  % Plant block (unknown parameters)
-  \node[block=plantcolor] (plant) at (4, 0)
+  % Input
+  \node[font=\bfseries, arrowcolor] (input) at (-1, 0) {$u(t)$};
+
+  % Plant block (centered)
+  \node[block=plantcolor] (plant) at (4.5, 0)
     {Plant $G_p(s)$\\[2pt]{\small (unknown $K$, $\tau_m$)}};
 
   % Output
-  \node[font=\bfseries, arrowcolor] (output) at (9.5, 0) {$y(t)$};
+  \node[font=\bfseries, arrowcolor] (output) at (10, 0) {$y(t)$};
 
-  % Estimation block
-  \node[block=estcolor] (est) at (6.75, -3.5)
-    {Parameter\\Estimation};
-
-  % Arrows
+  % Main signal flow
   \draw[arrow] (input) -- (plant);
   \draw[arrow] (plant) -- (output);
 
-  % Tap points on signal lines
-  \coordinate (tap_u) at (1.0, 0);
-  \coordinate (tap_y) at (est.east |- plant.east);  % directly above est.east
+  % ---------- Bottom: Estimation (same center as Plant) ----------
 
-  % Junction dots (signal branch indicators)
+  \node[block=estcolor] (est) at (4.5, -3.5)
+    {Parameter\\Estimation};
+
+  % ---------- Branch arrows: u → est.west, y → est.east ----------
+
+  % Tap points on signal lines (symmetric about center)
+  \coordinate (tap_u) at (1.0, 0);
+  \coordinate (tap_y) at (8.0, 0);
+
+  % Junction dots
   \fill[arrowcolor] (tap_u) circle (2.5pt);
   \fill[arrowcolor] (tap_y) circle (2.5pt);
 
-  % Input to estimation (L-shape: down then right)
+  % u(t) branch: down then right → est.west
   \draw[arrow] (tap_u) |- (est.west);
 
-  % Output to estimation (straight down)
-  \draw[arrow] (tap_y) -- (est.east);
+  % y(t) branch: down then left → est.east
+  \draw[arrow] (tap_y) |- (est.east);
 
-  % Estimation output
-  \node[font=\bfseries, estcolor] (params) at (6.75, -5.5) {$\hat{K}$, $\hat{\tau}_m$};
+  % ---------- Estimation output ----------
+
+  \node[font=\bfseries, estcolor] (params) at (4.5, -5.5) {$\hat{K}$, $\hat{\tau}_m$};
   \draw[arrow] (est) -- (params);
 
-  % Labels
+  % ---------- Labels ----------
+
   \node[font=\scriptsize, arrowcolor, above=1mm] at (input.north)
     {control input};
   \node[font=\scriptsize, arrowcolor, above=1mm] at (output.north)
