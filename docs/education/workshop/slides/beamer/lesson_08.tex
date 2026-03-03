@@ -46,7 +46,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}{$\tau_m$ と $K_m$ の導出 / Deriving $\tau_m$ and $K_m$}
-  \vspace{-1mm}
+  \vspace{-2mm}
   \begin{columns}[t]
     \begin{column}{0.48\textwidth}
       \begin{block}{モータ時定数 $\tau_m$}\small
@@ -72,9 +72,10 @@
     \end{column}
     \begin{column}{0.52\textwidth}
       \begin{block}{実効トルクゲイン $K_m$}\small
-        ホバー線形化した推力感度 $K_f$\,から:
-        \vspace{-0.5em}
+        $K_f$: ホバー点で duty を $\Delta d$ 変えたときの
+        1モータ推力変化量\vspace{-0.3em}
         \[
+          K_f = \left.\frac{dF}{dd}\right|_{\!hover}\!,\quad
           K_m = \begin{cases}
             4L \cdot K_f & \text{Roll/Pitch}\\
             4\kappa \cdot K_f & \text{Yaw}
@@ -86,7 +87,7 @@
       {\scriptsize
       \begin{tabular}{lll}
         \hline
-        $K_f$       & 0.010\,N & ホバー点感度 \\
+        $K_f$       & 0.010\,N/duty & 同定値 \\
         $L$         & 0.023\,m & アーム長 \\
         $\kappa$    & 9.71e-3\,m & トルク推力比 \\
         \hline
