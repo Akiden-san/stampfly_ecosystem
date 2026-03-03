@@ -1202,6 +1202,19 @@ def build_lesson_07() -> Presentation:
         "必要な情報: Kp (例: 0.5), rate_max (例: 1.0 rad/s)",
     ])
 
+    add_content_slide(prs, "フィッティングの仕組み / How Fitting Works", [
+        "最小二乗法によるパラメータ推定",
+        "",
+        "1. 復元した u(t) をモデルに入力: u(t) → G_p(s) → ŷ(t)",
+        "2. 実測 y(t) との二乗誤差を計算: J(K, τm) = Σ(ŷ(t) - y(t))²",
+        "3. J を最小化する K, τm を数値最適化で求める",
+        "",
+        "sf sysid fit が自動で行うこと:",
+        "  • ホバリング区間の自動検出",
+        "  • データを短いセグメントに分割してフィッティング",
+        "  • 結果の統計処理（中央値・不確かさ）",
+    ])
+
     add_content_slide(prs, "実習: データ取得 / Hands-on: Data Acquisition", [
         "L5 の P 制御（Kp=0.5）で飛行し、テレメトリデータを取得",
         "",

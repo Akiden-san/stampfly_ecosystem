@@ -122,7 +122,43 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-% Slide 6: Hands-on: Data Acquisition
+% Slide 6: How Fitting Works
+% ------------------------------------------------------------------
+\begin{frame}{フィッティングの仕組み / How Fitting Works}
+  \begin{block}{最小二乗法によるパラメータ推定}
+    {\small
+    候補の $K$, $\tau_m$ でモデル出力 $\hat{y}(t)$ をシミュレーションし、
+    実測 $y(t)$ との誤差が最小になる $K$, $\tau_m$ を探す。
+    }
+  \end{block}
+
+  \vspace{0.3em}
+
+  {\footnotesize
+  \begin{enumerate}\setlength{\itemsep}{2pt}
+    \item 復元した $u(t)$ をモデルに入力:
+          \quad $u(t) \;\xrightarrow{\;G_p(s)\;}\; \hat{y}(t)$
+    \item 実測 $y(t)$ との二乗誤差を計算:
+          \quad $J(K,\,\tau_m) = \sum \bigl(\hat{y}(t) - y(t)\bigr)^2$
+    \item $J$ を最小化する $K$, $\tau_m$ を数値最適化で求める
+  \end{enumerate}
+  }
+
+  \vspace{0.3em}
+
+  \begin{exampleblock}{\code{sf sysid fit} が自動で行うこと}
+    {\footnotesize
+    \begin{itemize}\setlength{\itemsep}{0pt}
+      \item ホバリング区間の自動検出
+      \item データを短いセグメントに分割してフィッティング
+      \item 結果の統計処理（中央値・不確かさ）
+    \end{itemize}
+    }
+  \end{exampleblock}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Slide 7: Hands-on: Data Acquisition
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: データ取得 / Hands-on: Data Acquisition}
   \begin{block}{L5 の P 制御で飛行し、テレメトリデータを取得する}
