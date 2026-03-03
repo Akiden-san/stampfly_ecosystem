@@ -62,6 +62,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     # --- validate ---
     _register_validate(sysid_subparsers)
 
+    # --- fit ---
+    _register_fit(sysid_subparsers)
+
     # --- plan ---
     _register_plan(sysid_subparsers)
 
@@ -300,6 +303,62 @@ def _register_validate(subparsers):
     parser.set_defaults(func=run_validate)
 
 
+def _register_fit(subparsers):
+    """Register fit subcommand"""
+    parser = subparsers.add_parser(
+        "fit",
+        help="Fit plant model to flight data",
+        description=(
+            "Identify open-loop plant parameters G_p(s) = K/(s*(tau_m*s+1)) "
+            "from closed-loop P-control flight data. Requires Kp and rate_max "
+            "values used during flight."
+        ),
+    )
+    parser.add_argument(
+        "input",
+        help="Input CSV file (flight data with ctrl and gyro columns)",
+    )
+    parser.add_argument(
+        "--axis",
+        choices=["roll", "pitch", "yaw", "all"],
+        default="all",
+        help="Axis to identify (default: all)",
+    )
+    parser.add_argument(
+        "--kp",
+        type=float,
+        required=True,
+        help="P gain used during flight (must match firmware value)",
+    )
+    parser.add_argument(
+        "--rate-max",
+        type=float,
+        default=1.0,
+        help="Maximum angular rate [rad/s] (default: 1.0, yaw typically 5.0)",
+    )
+    parser.add_argument(
+        "--time-range",
+        nargs=2,
+        type=float,
+        metavar=("START", "END"),
+        help="Time range to analyze [seconds]",
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file (YAML/JSON)",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Show fit plots",
+    )
+    parser.add_argument(
+        "--plot-output",
+        help="Save plot to file (PNG/PDF)",
+    )
+    parser.set_defaults(func=run_fit)
+
+
 def _register_plan(subparsers):
     """Register plan subcommand"""
     parser = subparsers.add_parser(
@@ -332,6 +391,7 @@ def run_help(args: argparse.Namespace) -> int:
     console.print("  noise      Sensor noise characterization (Allan variance)")
     console.print("  inertia    Moment of inertia estimation (step response)")
     console.print("  motor      Motor dynamics identification")
+    console.print("  fit        Fit plant model G_p(s) = K/(s*(tau_m*s+1))")
     console.print("  drag       Aerodynamic drag coefficient estimation")
     console.print("  params     Parameter management")
     console.print("  validate   Validation and consistency checks")
@@ -341,10 +401,166 @@ def run_help(args: argparse.Namespace) -> int:
     console.print()
     console.print("Examples:")
     console.print("  sf sysid noise static.csv --sensor all --plot")
+    console.print("  sf sysid fit flight.csv --kp 0.5 --plot")
     console.print("  sf sysid inertia roll_step.csv --axis roll -o result.yaml")
     console.print("  sf sysid params show")
     console.print("  sf sysid validate identified.yaml --ref defaults.yaml")
     return 0
+
+
+def run_fit(args: argparse.Namespace) -> int:
+    """Run plant model fitting"""
+    try:
+        sys.path.insert(0, str(paths.root() / "tools"))
+        from sysid.plant_fit import (
+            fit_plant, compute_fit_timeseries, REFERENCE_PLANT_GAINS,
+        )
+        from sysid.defaults import get_flat_defaults
+    except ImportError as e:
+        console.error(f"Failed to import sysid.plant_fit: {e}")
+        return 1
+    finally:
+        if str(paths.root() / "tools") in sys.path:
+            sys.path.remove(str(paths.root() / "tools"))
+
+    # Check input file
+    if not Path(args.input).exists():
+        console.error(f"Input file not found: {args.input}")
+        return 1
+
+    # Determine axes to process
+    axes = ["roll", "pitch", "yaw"] if args.axis == "all" else [args.axis]
+    # Axis-specific rate_max defaults (yaw is typically higher)
+    rate_max_defaults = {"roll": 1.0, "pitch": 1.0, "yaw": 5.0}
+
+    console.info(f"Loading: {args.input}")
+
+    results = {}
+    defaults = get_flat_defaults()
+    all_ok = True
+
+    for axis in axes:
+        # Use user-provided rate_max, or axis default when --axis all
+        if args.axis == "all":
+            rate_max = rate_max_defaults[axis]
+        else:
+            rate_max = args.rate_max
+
+        try:
+            result = fit_plant(
+                filepath=args.input,
+                axis=axis,
+                kp=args.kp,
+                rate_max=rate_max,
+                time_range=tuple(args.time_range) if args.time_range else None,
+            )
+            results[axis] = result
+        except ValueError as e:
+            console.warning(f"  {axis}: {e}")
+            all_ok = False
+            continue
+
+    if not results:
+        console.error("Fitting failed for all axes.")
+        return 1
+
+    # Print summary table
+    console.print()
+    console.print("=== Plant Model Identification ===")
+    console.print(f"  Model: G_p(s) = K / (s * (tau_m * s + 1))")
+    console.print()
+
+    for axis, r in results.items():
+        ref_K = REFERENCE_PLANT_GAINS.get(axis, 0.0)
+        ref_tau = defaults['tau_m']
+        K_err = abs(r.K - ref_K) / ref_K * 100 if ref_K > 0 else 0
+        tau_err = abs(r.tau_m - ref_tau) / ref_tau * 100 if ref_tau > 0 else 0
+
+        line = (
+            f"  {axis.capitalize():6s} "
+            f"K = {r.K:6.1f} (ref: {ref_K:5.1f}, err: {K_err:4.1f}%)  "
+            f"tau_m = {r.tau_m:.3f} (ref: {ref_tau:.3f}, err: {tau_err:4.1f}%)  "
+            f"R2 = {r.r_squared:.2f}  "
+            f"[{r.n_segments} segs]"
+        )
+        console.print(line)
+
+    # Design Kp (zeta=0.7)
+    console.print()
+    console.print("  Design Kp (zeta=0.7):")
+    for axis, r in results.items():
+        if r.K > 0 and r.tau_m > 0:
+            Kp_design = 1.0 / (4.0 * 0.7**2 * r.K * r.tau_m)
+            ref_K = REFERENCE_PLANT_GAINS.get(axis, 0.0)
+            Kp_ref = 1.0 / (4.0 * 0.7**2 * ref_K * defaults['tau_m']) if ref_K > 0 else 0
+            console.print(f"    {axis.capitalize():6s} Kp = {Kp_design:.4f} (ref: {Kp_ref:.4f})")
+
+    # Save output
+    if args.output:
+        output_path = Path(args.output)
+        data = {
+            'method': 'plant_fit',
+            'source': str(args.input),
+            'kp': args.kp,
+            'axes': {axis: r.to_dict() for axis, r in results.items()},
+        }
+
+        with open(output_path, 'w') as f:
+            if output_path.suffix == '.json':
+                json.dump(data, f, indent=2)
+            else:
+                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+        console.success(f"Saved: {args.output}")
+
+    # Plot
+    if args.plot or args.plot_output:
+        try:
+            sys.path.insert(0, str(paths.root() / "tools"))
+            from sysid.visualizer import plot_plant_fit
+        except ImportError:
+            console.warning("matplotlib not available, skipping plot")
+        else:
+            for axis, r in results.items():
+                try:
+                    # Use axis-specific rate_max
+                    if args.axis == "all":
+                        rate_max = rate_max_defaults[axis]
+                    else:
+                        rate_max = args.rate_max
+
+                    ts = compute_fit_timeseries(
+                        filepath=args.input,
+                        result=r,
+                        rate_max=rate_max,
+                        time_range=tuple(args.time_range) if args.time_range else None,
+                    )
+
+                    plot_out = None
+                    if args.plot_output:
+                        base = Path(args.plot_output)
+                        plot_out = str(base.with_stem(f"{base.stem}_{axis}"))
+
+                    plot_plant_fit(
+                        time=ts['time'],
+                        u_plant=ts['u_plant'],
+                        y_measured=ts['y_measured'],
+                        y_simulated=ts['y_simulated'],
+                        residual=ts['residual'],
+                        axis=axis,
+                        K=r.K,
+                        tau_m=r.tau_m,
+                        r_squared=r.r_squared,
+                        output_path=plot_out,
+                        show=args.plot,
+                    )
+                except Exception as e:
+                    console.warning(f"Plot failed for {axis}: {e}")
+        finally:
+            if str(paths.root() / "tools") in sys.path:
+                sys.path.remove(str(paths.root() / "tools"))
+
+    return 0 if all_ok else 1
 
 
 def run_noise(args: argparse.Namespace) -> int:
