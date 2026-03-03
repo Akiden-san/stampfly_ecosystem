@@ -1238,6 +1238,16 @@ def build_lesson_07() -> Presentation:
         ["Yaw", "?", "19.0", "?", "0.020", "?"],
     ])
 
+    add_content_slide(prs, "設計 Kp の計算 / Design Kp", [
+        "同定した K, τm から設計 Kp を逆算（導出は L8 で扱う）",
+        "",
+        "  Kp = 1 / (4·ζ²·K·τm)    (ζ = 0.7)",
+        "",
+        "考察:",
+        "  • 同定値と理論値のずれ → モデル誤差・無駄時間が原因",
+        "  • 同定 K, τm で計算した Kp は L5 で使った値と近いか?",
+    ])
+
     add_checkpoint_slide(prs, [
         "sf log wifi でフライトデータを取得できた",
         "sf sysid fit で K, τm を同定した",
