@@ -28,7 +28,7 @@
 
   % Block 1: Motor
   \node[block=motorcolor] (motor) at (2.5, 0)
-    {Motor\\[1pt]$\dfrac{1}{\tau_m s + 1}$};
+    {Motor\\[1pt]$\dfrac{K_v}{\tau_m s + 1}$};
 
   % Block 2: Propeller
   \node[block=propcolor] (prop) at (7.0, 0)
@@ -72,9 +72,9 @@
   % Linearization brace and note
   \draw[decorate, decoration={brace, amplitude=5pt, mirror},
         arrowcolor, line width=0.8pt]
-    ($(prop.south west)+(0,-1.2)$) -- ($(geom.south east)+(0,-1.2)$)
+    ($(motor.south west)+(0,-1.2)$) -- ($(geom.south east)+(0,-1.2)$)
     node[midway, below=5pt, font=\small, arrowcolor, align=center]
-    {linearize at hover: $K_f \cdot 4L = K_m$};
+    {linearize at hover: $\dfrac{K_m}{\tau_m s + 1}$\,,\quad $K_m = 4L \cdot K_f$};
 
 \end{tikzpicture}
 \end{document}
