@@ -71,12 +71,13 @@ git pull
   \begin{lstlisting}[style=sfcpp]
 git fetch origin
 git reset --hard origin/main
+git clean -fd
   \end{lstlisting}
 
   \vspace{-0.2em}
 
   {\scriptsize
-  \textbf{注意:} ローカルの未コミット変更はすべて失われます。
+  \textbf{注意:} ローカルの変更・追加ファイルはすべて失われます。
   }
 \end{frame}
 
