@@ -272,7 +272,7 @@ magick -density 200 "<lesson>.pdf[1]" -quality 95 /tmp/beamer_<lesson>_p2.png
 | T5 | **信号フローの正しさ:** ブロック図のフィードバック分岐点・加算点が制御工学の慣例に従っているか | feedback\_block tap point |
 | T6 | **アノテーション位置:** 矢印・ラベルが指す先が実際のデータ点と一致しているか | step\_response overshoot arrow |
 | T7 | **図のサイズ:** Beamer に `\resizebox` で埋め込んだときスライド領域に収まるか | gyro\_drift 12x6→8x5 |
-| T8 | **数式・物理量の正確性:** 伝達関数・単位・パラメータが技術的に正しいか | step\_response 2nd-order TF |
+| T8 | **数式・物理量の正確性:** 伝達関数・単位・パラメータが技術的に正しいか。**特に、同一スライド内のブロック図と数式が一致しているか**（共通ゲインの欠落、符号の不整合等）。各パスの伝達関数を加算して数式と照合すること | step\_response 2nd-order TF, pid\_block D項に $K_p$ 欠落 |
 | T9 | **色定義:** `\definecolor` は `\begin{document}` の後に記述（standalone パッケージの互換性） | 全 TikZ ファイル |
 | T10 | **フィードバック矢印の経路:** フィードバックループの矢印がノード下の説明テキスト（`desc` ノード等）を貫通していないか。矢印の終点はボックスの角（`south west` 等）ではなく辺の中点（`west`, `south` 等）に接続し、経路は説明テキストの外側を通すこと | build\_flash\_flow feedback → s1.south west |
 | T11 | **分岐点のジャンクションドット:** 信号線が分岐する箇所に `\fill circle` で黒丸を配置しているか。ドットがないと信号の分岐元が不明瞭になる | sysid\_concept output tap |
