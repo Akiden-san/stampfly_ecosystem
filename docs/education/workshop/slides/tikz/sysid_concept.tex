@@ -38,11 +38,19 @@
   \draw[arrow] (input) -- (plant);
   \draw[arrow] (plant) -- (output);
 
-  % Input to estimation
-  \draw[arrow] ($(input.east)+(0.5,0)$) |- (est.west);
+  % Tap points on signal lines
+  \coordinate (tap_u) at (1.0, 0);
+  \coordinate (tap_y) at (est.east |- plant.east);  % directly above est.east
 
-  % Output to estimation
-  \draw[arrow] ($(output.west)+(-0.5,0)$) |- (est.east);
+  % Junction dots (signal branch indicators)
+  \fill[arrowcolor] (tap_u) circle (2.5pt);
+  \fill[arrowcolor] (tap_y) circle (2.5pt);
+
+  % Input to estimation (L-shape: down then right)
+  \draw[arrow] (tap_u) |- (est.west);
+
+  % Output to estimation (straight down)
+  \draw[arrow] (tap_y) -- (est.east);
 
   % Estimation output
   \node[font=\bfseries, estcolor] (params) at (6.75, -5.5) {$\hat{K}$, $\hat{\tau}_m$};

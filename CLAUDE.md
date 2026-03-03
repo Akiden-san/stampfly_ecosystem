@@ -275,6 +275,8 @@ magick -density 200 "<lesson>.pdf[1]" -quality 95 /tmp/beamer_<lesson>_p2.png
 | T8 | **数式・物理量の正確性:** 伝達関数・単位・パラメータが技術的に正しいか | step\_response 2nd-order TF |
 | T9 | **色定義:** `\definecolor` は `\begin{document}` の後に記述（standalone パッケージの互換性） | 全 TikZ ファイル |
 | T10 | **フィードバック矢印の経路:** フィードバックループの矢印がノード下の説明テキスト（`desc` ノード等）を貫通していないか。矢印の終点はボックスの角（`south west` 等）ではなく辺の中点（`west`, `south` 等）に接続し、経路は説明テキストの外側を通すこと | build\_flash\_flow feedback → s1.south west |
+| T11 | **分岐点のジャンクションドット:** 信号線が分岐する箇所に `\fill circle` で黒丸を配置しているか。ドットがないと信号の分岐元が不明瞭になる | sysid\_concept output tap |
+| T12 | **矢印経路の微小セグメント:** `\|-` や `-\|` で生成される直角経路に、微小な水平/垂直セグメント（接続先ノードのすぐ隣で折れ曲がる等）が含まれていないか。タップ点を接続先の真上/真横に配置し直線化するか、経路を見直して解消する | sysid\_concept `\|-` で y(t) 側に微小左ジョグ発生 |
 
 #### C: コンテンツ整合性（Beamer ↔ PPTX）
 
@@ -300,6 +302,8 @@ magick -density 200 "<lesson>.pdf[1]" -quality 95 /tmp/beamer_<lesson>_p2.png
 4. **ブロック図の信号フロー:** フィードバック分岐は出力信号線上に junction dot を置く
 5. **Beamer/PPTX 不一致:** Beamer を正（SSOT）として PPTX を合わせる
 6. **フィードバック矢印の経路:** 終点を `.west` や `.south` に変更し、説明テキストの外側を迂回させる（例: `-| ($(node.west)+(-8mm,0)$) -- (node.west)`）
+7. **分岐点のドット欠落:** `\fill[color] (tap) circle (2.5pt);` でジャンクションドットを追加
+8. **矢印の微小セグメント:** タップ点の座標を接続先ノードの真上/真横に合わせ（例: `\coordinate (tap) at (est.east |- plant.east);`）、`|-` を直線 `--` に置き換えて微小折れ曲がりを解消
 
 ## Project Overview
 
