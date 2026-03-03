@@ -137,10 +137,15 @@
 % --- Standalone (allows \input of standalone TikZ files) ---
 \usepackage{standalone}
 
+% --- Math (for equations in slides) ---
+\usepackage{amsmath}
+\usepackage{bm}
+
 % --- TikZ (for inline diagrams in slides) ---
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric,
-                 fit, decorations.pathmorphing, automata, calc}
+                 fit, decorations.pathmorphing, decorations.pathreplacing,
+                 automata, calc}
 
 % --- Useful macros ---
 \newcommand{\api}[1]{\texttt{\color{sfblue}#1}}

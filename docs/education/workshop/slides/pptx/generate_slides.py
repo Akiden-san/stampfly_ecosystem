@@ -1211,26 +1211,42 @@ def build_lesson_08() -> Presentation:
     ])
 
     add_content_slide(
-        prs, "プラントモデル / Plant Model",
+        prs, "物理メカニズム / Physical Mechanism",
         [
-            "2つのブロック:",
+            "duty 信号がどうやって機体の角速度になるか — 4 つのステージ",
+            "",
+            "  d → [Motor] → ωm → [Propeller] → F → [Geometry] → τ → [Body] → ω",
+            "",
+            "• Motor: PWM → モータ回転数（1次遅れ）",
+            "• Propeller: 回転 → 推力（F = Ct·ωm²）",
+            "• Geometry: 差動推力 → トルク（×4L or ×4κ）",
+            "• Rigid Body: トルク → 角速度（積分器 1/(I·s)）",
+        ],
+        image_path=IMAGES_DIR / "plant_detail.png",
+    )
+
+    add_content_slide(
+        prs, "プラントモデル（簡略化）/ Plant Model (Simplified)",
+        [
+            "ホバー近傍で線形化 → 2ブロックに集約:",
             "",
             "  u → [Mixer + Motor: Km/(τm·s+1)] → τ → [Body: 1/(I·s)] → ω",
             "",
             "統合伝達関数: G_p(s) = K / (s·(τm·s + 1)),  K = Km/I",
             "",
-            "• Mixer + Motor: duty 入力 → トルク — 1次遅れ τm ≈ 20ms",
-            "• Body: トルク → 角速度 — 剛体回転の積分器 1/(I·s)",
+            "• Mixer + Motor: duty → トルク — 1次遅れ Km/(τm·s+1)",
+            "• Body: トルク → 角速度 — 積分器 1/(I·s)",
         ],
         image_path=IMAGES_DIR / "plant_model.png",
     )
 
-    add_table_slide(prs, "線形化とパラメータ / Linearization & Parameters", [
+    add_table_slide(prs, "パラメータ一覧 / Parameter Summary", [
         "パラメータ", "記号", "Roll", "Pitch", "Yaw",
     ], [
         ["慣性モーメント", "I", "9.16e-6", "13.3e-6", "20.4e-6 kg·m²"],
+        ["トルクゲイン", "Km", "9.3e-4", "9.3e-4", "3.9e-4 N·m"],
         ["モータ時定数", "τm", "0.02 s", "0.02 s", "0.02 s"],
-        ["実効プラントゲイン", "K", "~102", "~70", "~19 rad/s²"],
+        ["プラントゲイン", "K=Km/I", "102", "70", "19 rad/s²"],
     ])
 
     add_content_slide(

@@ -26,7 +26,19 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{プラントモデル / Plant Model}
+\begin{frame}{物理メカニズム / Physical Mechanism}
+  \begin{center}
+    \vspace{-2mm}
+    \resizebox{0.95\textwidth}{!}{\input{../tikz/plant_detail}}
+  \end{center}
+
+  \vspace{-0.5em}
+
+  {\small duty 信号がどうやって機体の角速度になるか --- 4 つのステージ}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{プラントモデル（簡略化）/ Plant Model (Simplified)}
   \begin{center}
     \vspace{-2mm}
     \resizebox{0.85\textwidth}{!}{\input{../tikz/plant_model}}
@@ -34,12 +46,12 @@
 
   \vspace{-0.5em}
 
-  \begin{exampleblock}{2つのブロック}
+  \begin{exampleblock}{ホバー近傍で線形化 → 2ブロックに集約}
     \begin{itemize}
-      \item \textbf{Mixer + Motor}: duty 入力 $\to$ トルク
-            --- 1次遅れ $\tau_m \approx 20$\,ms
+      \item \textbf{Mixer + Motor}: duty $\to$ トルク
+            --- 1次遅れ $K_m/(\tau_m s + 1)$
       \item \textbf{Body}: トルク $\to$ 角速度
-            --- 剛体回転の積分器 $1/(I \cdot s)$
+            --- 積分器 $1/(I \cdot s)$
     \end{itemize}
   \end{exampleblock}
 \end{frame}
