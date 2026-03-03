@@ -1159,12 +1159,13 @@ def build_lesson_07() -> Presentation:
                     "System Identification")
 
     add_content_slide(prs, "今日のゴール / Today's Goal", [
-        "L6 のモデル予測をフライトデータで検証し、パラメータを同定する",
+        "フライトデータからプラントモデルのパラメータ K, τm を同定する",
+        "  G_p(s) = K / (s·(τm·s + 1))",
         "",
         "• システム同定（SysID）の考え方",
         "• WiFi テレメトリでデータ取得",
-        "• 2 種類の Kp で飛行し応答を比較",
-        "• オーバーシュート比から ζ を推定",
+        "• sf sysid fit でモデルフィッティング",
+        "• 同定値と L6 理論値を比較",
     ])
 
     add_content_slide(
@@ -1188,43 +1189,58 @@ def build_lesson_07() -> Presentation:
         "sf log viz data.csv     — 波形可視化",
     ])
 
-    add_table_slide(prs, "実験計画 / Experiment Plan", [
-        "モード", "Kp", "理論 ζ", "期待される挙動",
-    ], [
-        ["Mode 0 (L5)", "0.5 (全軸同一)", "Roll: 0.50", "やや振動的（~16% OS）"],
-        ["Mode 1 (L6)", "軸ごと設計", "Roll: 0.70", "ほぼ振動なし（~5% OS）"],
+    add_content_slide(prs, "プラント入出力の復元 / Reconstructing Plant I/O", [
+        "テレメトリの記録: ctrl_roll (スティック), gyro_x (角速度)",
+        "",
+        "Kp 既知 → プラントへの入力を計算できる:",
+        "  target = ctrl × rate_max",
+        "  u(t) = Kp × (target − gyro)  ← プラント入力",
+        "  y(t) = gyro                   ← プラント出力",
+        "",
+        "→ 閉ループデータでも開ループモデルを直接同定可能",
+        "",
+        "必要な情報: Kp (例: 0.5), rate_max (例: 1.0 rad/s)",
     ])
 
-    add_code_slide(prs, "実習: Kp モード切替", """
-static int kp_mode = 0;  // 0=L5, 1=L6(model-based)
+    add_content_slide(prs, "実習: データ取得 / Hands-on: Data Acquisition", [
+        "L5 の P 制御（Kp=0.5）で飛行し、テレメトリデータを取得",
+        "",
+        "1. student.cpp に Kp をセット（例: 0.5）",
+        "2. sf build workshop → sf flash vehicle",
+        "3. ホバリング中にスティック操作（2〜3回で十分）",
+        "4. PC でデータ受信: sf log wifi -o flight.csv",
+        "",
+        "ポイント: Kp と rate_max の値を記録しておくこと",
+        "  （sf sysid fit に渡す必要がある）",
+    ])
 
-// In loop_400Hz:
-float Kp_roll, Kp_pitch, Kp_yaw;
-if (kp_mode == 0) {
-    Kp_roll = Kp_pitch = 0.5f;  // L5 uniform
-    Kp_yaw = 2.0f;
-} else {
-    float zeta = 0.7f, tau_m = 0.02f;
-    Kp_roll  = 1.0f/(4*zeta*zeta*102.0f*tau_m);
-    Kp_pitch = 1.0f/(4*zeta*zeta* 70.0f*tau_m);
-    Kp_yaw   = 1.0f/(4*zeta*zeta* 19.0f*tau_m);
-}
-// gyro data is auto-sent via WiFi telemetry
-""")
+    add_content_slide(prs, "sf sysid fit / Model Fitting Tool", [
+        "コマンド: sf sysid fit flight.csv --kp 0.5 --plot",
+        "",
+        "出力例:",
+        "  Roll   K =  98.5 (ref: 102.0, err: 3.4%)",
+        "         tau_m = 0.019 (ref: 0.020)  R² = 0.94",
+        "  Pitch  K =  72.1 (ref:  70.0, err: 3.0%)",
+        "         tau_m = 0.021 (ref: 0.020)  R² = 0.91",
+        "",
+        "オプション:",
+        "  --axis roll  特定軸のみ分析",
+        "  --rate-max   rate_max (yaw は 5.0)",
+        "  -o result.yaml  結果をファイルに保存",
+    ])
 
     add_table_slide(prs, "モデル検証 / Model Verification", [
-        "", "Mode 0 理論", "Mode 0 実測", "Mode 1 理論", "Mode 1 実測",
+        "軸", "K (同定)", "K (L6理論)", "τm (同定)", "τm (理論)", "R²",
     ], [
-        ["ζ (Roll)", "0.50", "?", "0.70", "?"],
-        ["OS (Roll)", "16%", "?", "5%", "?"],
-        ["ζ (Pitch)", "0.60", "?", "0.70", "?"],
-        ["ζ (Yaw)", "1.15", "?", "0.70", "?"],
+        ["Roll", "?", "102.0", "?", "0.020", "?"],
+        ["Pitch", "?", "70.0", "?", "0.020", "?"],
+        ["Yaw", "?", "19.0", "?", "0.020", "?"],
     ])
 
     add_checkpoint_slide(prs, [
-        "sf log wifi で 2 種類のデータを取得できた",
-        "オーバーシュート比から ζ を推定した",
-        "理論値と実測値を比較し、モデルの妥当性を確認した",
+        "sf log wifi でフライトデータを取得できた",
+        "sf sysid fit で K, τm を同定した",
+        "同定値と L6 理論値を比較した",
     ], "Lesson 8: PID 制御")
 
     return prs
