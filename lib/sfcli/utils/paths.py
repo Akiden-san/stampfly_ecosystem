@@ -131,6 +131,19 @@ class Paths:
         """Get templates directory"""
         return self.lib() / "sfcli" / "templates"
 
+    def get_firmware_targets(self) -> list[str]:
+        """Get all firmware targets (directories with CMakeLists.txt)"""
+        fw_dir = self.firmware()
+        targets = []
+        for d in sorted(fw_dir.iterdir()):
+            if d.is_dir() and (d / "CMakeLists.txt").exists():
+                targets.append(d.name)
+        return targets
+
+    def firmware_target_dir(self, target: str) -> Path:
+        """Get directory for a firmware target by name"""
+        return self.firmware() / target
+
     def ensure_dir(self, path: Path) -> Path:
         """Ensure directory exists, create if not"""
         path.mkdir(parents=True, exist_ok=True)

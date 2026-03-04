@@ -25,8 +25,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         "target",
         nargs="?",
         default="vehicle",
-        choices=["vehicle", "controller", "workshop"],
-        help="Target to flash (default: vehicle)",
+        help="Target to flash (default: vehicle). Use 'sf app list' to see available targets.",
     )
     parser.add_argument(
         "-p", "--port",
@@ -55,12 +54,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
 def run(args: argparse.Namespace) -> int:
     """Execute flash command"""
     # Determine target directory
-    if args.target == "vehicle":
-        target_dir = paths.vehicle()
-    elif args.target == "workshop":
-        target_dir = paths.workshop()
-    else:
-        target_dir = paths.controller()
+    # 動的ターゲット検出: firmware/ 配下の CMakeLists.txt を持つディレクトリ
+    target_dir = paths.firmware_target_dir(args.target)
 
     if not target_dir.exists():
         console.error(f"Target directory not found: {target_dir}")
