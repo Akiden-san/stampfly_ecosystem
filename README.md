@@ -32,7 +32,7 @@
 
 ```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly-ecosystem
+cd stampfly_ecosystem
 ./install.sh
 ```
 
@@ -104,7 +104,7 @@ sf build vehicle && sf flash vehicle -m
 ## ディレクトリ構成
 
 ```
-stampfly-ecosystem/
+stampfly_ecosystem/
 ├── docs/           # ドキュメント
 ├── firmware/       # 組込みファームウェア
 │   ├── vehicle/    # 機体ファームウェア
@@ -183,7 +183,7 @@ This ecosystem exists for you.
 
 ```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly-ecosystem
+cd stampfly_ecosystem
 ./install.sh
 ```
 
@@ -255,7 +255,7 @@ sf build vehicle && sf flash vehicle -m
 ## Directory Structure
 
 ```
-stampfly-ecosystem/
+stampfly_ecosystem/
 ├── docs/           # Documentation
 ├── firmware/       # Embedded firmware
 │   ├── vehicle/    # Vehicle firmware
