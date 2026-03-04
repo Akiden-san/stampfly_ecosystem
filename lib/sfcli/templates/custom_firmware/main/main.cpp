@@ -2,45 +2,33 @@
  * {{PROJECT_NAME}} - Custom StampFly Firmware
  * {{PROJECT_NAME}} - カスタムStampFlyファームウェア
  *
- * This is a custom firmware project for StampFly.
- * Access all sensors and state via StampFlyState.
- * StampFlyの全センサとステートにアクセスできるカスタムファームウェア。
+ * Implement setup() and loop_400Hz() to create your custom firmware.
+ * setup() と loop_400Hz() を実装してカスタムファームウェアを作成します。
+ *
+ * All ws:: API functions and StampFlyState are available.
+ * ws:: API 全関数と StampFlyState が使用可能です。
  *
  * Build: sf build {{PROJECT_NAME}}
  * Flash: sf flash {{PROJECT_NAME}} -m
  */
 
-#include <cstdio>
-#include <cmath>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "stampfly_state.hpp"
+#include "workshop_api.hpp"
 
-// User loop period / ユーザーループ周期
-static constexpr int LOOP_PERIOD_MS = 20;  // 50 Hz
-
-extern "C" void app_main(void)
+void setup()
 {
-    printf("{{PROJECT_NAME}}: Starting...\n");
+    ws::print("{{PROJECT_NAME}}: Ready");
+}
 
-    // Get StampFlyState singleton
-    // StampFlyStateシングルトンを取得
-    auto& state = StampFlyState::getInstance();
+void loop_400Hz(float dt)
+{
+    // Example: Print sensor data at 50 Hz
+    // 例: 50 Hz でセンサデータを出力
+    static uint32_t tick = 0;
+    tick++;
+    if (tick % 8 != 0) return;  // 400 / 8 = 50 Hz
 
-    // Main loop / メインループ
-    while (true) {
-        // Example: Read sensors / 例: センサ読み取り
-        // auto imu = state.getIMUData();
-        // auto baro = state.getBaroData();
-        // auto tof = state.getToFData(ToFPosition::BOTTOM);
-        // auto flow = state.getFlowData();
-        // auto mag = state.getMagData();
-        // auto power = state.getPowerData();
-        // auto att = state.getAttitudeEuler();
-
-        // Example: Teleplot output / 例: Teleplot出力
-        // printf(">sensor_val:%.2f\n", value);
-
-        vTaskDelay(pdMS_TO_TICKS(LOOP_PERIOD_MS));
-    }
+    // Teleplot output (>name:value format)
+    // Teleplot 出力（>name:value 形式）
+    ws::print(">baro_alt:%.2f", ws::baro_altitude());
+    ws::print(">tof_bot:%.3f", ws::tof_bottom());
 }
