@@ -58,7 +58,7 @@
   \vspace{0.5em}
 
   \begin{block}{静止時の値}
-    ジャイロ $\approx 0$、加速度 Z $\approx 9.81$\,m/s\textsuperscript{2}（重力）
+    ジャイロ $\approx 0$、加速度 Z $\approx -9.81$\,m/s\textsuperscript{2}（重力の反力、上向き）
   \end{block}
 \end{frame}
 
@@ -145,7 +145,7 @@ void loop_400Hz(float dt) {
   \begin{alertblock}{確認事項}
     \begin{itemize}
       \item[$\square$] シリアルモニタでジャイロ・加速度の値を確認できる
-      \item[$\square$] 静止時に accel\_z $\approx 9.81$ を確認
+      \item[$\square$] 静止時に accel\_z $\approx -9.81$ を確認（反力）
       \item[$\square$] \code{sf log wifi} でセンサデータを受信できる
       \item[$\square$] \code{sf log viz} でデータをグラフ表示できる
     \end{itemize}

@@ -938,7 +938,7 @@ void loop_400Hz(float dt) {
 
     add_checkpoint_slide(prs, [
         "シリアルモニタでジャイロ・加速度の値を確認できる",
-        "静止時に accel_z ≈ 9.81 を確認",
+        "静止時に accel_z ≈ -9.81 を確認（反力）",
         "sf log wifi でセンサデータを受信できる",
         "sf log viz でデータをグラフ表示できる",
     ], "Lesson 5: レート P 制御 + 初フライト")
