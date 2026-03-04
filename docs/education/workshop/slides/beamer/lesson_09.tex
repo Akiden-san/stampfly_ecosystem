@@ -71,7 +71,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: 相補フィルタ + Teleplot / Hands-on}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp (excerpt)}]
+  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize, title={user\_code.cpp (excerpt)}]
 #include "workshop_api.hpp"
 #include <cmath>
 static float cf_roll = 0.0f, cf_pitch = 0.0f;
@@ -83,14 +83,11 @@ void loop_400Hz(float dt) {
     float accel_roll  = atan2f(ay, az);
     float accel_pitch = atan2f(-ax, az);
     constexpr float alpha = 0.98f;
-    cf_roll  = alpha*(cf_roll  + gx*dt)
-             + (1-alpha)*accel_roll;
-    cf_pitch = alpha*(cf_pitch + gy*dt)
-             + (1-alpha)*accel_pitch;
+    cf_roll  = alpha*(cf_roll + gx*dt) + (1-alpha)*accel_roll;
+    cf_pitch = alpha*(cf_pitch + gy*dt) + (1-alpha)*accel_pitch;
     // Teleplot output (VSCode Teleplot extension)
     ws::print(">cf_roll:%.1f", cf_roll*57.3f);
-    ws::print(">eskf_roll:%.1f",
-              ws::estimated_roll()*57.3f);
+    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
 }
   \end{lstlisting}
 \end{frame}
@@ -206,27 +203,26 @@ ws::print(">eskf_roll:%.2f",
         \item 磁気 → ヨー補正
         \item 光学フロー → 速度補正
       \end{itemize}
-      \vspace{0.3em}
-      \begin{alertblock}{利点}
-        誤差状態は常に小さい → 線形化が正確
-      \end{alertblock}
     \end{column}
   \end{columns}
   }
+
+  \vspace{0.3em}
+  {\footnotesize \textbf{利点:} 誤差状態は常に小さい → 線形化が正確}
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}{推定手法の比較 / Estimator Comparison}
   \centering
-  {\small
+  \resizebox{0.95\linewidth}{!}{%
   \begin{tabular}{lcccc}
     \hline
     & \textbf{相補フィルタ} & \textbf{Madgwick} & \textbf{EKF} & \textbf{ESKF} \\
     \hline
     計算量       & 極小           & 小             & 中           & 中〜大 \\
     パラメータ数  & 1（$\alpha$）  & 1（$\beta$）   & $\mathbf{Q},\mathbf{R}$ 行列 & $\mathbf{Q},\mathbf{R}$ 行列 \\
-    推定対象     & Roll/Pitch     & Roll/Pitch/Yaw & 姿勢 + バイアス & 位置/速度/姿勢/バイアス \\
-    使用センサ   & Gyro + Accel   & Gyro + Accel + Mag & Gyro + Accel + Mag & 全センサ（6種） \\
+    推定対象     & Roll/Pitch     & R/P/Yaw        & 姿勢+バイアス & 位置/速度/姿勢/バイアス \\
+    使用センサ   & Gyro+Accel     & Gyro+Accel+Mag & Gyro+Accel+Mag & 全センサ（6種） \\
     精度         & ○              & ◎             & ◎            & ◎◎ \\
     \hline
   \end{tabular}

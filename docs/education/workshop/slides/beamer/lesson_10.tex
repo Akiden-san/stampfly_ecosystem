@@ -27,18 +27,18 @@
 
 % ------------------------------------------------------------------
 \begin{frame}{ws:: API 一覧 / ws:: API Reference}
-  {\scriptsize
-  \begin{tabular}{lll}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{llp{35mm}}
     \hline
     \textbf{カテゴリ} & \textbf{関数} & \textbf{説明} \\
     \hline
-    Motor   & \api{motor\_set\_duty(m, d)}, \api{motor\_mixer(t,r,p,y)} & モータ制御 \\
-    RC Input & \api{rc\_throttle/roll/pitch/yaw()} & スティック値 $[-1,1]$ \\
-    Buttons  & \api{rc\_throttle\_yaw\_button()}, \api{rc\_stabilize\_acro\_mode()} & ボタン/モード \\
-    LED     & \api{led\_color(r,g,b)}, \api{disable\_led\_task()} & LED 制御 \\
-    IMU     & \api{gyro\_x/y/z()}, \api{accel\_x/y/z()} & 角速度 [rad/s], 加速度 [m/s\textsuperscript{2}] \\
-    Estimation & \api{estimated\_roll/pitch/yaw/altitude()} & ESKF 推定値 [rad], [m] \\
-    Utility & \api{millis()}, \api{battery\_voltage()}, \api{print()} & 時刻, 電圧, 出力 \\
+    Motor      & \texttt{motor\_set\_duty(m,d)}, \texttt{motor\_mixer(t,r,p,y)} & モータ制御 \\
+    RC Input   & \texttt{rc\_throttle/roll/pitch/yaw()} & スティック値 $[-1,1]$ \\
+    Buttons    & \texttt{rc\_throttle\_yaw\_button()}, \texttt{rc\_stabilize\_acro\_mode()} & ボタン/モード \\
+    LED        & \texttt{led\_color(r,g,b)}, \texttt{disable\_led\_task()} & LED 制御 \\
+    IMU        & \texttt{gyro\_x/y/z()}, \texttt{accel\_x/y/z()} & 角速度, 加速度 \\
+    Estimation & \texttt{estimated\_roll/pitch/yaw/altitude()} & ESKF 推定値 \\
+    Utility    & \texttt{millis()}, \texttt{battery\_voltage()}, \texttt{print()} & 時刻, 電圧, 出力 \\
     \hline
   \end{tabular}
   }
