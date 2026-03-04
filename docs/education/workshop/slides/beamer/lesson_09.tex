@@ -65,80 +65,136 @@
 \begin{frame}{オイラー角微分とジャイロ角速度の関係}
   \framesubtitle{Euler Angle Rates vs Body Angular Velocity}
 
-  \begin{block}{ジャイロの測定値 $\boldsymbol{\omega}$ $\neq$ オイラー角の時間微分 $\dot{\boldsymbol{\Theta}}$}
+  \begin{block}{ジャイロの測定値 $\boldsymbol{\omega}$ からオイラー角の微分を求める}
     {\small
-    ジャイロはボディ座標系の角速度を測定。オイラー角の微分に変換するには変換行列 $\mathbf{E}$ が必要:
+    ジャイロはボディ座標系の角速度 $\boldsymbol{\omega} = [\omega_x,\;\omega_y,\;\omega_z]^T$ を測定する。
+    オイラー角の微分とは\textbf{一致しない}。現在の姿勢に依存する変換が必要:
     }
   \end{block}
 
+  \vspace{-0.5em}
+  {\small
+  \begin{align*}
+    \dot{\phi}   &= \omega_x
+                  + \omega_y \sin\phi\tan\theta
+                  + \omega_z \cos\phi\tan\theta \\
+    \dot{\theta} &= \phantom{\omega_x +{}}
+                    \omega_y \cos\phi
+                  - \omega_z \sin\phi \\
+    \dot{\psi}   &= \phantom{\omega_x +{}}
+                    \omega_y \,(\sin\phi\,/\,\cos\theta)
+                  + \omega_z \,(\cos\phi\,/\,\cos\theta)
+  \end{align*}
+  }
+
+  \vspace{-0.8em}
+
+  \begin{exampleblock}{離散積分（毎ステップ更新）}
+    {\small
+    $\phi_{k+1} = \phi_k + \dot{\phi}_k\,\Delta t,\quad
+    \theta_{k+1} = \theta_k + \dot{\theta}_k\,\Delta t,\quad
+    \psi_{k+1} = \psi_k + \dot{\psi}_k\,\Delta t$
+    }
+  \end{exampleblock}
+
+  \vspace{-0.2em}
+
   {\footnotesize
+    \textbf{注意:}
+    現在の $(\phi,\theta)$ に依存 → 毎ステップ再計算。
+    $\theta{=}\pm 90°$ で $\cos\theta{=}0$（ジンバルロック）
+  }
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame 5: Euler Angles from Accelerometer (1) - Derivation
+% ------------------------------------------------------------------
+\begin{frame}{加速度からのオイラー角算出 (1) --- 座標変換}
+  \framesubtitle{Euler Angles from Accelerometer --- Gravity Decomposition}
+
+  \begin{block}{静止時、加速度センサは重力加速度のみを測定する}
+    {\small
+    世界座標の重力 $[0,\,0,\,g]^T$ を ZYX 回転行列の転置 $\mathbf{R}^T$ でボディ座標に変換:
+    }
+  \end{block}
+
+  {\small
   \[
-  \begin{bmatrix} \dot{\phi} \\ \dot{\theta} \\ \dot{\psi} \end{bmatrix}
-  =
-  \underbrace{
-  \begin{bmatrix}
-  1 & \sin\phi\tan\theta & \cos\phi\tan\theta \\[2pt]
-  0 & \cos\phi & -\sin\phi \\[2pt]
-  0 & \frac{\sin\phi}{\cos\theta} & \frac{\cos\phi}{\cos\theta}
+  \begin{bmatrix} a_x \\ a_y \\ a_z \end{bmatrix}
+  = \mathbf{R}^T
+  \begin{bmatrix} 0 \\ 0 \\ g \end{bmatrix}
+  = \begin{bmatrix}
+    -g\sin\theta \\
+    g\sin\phi\cos\theta \\
+    g\cos\phi\cos\theta
   \end{bmatrix}
-  }_{\displaystyle \mathbf{E}(\phi,\,\theta)}
-  \begin{bmatrix} \omega_x \\ \omega_y \\ \omega_z \end{bmatrix}
-  \qquad
-  \Longrightarrow
-  \qquad
-  \boldsymbol{\Theta}_{k+1} = \boldsymbol{\Theta}_k + \mathbf{E}\,\boldsymbol{\omega}\,\Delta t
   \]
   }
 
   \vspace{-0.3em}
 
-  \begin{exampleblock}{小角度近似（$\phi,\,\theta \approx 0$）→ 相補フィルタで使用}
-    {\small
-    $\mathbf{E} \approx \mathbf{I}$ → $\dot{\phi} \approx \omega_x,\;\dot{\theta} \approx \omega_y,\;\dot{\psi} \approx \omega_z$
-    → コード: \code{cf\_roll += gx * dt}
-    }
-  \end{exampleblock}
-\end{frame}
-
-% ------------------------------------------------------------------
-% Frame 5: Euler Angles from Accelerometer
-% ------------------------------------------------------------------
-\begin{frame}{加速度からのオイラー角算出}
-  \framesubtitle{Euler Angles from Accelerometer}
-
-  \begin{block}{原理: 静止時、加速度センサは重力のみを測定}
-    {\footnotesize
-    ZYX 回転行列で重力ベクトルをボディ座標系に変換:
-    $a_x = -g\sin\theta,\quad
-    a_y = g\sin\phi\cos\theta,\quad
-    a_z = g\cos\phi\cos\theta$
-    }
-  \end{block}
-
-  \vspace{0.2em}
-
   {\small
-  \begin{tabular}{lll}
-    \hline
-    \textbf{角度} & \textbf{計算式} & \textbf{コード} \\
-    \hline
-    Roll $\phi$ & $\mathrm{atan2}(a_y,\; a_z)$ & \code{atan2f(ay, az)} \\
-    Pitch $\theta$ & $\mathrm{atan2}\!\bigl(-a_x,\; \sqrt{a_y^2 + a_z^2}\bigr)$ & \code{atan2f(-ax, az)}$^*$ \\
-    Yaw $\psi$ & \textcolor{sfred}{算出不可}（重力は鉛直方向のみ） & 磁気センサが必要 \\
-    \hline
-  \end{tabular}
+  \begin{itemize}
+    \item $a_x$ は\textbf{ピッチ角 $\theta$ のみ}に依存（$\phi$ を含まない）
+    \item $a_y$ と $a_z$ は\textbf{ロール角 $\phi$ とピッチ角 $\theta$ の両方}に依存
+    \item \textbf{ヨー角 $\psi$} はどの成分にも現れない（重力は鉛直 → $\psi$ の情報なし）
+  \end{itemize}
   }
 
   \vspace{0.3em}
 
   {\footnotesize
-    \textbf{長所:} ドリフトなし（重力基準）\qquad
-    \textbf{短所:} 振動・機体加速でノイズ大
+  \textbf{前提:} 機体が静止または等速運動中であること。加速中は重力以外の成分が混入しノイズとなる。
   }
+\end{frame}
 
-  \vspace{0.2em}
+% ------------------------------------------------------------------
+% Frame 6: Euler Angles from Accelerometer (2) - Solving
+% ------------------------------------------------------------------
+\begin{frame}{加速度からのオイラー角算出 (2) --- Roll と Pitch の導出}
+  \framesubtitle{Euler Angles from Accelerometer --- Solving for $\phi$ and $\theta$}
 
-  {\scriptsize $^*$ 実装では小角度近似 \code{atan2f(-ax, az)} を使用（$\phi \approx 0$ のとき $\sqrt{a_y^2+a_z^2} \approx a_z$）}
+  \begin{block}{Roll $\phi$ の算出: $a_y$ と $a_z$ の比}
+    {\small
+    $a_y / a_z$ をとると $\cos\theta$ が約分され $\theta$ が消える:
+    }
+    \vspace{-0.5em}
+    {\footnotesize
+    \[
+    \frac{a_y}{a_z}
+    = \frac{g\sin\phi\cos\theta}{g\cos\phi\cos\theta}
+    = \frac{\sin\phi}{\cos\phi}
+    = \tan\phi
+    \qquad\Longrightarrow\qquad
+    \boxed{\;\phi = \mathrm{atan2}(a_y,\; a_z)\;}
+    \]
+    }
+  \end{block}
+
+  \vspace{-0.5em}
+
+  \begin{block}{Pitch $\theta$ の算出: $a_x$ と $\sqrt{a_y^2 + a_z^2}$}
+    {\small
+    $a_y^2 + a_z^2 = g^2\cos^2\!\theta\,(\sin^2\!\phi + \cos^2\!\phi) = g^2\cos^2\!\theta$ より:
+    }
+    \vspace{-0.5em}
+    {\footnotesize
+    \[
+    \frac{-a_x}{\sqrt{a_y^2 + a_z^2}}
+    = \frac{g\sin\theta}{g\cos\theta}
+    = \tan\theta
+    \qquad\Longrightarrow\qquad
+    \boxed{\;\theta = \mathrm{atan2}\!\bigl(-a_x,\;\sqrt{a_y^2 + a_z^2}\bigr)\;}
+    \]
+    }
+  \end{block}
+
+  \vspace{-0.3em}
+
+  {\scriptsize
+    \textbf{Yaw $\psi$:} 加速度のみでは算出不可（磁気センサが必要）\quad
+    \textbf{長所:} ドリフトなし\quad \textbf{短所:} 振動ノイズ大
+  }
 \end{frame}
 
 % ------------------------------------------------------------------
