@@ -1644,6 +1644,21 @@ def build_lesson_11() -> Presentation:
         "• Teleplot でセンサデータをリアルタイム可視化",
     ])
 
+    add_content_slide(prs, "作業フローの変更", [
+        "⚠ このレッスンでは sf lesson switch は使いません",
+        "ワークショップ（firmware/workshop/）の外に、独立したプロジェクトを作ります。",
+        "",
+        "【L0-L10（これまで）】",
+        "• 開始: sf lesson switch N",
+        "• 編集先: firmware/workshop/main/user_code.cpp",
+        "• ビルド: sf lesson build → sf lesson flash",
+        "",
+        "【L11（このレッスン）】",
+        "• 開始: sf app new my_drone",
+        "• 編集先: firmware/my_drone/main/main.cpp",
+        "• ビルド: sf build my_drone → sf flash my_drone -m",
+    ])
+
     add_content_slide(prs, "ワークショップ → ネイティブ開発", [
         "【ws:: ワークショップ】",
         "• ws::gyro_x(), ws::alt()",
@@ -1730,7 +1745,8 @@ void ControlTask(void* pvParameters) {
         ],
     )
 
-    add_code_slide(prs, "実習: 全センサ Teleplot 可視化", """
+    add_code_slide(prs, "実習: 全センサ Teleplot 可視化\n"
+                        "（編集: firmware/my_viz/main/main.cpp の ControlTask 内）", """
 auto& state = stampfly::StampFlyState::getInstance();
 stampfly::Vec3 accel, gyro;
 state.getIMUData(accel, gyro);

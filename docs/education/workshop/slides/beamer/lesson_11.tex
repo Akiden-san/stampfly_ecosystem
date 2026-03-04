@@ -31,7 +31,42 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-% Frame 3: Workshop -> Native Development
+% Frame 3: Workflow Change
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{作業フローの変更}
+  \framesubtitle{このレッスンでは \texttt{sf lesson switch} は使いません}
+
+  \begin{alertblock}{注意: これまでのレッスンとやり方が変わります}
+    {\small
+    ワークショップ（\texttt{firmware/workshop/}）の外に、独立したプロジェクトを作ります。
+    }
+  \end{alertblock}
+
+  \vspace{0.3em}
+
+  {\small
+  \begin{tabular}{lll}
+    \hline
+    & \textbf{L0\,--\,L10（これまで）} & \textbf{L11（このレッスン）} \\
+    \hline
+    開始 & \code{sf lesson switch N}
+         & \code{sf app new my\_drone} \\
+    編集先 & \texttt{firmware/workshop/main/}
+           & \texttt{firmware/my\_drone/main/} \\
+    ファイル & \texttt{user\_code.cpp}
+             & \texttt{main.cpp} \\
+    ビルド & \code{sf lesson build}
+           & \code{sf build my\_drone} \\
+    書き込み & \code{sf lesson flash}
+             & \code{sf flash my\_drone -m} \\
+    API & ws:: ラッパー & ネイティブ（StampFlyState） \\
+    \hline
+  \end{tabular}
+  }
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame 4: Workshop -> Native API comparison
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{ワークショップ → ネイティブ開発}
   \framesubtitle{ws:: API からネイティブ API への移行}
@@ -69,7 +104,7 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-% Frame 4: sf app new
+% Frame 5: sf app new
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{sf app new でプロジェクト作成}
   \framesubtitle{vehicle と同じ環境を独自プロジェクトとして生成}
@@ -91,7 +126,7 @@ sf flash my_drone -m   # 書き込み + モニタ
 \end{frame}
 
 % ------------------------------------------------------------------
-% Frame 5: Project File Structure
+% Frame 6: Project File Structure
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{プロジェクト構成 / Project Structure}
   \framesubtitle{\texttt{sf app new my\_drone} が生成するファイル}
@@ -119,7 +154,7 @@ firmware/my_drone/
 \end{frame}
 
 % ------------------------------------------------------------------
-% Frame 6: main.cpp Overview
+% Frame 7: main.cpp Overview
 % ------------------------------------------------------------------
 \begin{frame}{main.cpp の全体構造}
   \framesubtitle{テンプレートの 3 要素}
@@ -147,7 +182,7 @@ firmware/my_drone/
 \end{frame}
 
 % ------------------------------------------------------------------
-% Frame 7: ControlTask Detail
+% Frame 8: ControlTask Detail
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{ControlTask の中身}
   \framesubtitle{400\,Hz ループの処理フロー}
@@ -176,7 +211,7 @@ void ControlTask(void* pvParameters) {
 \end{frame}
 
 % ------------------------------------------------------------------
-% Frame 8: StampFlyState API Table
+% Frame 9: StampFlyState API Table
 % ------------------------------------------------------------------
 \begin{frame}{StampFlyState API}
   \framesubtitle{全センサ + 推定値への直接アクセス}
@@ -203,10 +238,11 @@ void ControlTask(void* pvParameters) {
 \end{frame}
 
 % ------------------------------------------------------------------
-% Frame 9: Hands-on
+% Frame 10: Hands-on
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: 全センサ Teleplot 可視化 / Hands-on}
-  \framesubtitle{ControlTask 内でセンサ値を取得し Teleplot へ出力}
+  \framesubtitle{%
+    編集ファイル: \texttt{firmware/my\_viz/main/main.cpp} の ControlTask 内}
   \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
 auto& state = stampfly::StampFlyState::getInstance();
 stampfly::Vec3 accel, gyro;
@@ -225,13 +261,13 @@ if (tick % 8 == 0) {  // 50 Hz
   \end{lstlisting}
 
   {\footnotesize
-    \textbf{手順:} \texttt{sf app new my\_viz} → main.cpp の ControlTask を編集
-    → \texttt{sf build my\_viz} → \texttt{sf flash my\_viz -m} → Teleplot
+    \textbf{手順:} \texttt{sf app new my\_viz} → \texttt{firmware/my\_viz/main/main.cpp} の
+    ControlTask を編集 → \texttt{sf build my\_viz} → \texttt{sf flash my\_viz -m} → Teleplot
   }
 \end{frame}
 
 % ------------------------------------------------------------------
-% Frame 10: Checkpoint
+% Frame 11: Checkpoint
 % ------------------------------------------------------------------
 \begin{frame}{チェックポイント / Checkpoint}
   \begin{alertblock}{確認事項}
