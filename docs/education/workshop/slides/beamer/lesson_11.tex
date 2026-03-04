@@ -13,21 +13,22 @@
 % ------------------------------------------------------------------
 \begin{frame}{今日のゴール / Today's Goal}
   \begin{block}{目標}
-    \api{sf app new} で独自プロジェクトを作り、全センサを Teleplot で可視化する
+    \texttt{sf app new} で独自プロジェクトを作り、StampFlyState で全センサにアクセスする
   \end{block}
 
   \vspace{0.5em}
 
   \begin{itemize}
     \item StampFly エコシステムの全体像を理解
-    \item \api{sf app new} でカスタムファームウェアプロジェクトを生成
+    \item \texttt{sf app new} でカスタムファームウェアプロジェクトを生成
     \item プロジェクト構成（CMakeLists.txt, main.cpp）を把握
-    \item Teleplot で全センサデータをリアルタイム可視化
+    \item StampFlyState で全センサに直接アクセスし Teleplot で可視化
   \end{itemize}
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}{エコシステム概要 / Ecosystem Overview}
+  \framesubtitle{StampFly 開発ツールと解析環境}
   \begin{columns}[t]
     \begin{column}{0.48\textwidth}
       \begin{exampleblock}{開発ツール}
@@ -56,8 +57,9 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{独自ファーム作成: \texttt{sf app new}}
-  \begin{block}{\api{sf app new} でカスタムプロジェクトを生成}
+\begin{frame}[fragile]{独自ファーム作成}
+  \framesubtitle{\texttt{sf app new} でカスタムプロジェクトを生成}
+  \begin{block}{\texttt{sf app new} コマンド}
     vehicle のコンポーネントを再利用しつつ、独自の main.cpp を記述
   \end{block}
 
@@ -82,6 +84,7 @@ sf flash my_drone -m
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{プロジェクト構成 / Project Structure}
+  \framesubtitle{CMakeLists.txt と main.cpp の役割}
   \begin{lstlisting}[style=sfbash, basicstyle=\ttfamily\scriptsize]
 firmware/my_drone/
   CMakeLists.txt          # EXTRA_COMPONENT_DIRS 設定
@@ -110,55 +113,51 @@ firmware/my_drone/
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{Teleplot によるセンサ可視化}
-  {\small Teleplot 形式 (\texttt{>name:value}) でシリアル出力すると、\\
-  VS Code 拡張 Teleplot がリアルタイムグラフを描画する。}
-
-  \vspace{0.3em}
-
-  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
-void loop_400Hz(float dt) {
-    static uint32_t tick = 0; tick++;
-    if (tick % 8 != 0) return;  // 50 Hz decimation
-
-    // Teleplot output (>name:value format)
-    ws::print(">baro_alt:%.2f", ws::baro_altitude());
-    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
-    ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
-    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
-}
-  \end{lstlisting}
-
-  \vspace{0.2em}
-  {\footnotesize 気圧高度 vs ToF vs ESKF 推定高度の比較で、センサ融合の効果を観察}
+\begin{frame}{StampFlyState}
+  \framesubtitle{全センサ + 推定値への直接アクセス}
+  {\small
+  \begin{tabular}{lll}
+    \hline
+    \textbf{メソッド} & \textbf{ソース} & \textbf{取得データ} \\
+    \hline
+    \texttt{getIMUData(a, g)}       & BMI270 IMU      & 加速度 + ジャイロ生値 \\
+    \texttt{getIMUCorrected(a, g)}  & バイアス補正      & バイアス除去済み IMU \\
+    \texttt{getBaroData(alt, p)}    & BMP280 気圧      & 高度 [m], 気圧 [Pa] \\
+    \texttt{getMagData(mag)}        & BMM150 磁気      & 磁気 x,y,z [$\mu$T] \\
+    \texttt{getToFData(b, f)}       & VL53L3CX ToF    & 下方/前方距離 [m] \\
+    \texttt{getFlowData(vx, vy)}    & PMW3901 フロー    & 速度 vx,vy [m/s] \\
+    \hline
+    \texttt{getAttitude()}          & ESKF 推定        & roll, pitch, yaw [rad] \\
+    \texttt{getPosition()}          & ESKF 推定        & x, y, z [m] \\
+    \texttt{getVelocity()}          & ESKF 推定        & vx, vy, vz [m/s] \\
+    \hline
+  \end{tabular}
+  }
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{実習: 全センサ可視化ファーム / Hands-on}
+\begin{frame}[fragile]{実習: StampFlyState で全センサ取得 / Hands-on}
+  \framesubtitle{sf app new → StampFlyState で直接アクセス → Teleplot}
   \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
 #include "workshop_api.hpp"
-void setup() { ws::print("Lesson 11: Custom Firmware"); }
+#include "stampfly_state.hpp"
+auto& state = stampfly::StampFlyState::getInstance();
+void setup() { ws::print("L11: StampFlyState"); }
 void loop_400Hz(float dt) {
     static uint32_t tick = 0; tick++;
     if (tick % 8 != 0) return;  // 50 Hz
-    // IMU
-    ws::print(">gyro_x:%.3f", ws::gyro_x());
-    ws::print(">accel_z:%.2f", ws::accel_z());
-    // Environmental sensors
-    ws::print(">baro_alt:%.2f", ws::baro_altitude());
-    ws::print(">mag_x:%.1f", ws::mag_x());
-    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
-    ws::print(">flow_vx:%.3f", ws::flow_vx());
-    // ESKF estimation
-    ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
-    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
+    float alt, p; state.getBaroData(alt, p);
+    float bot, fnt; state.getToFData(bot, fnt);
+    ws::print(">baro_alt:%.2f", alt);
+    ws::print(">baro_pa:%.0f", p);
+    ws::print(">tof_bot:%.3f", bot);
 }
   \end{lstlisting}
 
   {\footnotesize
-    \textbf{手順:} \api{sf app new my\_viz} $\rightarrow$ 上記コードを main.cpp に記述
-    $\rightarrow$ \api{sf build my\_viz} $\rightarrow$ \api{sf flash my\_viz -m}
-    $\rightarrow$ Teleplot で確認
+    \textbf{手順:} \texttt{sf app new my\_viz} → main.cpp に記述
+    → \texttt{sf build my\_viz} → \texttt{sf flash my\_viz -m}
+    → Teleplot で確認
   }
 \end{frame}
 
@@ -169,8 +168,8 @@ void loop_400Hz(float dt) {
       \item[$\square$] StampFly エコシステムの構成を理解した
       \item[$\square$] \api{sf app new} でカスタムプロジェクトを作成できた
       \item[$\square$] プロジェクト構成（CMakeLists.txt の役割）を把握した
-      \item[$\square$] ws:: API で全センサ値を Teleplot 出力できた
-      \item[$\square$] Teleplot で複数センサのグラフを同時表示した
+      \item[$\square$] StampFlyState で全センサ値を直接取得できた
+      \item[$\square$] Teleplot で StampFlyState の値を可視化した
     \end{itemize}
   \end{alertblock}
 

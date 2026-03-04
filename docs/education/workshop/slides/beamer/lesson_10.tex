@@ -367,33 +367,6 @@ void loop_400Hz(float dt) {
 % ==================================================================
 
 % ------------------------------------------------------------------
-\begin{frame}{StampFlyState}
-  \framesubtitle{全センサ + 推定値への直接アクセス}
-  {\small
-  \begin{tabular}{lll}
-    \hline
-    \textbf{メソッド} & \textbf{ソース} & \textbf{取得データ} \\
-    \hline
-    \texttt{getIMUData(a, g)}       & BMI270 IMU      & 加速度 + ジャイロ生値 \\
-    \texttt{getIMUCorrected(a, g)}  & バイアス補正      & バイアス除去済み IMU \\
-    \texttt{getBaroData(alt, p)}    & BMP280 気圧      & 高度 [m], 気圧 [Pa] \\
-    \texttt{getMagData(mag)}        & BMM150 磁気      & 磁気 x,y,z [$\mu$T] \\
-    \texttt{getToFData(b, f)}       & VL53L3CX ToF    & 下方/前方距離 [m] \\
-    \texttt{getFlowData(vx, vy)}    & PMW3901 フロー    & 速度 vx,vy [m/s] \\
-    \texttt{getFlowRawData(...)}    & PMW3901 生値      & dx,dy [counts], squal \\
-    \hline
-    \texttt{getAttitude()}          & ESKF 推定        & roll, pitch, yaw [rad] \\
-    \texttt{getPosition()}          & ESKF 推定        & x, y, z [m] \\
-    \texttt{getVelocity()}          & ESKF 推定        & vx, vy, vz [m/s] \\
-    \texttt{getGyroBias()}          & ESKF 推定        & バイアス [rad/s] \\
-    \texttt{getAccelBias()}         & ESKF 推定        & バイアス [m/s$^2$] \\
-    \hline
-  \end{tabular}
-  }
-
-\end{frame}
-
-% ------------------------------------------------------------------
 \begin{frame}{ハードウェアセンサ仕様 / Hardware Sensors}
   \centering
 
@@ -422,6 +395,33 @@ void loop_400Hz(float dt) {
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}[fragile]{Teleplot}
+  \framesubtitle{シリアル出力をリアルタイムグラフ化}
+  {\small Teleplot 形式 (\texttt{>name:value}) でシリアル出力すると、\\
+  VS Code 拡張 Teleplot がリアルタイムグラフを描画する。}
+
+  \vspace{0.3em}
+
+  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
+void loop_400Hz(float dt) {
+    static uint32_t tick = 0; tick++;
+    if (tick % 8 != 0) return;  // 50 Hz decimation
+
+    // Teleplot output (>name:value format)
+    ws::print(">baro_alt:%.2f", ws::baro_altitude());
+    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
+    ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
+}
+  \end{lstlisting}
+
+  \vspace{0.2em}
+  {\footnotesize
+    \textbf{セットアップ:} VSCode 拡張 \texttt{alexnesnes.teleplot} をインストール
+    → \texttt{sf monitor} でシリアル接続 → Teleplot パネルで自動グラフ化
+  }
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: 全センサ Teleplot 出力 / Hands-on}
   \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
 #include "workshop_api.hpp"
@@ -442,8 +442,7 @@ void loop_400Hz(float dt) {
 
   \vspace{0.2em}
   {\footnotesize
-    \textbf{Teleplot:} VS Code 拡張で \texttt{>name:value} 形式をリアルタイムグラフ表示。\\
-    \api{sf monitor} でシリアル接続し、Teleplot パネルを開く。
+    \texttt{sf monitor} でシリアル接続し、Teleplot パネルで確認（前ページ参照）
   }
 \end{frame}
 
