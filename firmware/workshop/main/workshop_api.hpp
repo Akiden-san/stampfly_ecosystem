@@ -235,6 +235,41 @@ float accel_y();
 float accel_z();
 
 // -----------------------------------------------------------------------------
+// Environmental / Distance Sensors (Lesson 10)
+// 環境・距離センサ
+// -----------------------------------------------------------------------------
+
+/** @brief Get barometric altitude [m] (BMP280) */
+float baro_altitude();
+
+/** @brief Get barometric pressure [Pa] (BMP280) */
+float baro_pressure();
+
+/** @brief Get magnetometer X [uT] (BMM150) */
+float mag_x();
+
+/** @brief Get magnetometer Y [uT] (BMM150) */
+float mag_y();
+
+/** @brief Get magnetometer Z [uT] (BMM150) */
+float mag_z();
+
+/** @brief Get bottom ToF distance [m] (VL53L3CX, 0-2m) */
+float tof_bottom();
+
+/** @brief Get front ToF distance [m] (VL53L3CX, 0-2m, -1 if unavailable) */
+float tof_front();
+
+/** @brief Get optical flow velocity X [m/s] (PMW3901) */
+float flow_vx();
+
+/** @brief Get optical flow velocity Y [m/s] (PMW3901) */
+float flow_vy();
+
+/** @brief Get optical flow surface quality (0-255, higher=better) */
+uint8_t flow_quality();
+
+// -----------------------------------------------------------------------------
 // Estimation (Lesson 9)
 // 姿勢推定
 // -----------------------------------------------------------------------------

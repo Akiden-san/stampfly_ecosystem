@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate StampFly Workshop slides (Lesson 0-12) as PowerPoint files.
+"""Generate StampFly Workshop slides (Lesson 0-13) as PowerPoint files.
 
 Usage:
     python generate_slides.py              # Generate all lessons
@@ -1521,15 +1521,15 @@ void loop_400Hz(float dt) {
 def build_lesson_10() -> Presentation:
     prs = new_presentation()
 
-    add_title_slide(prs, "Lesson 10: API 総覧とアプリケーション開発",
-                    "API Overview & App Development")
+    add_title_slide(prs, "Lesson 10: ws:: API リファレンス",
+                    "ws:: API Reference")
 
     add_content_slide(prs, "今日のゴール / Today's Goal", [
-        "ws:: API の全体像を理解し、独自ファームウェアで全センサにアクセスする",
+        "ws:: API の全 43 関数を把握し、全センサにアクセスする",
         "",
         "• ws:: API のカテゴリ別全関数を把握",
-        "• StampFlyState で全センサに直接アクセス",
-        "• sf app new で独自ファームウェアプロジェクトを作成",
+        "• 環境・距離センサ API（気圧・磁気・ToF・光学フロー）を使用",
+        "• StampFlyState による上級アクセスを知る",
     ])
 
     add_table_slide(prs, "ws:: API 一覧 / ws:: API Reference",
@@ -1540,6 +1540,7 @@ def build_lesson_10() -> Presentation:
             ["Buttons", "rc_throttle_yaw_button(), rc_stabilize_acro_mode()", "ボタン/モード"],
             ["LED", "led_color(r,g,b), disable_led_task()", "LED 制御"],
             ["IMU", "gyro_x/y/z(), accel_x/y/z()", "角速度, 加速度"],
+            ["Env/Distance", "baro_altitude(), mag_x(), tof_bottom(), flow_vx()", "環境・距離 (10)"],
             ["Estimation", "estimated_roll/pitch/yaw/altitude()", "ESKF 推定値"],
             ["Utility", "millis(), battery_voltage(), print()", "時刻, 電圧, 出力"],
         ],
@@ -1582,6 +1583,69 @@ def build_lesson_10() -> Presentation:
         ],
     )
 
+    add_table_slide(prs, "Environmental / Distance Sensors API（1/2）",
+        ["関数", "単位", "説明"],
+        [
+            ["baro_altitude()", "m", "気圧高度（BMP280）"],
+            ["baro_pressure()", "Pa", "気圧値（BMP280）"],
+            ["mag_x()", "uT", "磁気 X 成分（BMM150）"],
+            ["mag_y()", "uT", "磁気 Y 成分（BMM150）"],
+            ["mag_z()", "uT", "磁気 Z 成分（BMM150）"],
+        ],
+    )
+
+    add_table_slide(prs, "Environmental / Distance Sensors API（2/2）",
+        ["関数", "単位", "説明"],
+        [
+            ["tof_bottom()", "m", "下方 ToF 距離（VL53L3CX, 0-2m）"],
+            ["tof_front()", "m", "前方 ToF 距離（-1 = 未接続）"],
+            ["flow_vx()", "m/s", "光学フロー速度 X（PMW3901）"],
+            ["flow_vy()", "m/s", "光学フロー速度 Y（PMW3901）"],
+            ["flow_quality()", "0-255", "光学フロー品質（高い = 良好）"],
+        ],
+    )
+
+    add_code_slide(prs, "実習: 全センサ Teleplot 出力", """
+#include "workshop_api.hpp"
+void setup() { ws::print("Lesson 10: Sensor API"); }
+void loop_400Hz(float dt) {
+    static uint32_t tick = 0; tick++;
+    if (tick % 8 != 0) return;  // 50 Hz
+    // Environmental sensors (ws:: API)
+    ws::print(">baro_alt:%.2f", ws::baro_altitude());
+    ws::print(">mag_x:%.1f", ws::mag_x());
+    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
+    ws::print(">flow_vx:%.3f", ws::flow_vx());
+    // ESKF estimation
+    ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
+    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
+}
+""")
+
+    add_checkpoint_slide(prs, [
+        "ws:: API 全 43 関数のカテゴリと役割を把握した",
+        "気圧・磁気・ToF・光学フロー API で値を取得できた",
+        "Teleplot で複数センサのグラフを同時表示した",
+    ], "Lesson 11: 独自ファームウェア開発")
+
+    return prs
+
+
+def build_lesson_11() -> Presentation:
+    prs = new_presentation()
+
+    add_title_slide(prs, "Lesson 11: 独自ファームウェア開発",
+                    "Custom Firmware Development")
+
+    add_content_slide(prs, "今日のゴール / Today's Goal", [
+        "sf app new で独自プロジェクトを作り、全センサを Teleplot で可視化する",
+        "",
+        "• StampFly エコシステムの全体像を理解",
+        "• sf app new でカスタムファームウェアプロジェクトを生成",
+        "• プロジェクト構成（CMakeLists.txt, main.cpp）を把握",
+        "• Teleplot で全センサデータをリアルタイム可視化",
+    ])
+
     add_content_slide(prs, "エコシステム概要 / Ecosystem Overview", [
         "【開発ツール】",
         "• sf build / flash / monitor",
@@ -1610,51 +1674,49 @@ def build_lesson_10() -> Presentation:
     ])
 
     add_content_slide(prs, "Teleplot によるセンサ可視化", [
-        "L09 で導入した Teleplot を活用",
+        "Teleplot 形式 (>name:value) でシリアル出力すると、",
+        "VS Code 拡張 Teleplot がリアルタイムグラフを描画する",
         "",
-        "printf(\">baro_alt:%.2f\\n\", baro.altitude);",
-        "printf(\">tof_bottom:%.3f\\n\", tof.distance);",
-        "printf(\">eskf_alt:%.2f\\n\", s.getAltitude());",
-        "printf(\">eskf_roll:%.1f\\n\", att.x * 57.3f);",
-        "printf(\">mag_x:%.1f\\n\", mag.x);",
+        'ws::print(">baro_alt:%.2f", ws::baro_altitude());',
+        'ws::print(">tof_bottom:%.3f", ws::tof_bottom());',
+        'ws::print(">eskf_alt:%.2f", ws::estimated_altitude());',
         "",
-        "気圧高度 vs ToF vs ESKF 推定高度の比較、",
-        "センサ生値と推定値の違いを観察",
+        "気圧高度 vs ToF vs ESKF 推定高度の比較で、",
+        "センサ融合の効果を観察",
     ])
 
-    add_code_slide(prs, "実習: 全センサ読み取り", """
+    add_code_slide(prs, "実習: 全センサ可視化ファーム", """
 #include "workshop_api.hpp"
-#include "stampfly_state.hpp"
-void setup() { ws::print("Lesson 10: API Overview"); }
+void setup() { ws::print("Lesson 11: Custom Firmware"); }
 void loop_400Hz(float dt) {
     static uint32_t tick = 0; tick++;
     if (tick % 8 != 0) return;  // 50 Hz
-    // ws:: API for ESKF estimation
-    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
+    // IMU
+    ws::print(">gyro_x:%.3f", ws::gyro_x());
+    ws::print(">accel_z:%.2f", ws::accel_z());
+    // Environmental sensors
+    ws::print(">baro_alt:%.2f", ws::baro_altitude());
+    ws::print(">mag_x:%.1f", ws::mag_x());
+    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
+    ws::print(">flow_vx:%.3f", ws::flow_vx());
+    // ESKF estimation
     ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
-    // StampFlyState for raw sensor data
-    auto& s = StampFlyState::getInstance();
-    auto baro = s.getBaroData();
-    ws::print(">baro_alt:%.2f", baro.altitude);
-    auto tof = s.getToFData(ToFPosition::BOTTOM);
-    ws::print(">tof_bottom:%.3f", tof.distance);
 }
 """)
 
     add_checkpoint_slide(prs, [
-        "ws:: API の全カテゴリを把握した",
-        "StampFlyState で全センサ値を取得できた",
-        "Teleplot で複数センサのグラフを同時表示した",
         "sf app new でカスタムプロジェクトを作成できた",
-    ], "Lesson 11: Python SDK プログラム飛行")
+        "ws:: API で全センサ値を Teleplot 出力できた",
+        "Teleplot で複数センサのグラフを同時表示した",
+    ], "Lesson 12: Python SDK プログラム飛行")
 
     return prs
 
 
-def build_lesson_11() -> Presentation:
+def build_lesson_12() -> Presentation:
     prs = new_presentation()
 
-    add_title_slide(prs, "Lesson 11: Python SDK プログラム飛行",
+    add_title_slide(prs, "Lesson 12: Python SDK プログラム飛行",
                     "Python SDK Programmatic Flight")
 
     add_content_slide(prs, "今日のゴール / Today's Goal", [
@@ -1757,15 +1819,15 @@ drone.end()
         "Python API の基本関数を把握した",
         "Tello 互換の設計意図を理解した",
         "開発ロードマップを確認した",
-    ], "Lesson 12: 精密着陸競技会 ルール説明")
+    ], "Lesson 13: 精密着陸競技会 ルール説明")
 
     return prs
 
 
-def build_lesson_12() -> Presentation:
+def build_lesson_13() -> Presentation:
     prs = new_presentation()
 
-    add_title_slide(prs, "Lesson 12: 精密着陸競技会",
+    add_title_slide(prs, "Lesson 13: 精密着陸競技会",
                     "Precision Landing Competition")
 
     add_content_slide(prs, "競技会概要 / Competition Overview", [
@@ -1845,12 +1907,13 @@ BUILDERS = {
     10: build_lesson_10,
     11: build_lesson_11,
     12: build_lesson_12,
+    13: build_lesson_13,
 }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate StampFly workshop PPTX")
-    parser.add_argument("--lesson", type=int, help="Lesson number (0-12)")
+    parser.add_argument("--lesson", type=int, help="Lesson number (0-13)")
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

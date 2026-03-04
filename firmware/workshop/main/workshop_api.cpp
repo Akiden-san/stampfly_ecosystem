@@ -282,6 +282,81 @@ float ws::accel_z()
 }
 
 // =============================================================================
+// Environmental / Distance Sensors
+// =============================================================================
+
+float ws::baro_altitude()
+{
+    float alt, p;
+    stampfly::StampFlyState::getInstance().getBaroData(alt, p);
+    return alt;
+}
+
+float ws::baro_pressure()
+{
+    float alt, p;
+    stampfly::StampFlyState::getInstance().getBaroData(alt, p);
+    return p;
+}
+
+float ws::mag_x()
+{
+    stampfly::Vec3 m;
+    stampfly::StampFlyState::getInstance().getMagData(m);
+    return m.x;
+}
+
+float ws::mag_y()
+{
+    stampfly::Vec3 m;
+    stampfly::StampFlyState::getInstance().getMagData(m);
+    return m.y;
+}
+
+float ws::mag_z()
+{
+    stampfly::Vec3 m;
+    stampfly::StampFlyState::getInstance().getMagData(m);
+    return m.z;
+}
+
+float ws::tof_bottom()
+{
+    float bottom, front;
+    stampfly::StampFlyState::getInstance().getToFData(bottom, front);
+    return bottom;
+}
+
+float ws::tof_front()
+{
+    float bottom, front;
+    stampfly::StampFlyState::getInstance().getToFData(bottom, front);
+    return front;
+}
+
+float ws::flow_vx()
+{
+    float vx, vy;
+    stampfly::StampFlyState::getInstance().getFlowData(vx, vy);
+    return vx;
+}
+
+float ws::flow_vy()
+{
+    float vx, vy;
+    stampfly::StampFlyState::getInstance().getFlowData(vx, vy);
+    return vy;
+}
+
+uint8_t ws::flow_quality()
+{
+    int16_t dx, dy;
+    uint8_t sq;
+    stampfly::StampFlyState::getInstance().getFlowRawData(dx, dy, sq);
+    return sq;
+}
+
+// =============================================================================
 // Estimation
 // =============================================================================
 

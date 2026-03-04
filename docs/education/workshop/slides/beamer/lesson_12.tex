@@ -1,7 +1,7 @@
 \documentclass[aspectratio=169, 14pt]{beamer}
 \usepackage{stampfly_slides}
 
-\lesson{12}{精密着陸競技会}{Precision Landing Competition}
+\lesson{12}{Python SDK プログラム飛行}{Python SDK Programmatic Flight}
 
 \begin{document}
 
@@ -11,105 +11,179 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{競技会概要 / Competition Overview}
-  \begin{block}{精密着陸競技}
-    パイロットは定位置から操縦し、3\,m 先のヘリポートに精密着陸する
+\begin{frame}{今日のゴール / Today's Goal}
+  \begin{block}{目標}
+    Python SDK の設計思想と将来の自律飛行の姿を理解する
   \end{block}
 
   \vspace{1em}
 
   \begin{itemize}
-    \item \textbf{種目}: 精密着陸（パイロット定位置、3\,m 先のヘリポートに着陸）
-    \item \textbf{ヘリポート}: 約 40\,cm $\times$ 40\,cm
-    \item \textbf{評価}: 着陸までのタイム（ベストタイム採用）
+    \item SDK アーキテクチャ（TCP CLI + WebSocket）を理解
+    \item Python API で離陸・移動・着陸をプログラム化
+    \item Tello SDK 互換設計の利点を知る
   \end{itemize}
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{競技ルール詳細 / Competition Rules}
+\begin{frame}{SDK アーキテクチャ / SDK Architecture}
   \centering
-  \begin{tabular}{ll}
-    \hline
-    \textbf{項目} & \textbf{内容} \\
-    \hline
-    種目      & 精密着陸（パイロット定位置操縦） \\
-    距離      & パイロットからヘリポートまで 3\,m \\
-    ヘリポート & 40\,cm $\times$ 40\,cm \\
-    制限時間  & 60 秒 \\
-    試行回数  & 3 回（ベストタイム採用） \\
-    判定      & ARM → 離陸 → ヘリポート着陸までの時間 \\
-    パイロット & 定位置から動かない \\
-    失格条件  & 安全エリア外飛行、手による介入、パイロットの移動 \\
-    \hline
-  \end{tabular}
+  \resizebox{0.85\linewidth}{!}{\input{../tikz/python_sdk_arch}}
 
-  \vspace{0.3em}
-  {\small \textbf{注意:} 安全第一！\ 周囲に人がいないことを確認してから飛行}
-\end{frame}
+  \vspace{0.5em}
 
-% ------------------------------------------------------------------
-\begin{frame}{タイムスケジュール / Schedule}
-  \centering
-  \begin{tabular}{ll}
-    \hline
-    \textbf{時間} & \textbf{内容} \\
-    \hline
-    \multicolumn{2}{l}{\textbf{Day 4（本日午後）}} \\
-    13:00--13:30 & ルール説明（このスライド） \\
-    13:30--16:00 & 準備・自由練習・予選 \\
-    \hline
-    \multicolumn{2}{l}{\textbf{Day 5（最終日）}} \\
-    \phantom{0}9:00--\phantom{0}9:15 & ルール確認・機体チェック \\
-    \phantom{0}9:15--\phantom{0}9:45 & 最終チューニング \\
-    \phantom{0}9:45--10:45 & 競技本番 \\
-    10:45--11:30 & 結果発表・表彰・振り返り \\
-    \hline
-  \end{tabular}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{攻略のヒント / Tips for Success}
-  \begin{columns}[t]
+  \begin{columns}[c]
     \begin{column}{0.48\textwidth}
-      \begin{exampleblock}{PID ゲイン調整}
-        \begin{itemize}
-          \item 安定性重視（急旋回よりも穏やかな応答）
-          \item ヨー制御で方向を合わせる
-          \item スロットル微調整で高度を安定させる
-        \end{itemize}
-      \end{exampleblock}
+      \begin{block}{TCP CLI (port 23)}
+        コマンド送受信（takeoff, land...）
+      \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{exampleblock}{練習のポイント}
+      \begin{block}{WebSocket (port 81)}
+        テレメトリ受信（400\,Hz RT）
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Python SDK API}
+  \small
+  \begin{tabular}{lll}
+    \hline
+    \textbf{関数} & \textbf{説明} & \textbf{備考} \\
+    \hline
+    \api{StampFly(host)} & インスタンス生成 & デフォルト 192.168.4.1 \\
+    \api{connect()} & WiFi 接続 & TCP CLI + WS \\
+    \api{takeoff()} & 離陸 & ブロッキング \\
+    \api{land()} & 着陸 & ブロッキング \\
+    \api{move\_forward(cm)} & 前進 & 20--200\,cm \\
+    \api{rotate\_clockwise(deg)} & 時計回り回転 & 1--360° \\
+    \api{send\_rc\_control(lr,fb,ud,yaw)} & RC 制御値送信 & $-100$\textasciitilde$+100$ \\
+    \api{get\_telemetry()} & テレメトリ取得 & 400\,Hz dict \\
+    \api{end()} & 切断 & リソース解放 \\
+    \hline
+  \end{tabular}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Tello SDK との互換性 / Tello Compatibility}
+  \begin{columns}[t]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{djitellopy 互換}
+        Tello のコードをほぼそのまま StampFly に移植可能
+      \end{block}
+
+      \vspace{0.3em}
+
+      \begin{itemize}
+        \item 同じ API 名（\api{takeoff}, \api{land}, \api{move\_forward}...）
+        \item \api{connect\_or\_simulate()} でオフライン開発も可能
+        \item 大学の Tello 教材を流用可能
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{StampFly の利点}
         \begin{itemize}
-          \item まず安定ホバリングを確立
-          \item 前進 → 停止 → 降下の手順を練習
-          \item バッテリ・プロペラを毎回チェック
+          \item 内部のPIDゲインを自由に変更可能
+          \item テレメトリを 400\,Hz で取得
+          \item 制御理論の実験プラットフォーム
+          \item ESP32-S3 のファームウェアも公開
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{コード例: 基本フライト / Basic Flight}
+  \begin{lstlisting}[style=sfpython, title={flight\_basic.py}]
+from stampfly import StampFly
+
+drone = StampFly()
+drone.connect()
+
+drone.takeoff()
+drone.move_forward(50)    # 50 cm forward
+drone.rotate_clockwise(90)
+drone.move_forward(50)
+drone.land()
+
+drone.end()
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{コード例: テレメトリ取得 / Telemetry}
+  \begin{lstlisting}[style=sfpython, title={flight\_telemetry.py}]
+import time
+from stampfly import StampFly
+
+drone = StampFly()
+drone.connect()
+drone.takeoff()
+
+# Hover + read telemetry for 5 seconds
+for _ in range(50):
+    drone.send_rc_control(0, 0, 0, 0)
+    t = drone.get_telemetry()
+    print(f"alt={t.get('alt',0):.1f}")
+    time.sleep(0.1)
+
+drone.land()
+drone.end()
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{開発ロードマップ / Development Roadmap}
+  \begin{columns}[t]
+    \begin{column}{0.55\textwidth}
+      {\small
+      \begin{tabular}{cl}
+        \hline
+        \textbf{状態} & \textbf{機能} \\
+        \hline
+        \checkmark & TCP CLI 通信（port 23） \\
+        \checkmark & WebSocket テレメトリ（port 81） \\
+        \checkmark & ws:: ワークショップ API \\
+        \checkmark & sf CLI ツール群 \\
+        🔧 & Python SDK パッケージ \\
+        🔧 & connect\_or\_simulate() \\
+        📋 & Jupyter Notebook 連携 \\
+        📋 & 自律ミッション（ウェイポイント） \\
+        \hline
+      \end{tabular}
+      }
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \begin{exampleblock}{将来の姿}
+        \begin{itemize}
+          \item Python でミッション記述
+          \item Jupyter でデータ解析
+          \item シミュレータ連携
+          \item ROS2 ブリッジ
         \end{itemize}
       \end{exampleblock}
     \end{column}
   \end{columns}
-
-  \smallskip
-  {\small \textbf{テレメトリ活用:}
-    Teleplot でリアルタイムデータを確認し、ゲインを追い込む}
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}{チェックポイント / Checkpoint}
-  \begin{alertblock}{準備確認}
+  \begin{alertblock}{確認事項}
     \begin{itemize}
-      \item[$\square$] 競技ルールと失格条件を理解した
-      \item[$\square$] バッテリがフル充電されている
-      \item[$\square$] PID ゲインの調整方法を把握している
-      \item[$\square$] 安全チェックリストを確認した
+      \item[$\square$] SDK アーキテクチャ（TCP + WebSocket）を理解した
+      \item[$\square$] Python API の基本関数を把握した
+      \item[$\square$] Tello 互換の設計意図を理解した
+      \item[$\square$] 開発ロードマップを確認した
     \end{itemize}
   \end{alertblock}
 
   \vspace{1em}
 
-  \begin{block}{さあ、練習を始めよう！}
-    13:30 から自由練習 → 最高の精密着陸を目指そう
+  \begin{block}{次のレッスン}
+    Lesson 13: 精密着陸競技会 ルール説明
   \end{block}
 \end{frame}
 

@@ -1,7 +1,7 @@
 \documentclass[aspectratio=169, 14pt]{beamer}
 \usepackage{stampfly_slides}
 
-\lesson{11}{Python SDK プログラム飛行}{Python SDK Programmatic Flight}
+\lesson{11}{独自ファームウェア開発}{Custom Firmware Development}
 
 \begin{document}
 
@@ -13,177 +13,171 @@
 % ------------------------------------------------------------------
 \begin{frame}{今日のゴール / Today's Goal}
   \begin{block}{目標}
-    Python SDK の設計思想と将来の自律飛行の姿を理解する
+    \api{sf app new} で独自プロジェクトを作り、全センサを Teleplot で可視化する
   \end{block}
 
-  \vspace{1em}
+  \vspace{0.5em}
 
   \begin{itemize}
-    \item SDK アーキテクチャ（TCP CLI + WebSocket）を理解
-    \item Python API で離陸・移動・着陸をプログラム化
-    \item Tello SDK 互換設計の利点を知る
+    \item StampFly エコシステムの全体像を理解
+    \item \api{sf app new} でカスタムファームウェアプロジェクトを生成
+    \item プロジェクト構成（CMakeLists.txt, main.cpp）を把握
+    \item Teleplot で全センサデータをリアルタイム可視化
   \end{itemize}
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{SDK アーキテクチャ / SDK Architecture}
-  \centering
-  \resizebox{0.85\linewidth}{!}{\input{../tikz/python_sdk_arch}}
-
-  \vspace{0.5em}
-
-  \begin{columns}[c]
-    \begin{column}{0.48\textwidth}
-      \begin{block}{TCP CLI (port 23)}
-        コマンド送受信（takeoff, land...）
-      \end{block}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \begin{block}{WebSocket (port 81)}
-        テレメトリ受信（400\,Hz RT）
-      \end{block}
-    \end{column}
-  \end{columns}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{Python SDK API}
-  \small
-  \begin{tabular}{lll}
-    \hline
-    \textbf{関数} & \textbf{説明} & \textbf{備考} \\
-    \hline
-    \api{StampFly(host)} & インスタンス生成 & デフォルト 192.168.4.1 \\
-    \api{connect()} & WiFi 接続 & TCP CLI + WS \\
-    \api{takeoff()} & 離陸 & ブロッキング \\
-    \api{land()} & 着陸 & ブロッキング \\
-    \api{move\_forward(cm)} & 前進 & 20--200\,cm \\
-    \api{rotate\_clockwise(deg)} & 時計回り回転 & 1--360° \\
-    \api{send\_rc\_control(lr,fb,ud,yaw)} & RC 制御値送信 & $-100$\textasciitilde$+100$ \\
-    \api{get\_telemetry()} & テレメトリ取得 & 400\,Hz dict \\
-    \api{end()} & 切断 & リソース解放 \\
-    \hline
-  \end{tabular}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{Tello SDK との互換性 / Tello Compatibility}
+\begin{frame}{エコシステム概要 / Ecosystem Overview}
   \begin{columns}[t]
     \begin{column}{0.48\textwidth}
-      \begin{block}{djitellopy 互換}
-        Tello のコードをほぼそのまま StampFly に移植可能
-      \end{block}
-
-      \vspace{0.3em}
-
-      \begin{itemize}
-        \item 同じ API 名（\api{takeoff}, \api{land}, \api{move\_forward}...）
-        \item \api{connect\_or\_simulate()} でオフライン開発も可能
-        \item 大学の Tello 教材を流用可能
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \begin{alertblock}{StampFly の利点}
+      \begin{exampleblock}{開発ツール}
         \begin{itemize}
-          \item 内部のPIDゲインを自由に変更可能
-          \item テレメトリを 400\,Hz で取得
-          \item 制御理論の実験プラットフォーム
-          \item ESP32-S3 のファームウェアも公開
+          \item \api{sf build / flash / monitor}
+          \item \api{sf cal gyro/accel/mag}
+          \item \api{sf log wifi / capture / viz}
+          \item \api{sf sim list / run}
         \end{itemize}
-      \end{alertblock}
+      \end{exampleblock}
     \end{column}
-  \end{columns}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}[fragile]{コード例: 基本フライト / Basic Flight}
-  \begin{lstlisting}[style=sfpython, title={flight\_basic.py}]
-from stampfly import StampFly
-
-drone = StampFly()
-drone.connect()
-
-drone.takeoff()
-drone.move_forward(50)    # 50 cm forward
-drone.rotate_clockwise(90)
-drone.move_forward(50)
-drone.land()
-
-drone.end()
-  \end{lstlisting}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}[fragile]{コード例: テレメトリ取得 / Telemetry}
-  \begin{lstlisting}[style=sfpython, title={flight\_telemetry.py}]
-import time
-from stampfly import StampFly
-
-drone = StampFly()
-drone.connect()
-drone.takeoff()
-
-# Hover + read telemetry for 5 seconds
-for _ in range(50):
-    drone.send_rc_control(0, 0, 0, 0)
-    t = drone.get_telemetry()
-    print(f"alt={t.get('alt',0):.1f}")
-    time.sleep(0.1)
-
-drone.land()
-drone.end()
-  \end{lstlisting}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{開発ロードマップ / Development Roadmap}
-  \begin{columns}[t]
-    \begin{column}{0.55\textwidth}
-      {\small
-      \begin{tabular}{cl}
-        \hline
-        \textbf{状態} & \textbf{機能} \\
-        \hline
-        \checkmark & TCP CLI 通信（port 23） \\
-        \checkmark & WebSocket テレメトリ（port 81） \\
-        \checkmark & ws:: ワークショップ API \\
-        \checkmark & sf CLI ツール群 \\
-        🔧 & Python SDK パッケージ \\
-        🔧 & connect\_or\_simulate() \\
-        📋 & Jupyter Notebook 連携 \\
-        📋 & 自律ミッション（ウェイポイント） \\
-        \hline
-      \end{tabular}
-      }
-    \end{column}
-    \begin{column}{0.43\textwidth}
-      \begin{exampleblock}{将来の姿}
+    \begin{column}{0.48\textwidth}
+      \begin{exampleblock}{解析・応用}
         \begin{itemize}
-          \item Python でミッション記述
-          \item Jupyter でデータ解析
-          \item シミュレータ連携
-          \item ROS2 ブリッジ
+          \item Python SDK（開発中）
+          \item Jupyter Notebooks
+          \item Genesis シミュレータ
+          \item フライトログ解析
         \end{itemize}
       \end{exampleblock}
     \end{column}
   \end{columns}
+
+  \vspace{0.5em}
+  {\footnotesize ワークショップで学んだスキルは、エコシステムの全ツールで活用可能}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{独自ファーム作成: \texttt{sf app new}}
+  \begin{block}{\api{sf app new} でカスタムプロジェクトを生成}
+    vehicle のコンポーネントを再利用しつつ、独自の main.cpp を記述
+  \end{block}
+
+  \vspace{0.3em}
+
+  \begin{lstlisting}[style=sfbash]
+# Create project
+sf app new my_drone
+# -> firmware/my_drone/ が生成される
+
+# Build and flash
+sf build my_drone
+sf flash my_drone -m
+  \end{lstlisting}
+
+  \vspace{0.3em}
+  {\footnotesize
+    \textbf{仕組み:} \texttt{EXTRA\_COMPONENT\_DIRS} で vehicle/components と common を参照。\\
+    IMU, 気圧, ToF, 光学フロー, モーター等すべてのコンポーネントが使える。
+  }
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{プロジェクト構成 / Project Structure}
+  \begin{lstlisting}[style=sfbash, basicstyle=\ttfamily\scriptsize]
+firmware/my_drone/
+  CMakeLists.txt          # EXTRA_COMPONENT_DIRS 設定
+  main/
+    CMakeLists.txt         # main コンポーネント定義
+    main.cpp               # setup() + loop_400Hz() を実装
+    workshop_api.hpp -> ..  # ws:: API ヘッダ（シンボリックリンク）
+  \end{lstlisting}
+
+  \vspace{0.5em}
+
+  \begin{columns}[t]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{CMakeLists.txt}
+        {\scriptsize vehicle/components と common を\\
+        \texttt{EXTRA\_COMPONENT\_DIRS} で参照}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{main.cpp}
+        {\scriptsize \api{setup()} と \api{loop\_400Hz(dt)} を\\
+        実装するだけで全機能が使える}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{Teleplot によるセンサ可視化}
+  {\small Teleplot 形式 (\texttt{>name:value}) でシリアル出力すると、\\
+  VS Code 拡張 Teleplot がリアルタイムグラフを描画する。}
+
+  \vspace{0.3em}
+
+  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
+void loop_400Hz(float dt) {
+    static uint32_t tick = 0; tick++;
+    if (tick % 8 != 0) return;  // 50 Hz decimation
+
+    // Teleplot output (>name:value format)
+    ws::print(">baro_alt:%.2f", ws::baro_altitude());
+    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
+    ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
+    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
+}
+  \end{lstlisting}
+
+  \vspace{0.2em}
+  {\footnotesize 気圧高度 vs ToF vs ESKF 推定高度の比較で、センサ融合の効果を観察}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{実習: 全センサ可視化ファーム / Hands-on}
+  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
+#include "workshop_api.hpp"
+void setup() { ws::print("Lesson 11: Custom Firmware"); }
+void loop_400Hz(float dt) {
+    static uint32_t tick = 0; tick++;
+    if (tick % 8 != 0) return;  // 50 Hz
+    // IMU
+    ws::print(">gyro_x:%.3f", ws::gyro_x());
+    ws::print(">accel_z:%.2f", ws::accel_z());
+    // Environmental sensors
+    ws::print(">baro_alt:%.2f", ws::baro_altitude());
+    ws::print(">mag_x:%.1f", ws::mag_x());
+    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
+    ws::print(">flow_vx:%.3f", ws::flow_vx());
+    // ESKF estimation
+    ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
+    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
+}
+  \end{lstlisting}
+
+  {\footnotesize
+    \textbf{手順:} \api{sf app new my\_viz} $\rightarrow$ 上記コードを main.cpp に記述
+    $\rightarrow$ \api{sf build my\_viz} $\rightarrow$ \api{sf flash my\_viz -m}
+    $\rightarrow$ Teleplot で確認
+  }
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}{チェックポイント / Checkpoint}
   \begin{alertblock}{確認事項}
     \begin{itemize}
-      \item[$\square$] SDK アーキテクチャ（TCP + WebSocket）を理解した
-      \item[$\square$] Python API の基本関数を把握した
-      \item[$\square$] Tello 互換の設計意図を理解した
-      \item[$\square$] 開発ロードマップを確認した
+      \item[$\square$] StampFly エコシステムの構成を理解した
+      \item[$\square$] \api{sf app new} でカスタムプロジェクトを作成できた
+      \item[$\square$] プロジェクト構成（CMakeLists.txt の役割）を把握した
+      \item[$\square$] ws:: API で全センサ値を Teleplot 出力できた
+      \item[$\square$] Teleplot で複数センサのグラフを同時表示した
     \end{itemize}
   \end{alertblock}
 
-  \vspace{1em}
+  \vspace{0.5em}
 
   \begin{block}{次のレッスン}
-    Lesson 12: 精密着陸競技会 ルール説明
+    Lesson 12: Python SDK プログラム飛行
   \end{block}
 \end{frame}
 

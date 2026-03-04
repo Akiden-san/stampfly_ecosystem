@@ -19,10 +19,9 @@
   \vspace{0.5em}
 
   \begin{itemize}
-    \item ws:: API 全 33 関数をカテゴリ別に理解
+    \item ws:: API 全 43 関数をカテゴリ別に理解
     \item 各 API の使い方をコード例で確認
     \item StampFlyState による上級アクセスを知る
-    \item \api{sf app new} で独自プロジェクトを作成
   \end{itemize}
 \end{frame}
 
@@ -42,11 +41,12 @@
     RC Input        & コントローラスティック入力 & 4 \\
     RC Buttons      & ボタン・飛行モード         & 5 \\
     IMU Sensor      & ジャイロ・加速度センサ     & 6 \\
+    Env / Distance  & 気圧・磁気・ToF・光学フロー & 10 \\
     Estimation      & ESKF 姿勢・高度推定        & 4 \\
     LED             & LED 色制御                 & 3 \\
     Utility         & 時刻・電圧・通信・出力     & 4 \\
     \hline
-    \multicolumn{2}{l}{\textbf{合計}} & \textbf{33} \\
+    \multicolumn{2}{l}{\textbf{合計}} & \textbf{43} \\
     \hline
   \end{tabular}
   }
@@ -238,6 +238,58 @@ void loop_400Hz(float dt) {
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}[fragile]{Environmental / Distance Sensors API（1/2）: 気圧・磁気}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{lll}
+    \hline
+    \textbf{関数} & \textbf{単位} & \textbf{説明} \\
+    \hline
+    \texttt{baro\_altitude()} & m   & 気圧高度（BMP280） \\
+    \texttt{baro\_pressure()} & Pa  & 気圧値（BMP280） \\
+    \texttt{mag\_x()}         & $\mu$T & 磁気 X 成分（BMM150） \\
+    \texttt{mag\_y()}         & $\mu$T & 磁気 Y 成分（BMM150） \\
+    \texttt{mag\_z()}         & $\mu$T & 磁気 Z 成分（BMM150） \\
+    \hline
+  \end{tabular}
+  }
+
+  \vspace{0.3em}
+
+  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
+float alt = ws::baro_altitude();  // [m]
+float p   = ws::baro_pressure();  // [Pa]
+float mx  = ws::mag_x();          // [uT]
+ws::print(">baro_alt:%.2f", alt);
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{Environmental / Distance Sensors API（2/2）: ToF・光学フロー}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{lll}
+    \hline
+    \textbf{関数} & \textbf{単位} & \textbf{説明} \\
+    \hline
+    \texttt{tof\_bottom()}   & m     & 下方 ToF 距離（VL53L3CX, 0--2\,m） \\
+    \texttt{tof\_front()}    & m     & 前方 ToF 距離（$-1$ = 未接続） \\
+    \texttt{flow\_vx()}      & m/s   & 光学フロー速度 X（PMW3901） \\
+    \texttt{flow\_vy()}      & m/s   & 光学フロー速度 Y（PMW3901） \\
+    \texttt{flow\_quality()} & 0--255 & 光学フロー品質（高い = 良好） \\
+    \hline
+  \end{tabular}
+  }
+
+  \vspace{0.3em}
+
+  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
+float dist = ws::tof_bottom();    // [m] ground distance
+float vx   = ws::flow_vx();       // [m/s]
+uint8_t sq = ws::flow_quality();   // 0-255
+ws::print(">tof_bottom:%.3f", dist);
+  \end{lstlisting}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}[fragile]{LED Control API}
   \resizebox{\linewidth}{!}{%
   \begin{tabular}{lll}
@@ -287,10 +339,7 @@ void loop_400Hz(float dt) {
   \vspace{0.3em}
 
   \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
-void setup() {
-    ws::set_channel(6);
-    ws::print("Lesson 10: API Reference");
-}
+void setup() { ws::set_channel(6); }
 void loop_400Hz(float dt) {
     static uint32_t last = 0;
     uint32_t now = ws::millis();
@@ -300,7 +349,6 @@ void loop_400Hz(float dt) {
     }
 }
   \end{lstlisting}
-
 \end{frame}
 
 % ==================================================================
@@ -356,126 +404,53 @@ void loop_400Hz(float dt) {
   \vspace{1em}
 
   {\footnotesize
-    ws:: API は IMU のみ直接アクセス可（\api{gyro\_x()}, \api{accel\_x()} 等）。\\
-    気圧・磁気・ToF・光学フローは \textbf{StampFlyState} 経由で取得。\\
+    ws:: API で全センサに直接アクセス可能（\api{baro\_altitude()}, \api{tof\_bottom()} 等）。\\
+    より低レベルなアクセスには \textbf{StampFlyState} を使用。\\
     ESKF は全センサを統合して姿勢・位置・速度を推定（Lesson 9 参照）。
   }
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{エコシステム概要 / Ecosystem Overview}
-  \begin{columns}[t]
-    \begin{column}{0.48\textwidth}
-      \begin{exampleblock}{開発ツール}
-        \begin{itemize}
-          \item \api{sf build / flash / monitor}
-          \item \api{sf cal gyro/accel/mag}
-          \item \api{sf log wifi / capture / viz}
-          \item \api{sf sim list / run}
-        \end{itemize}
-      \end{exampleblock}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \begin{exampleblock}{解析・応用}
-        \begin{itemize}
-          \item Python SDK（開発中）
-          \item Jupyter Notebooks
-          \item Genesis シミュレータ
-          \item フライトログ解析
-        \end{itemize}
-      \end{exampleblock}
-    \end{column}
-  \end{columns}
-
-  \vspace{0.5em}
-  {\footnotesize ワークショップで学んだスキルは、エコシステムの全ツールで活用可能}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}[fragile]{独自ファーム作成: \texttt{sf app new}}
-  \begin{block}{\api{sf app new} でカスタムプロジェクトを生成}
-    vehicle のコンポーネントを再利用しつつ、独自の main.cpp を記述
-  \end{block}
-
-  \vspace{0.3em}
-
-  \begin{lstlisting}[style=sfbash]
-# Create project
-sf app new my_drone
-# -> firmware/my_drone/ が生成される
-
-# Build and flash
-sf build my_drone
-sf flash my_drone -m
-  \end{lstlisting}
-
-  \vspace{0.3em}
-  {\footnotesize
-    \textbf{仕組み:} \texttt{EXTRA\_COMPONENT\_DIRS} で vehicle/components と common を参照。\\
-    IMU, 気圧, ToF, 光学フロー, モーター等すべてのコンポーネントが使える。
-  }
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}[fragile]{Teleplot によるセンサ可視化}
-  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
-auto& s = StampFlyState::getInstance();
-Vec3 accel, gyro;
-s.getIMUData(accel, gyro);
-float baro_alt, pressure;
-s.getBaroData(baro_alt, pressure);
-float tof_bottom, tof_front;
-s.getToFData(tof_bottom, tof_front);
-auto att = s.getAttitude();     // ESKF roll,pitch,yaw
-float alt = ws::estimated_altitude();
-
-// Teleplot output (>name:value format)
-ws::print(">baro_alt:%.2f", baro_alt);
-ws::print(">tof_bottom:%.3f", tof_bottom);
-ws::print(">eskf_alt:%.2f", alt);
-ws::print(">eskf_roll:%.1f", att.x * 57.3f);
-  \end{lstlisting}
-
-  {\footnotesize 気圧高度 vs ToF vs ESKF 推定高度の比較で、センサ融合の効果を観察}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}[fragile]{実習: 全センサ読み取り / Hands-on}
+\begin{frame}[fragile]{実習: 全センサ Teleplot 出力 / Hands-on}
   \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
 #include "workshop_api.hpp"
-#include "stampfly_state.hpp"
-void setup() { ws::print("Lesson 10: API Reference"); }
+void setup() { ws::print("Lesson 10: Sensor API"); }
 void loop_400Hz(float dt) {
     static uint32_t tick = 0; tick++;
     if (tick % 8 != 0) return;  // 50 Hz decimation
-    // ws:: API for ESKF estimation
-    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
+    // Environmental sensors (ws:: API)
+    ws::print(">baro_alt:%.2f", ws::baro_altitude());
+    ws::print(">mag_x:%.1f", ws::mag_x());
+    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
+    ws::print(">flow_vx:%.3f", ws::flow_vx());
+    // ESKF estimation
     ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
-    // StampFlyState for raw sensor data
-    auto& s = StampFlyState::getInstance();
-    float baro_alt, pressure;
-    s.getBaroData(baro_alt, pressure);
-    ws::print(">baro_alt:%.2f", baro_alt);
+    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
 }
   \end{lstlisting}
+
+  \vspace{0.2em}
+  {\footnotesize
+    \textbf{Teleplot:} VS Code 拡張で \texttt{>name:value} 形式をリアルタイムグラフ表示。\\
+    \api{sf monitor} でシリアル接続し、Teleplot パネルを開く。
+  }
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}{チェックポイント / Checkpoint}
   \begin{alertblock}{確認事項}
     \begin{itemize}
-      \item[$\square$] ws:: API 全 33 関数のカテゴリと役割を把握した
-      \item[$\square$] Motor / RC / IMU / Estimation の使い方を理解した
-      \item[$\square$] StampFlyState で全センサ生値を取得できた
+      \item[$\square$] ws:: API 全 43 関数のカテゴリと役割を把握した
+      \item[$\square$] Motor / RC / IMU / Sensor / Estimation の使い方を理解した
+      \item[$\square$] 気圧・磁気・ToF・光学フロー API で値を取得できた
       \item[$\square$] Teleplot で複数センサのグラフを同時表示した
-      \item[$\square$] \api{sf app new} でカスタムプロジェクトを作成できた
     \end{itemize}
   \end{alertblock}
 
   \vspace{0.5em}
 
   \begin{block}{次のレッスン}
-    Lesson 11: Python SDK プログラム飛行
+    Lesson 11: 独自ファームウェア開発
   \end{block}
 \end{frame}
 
