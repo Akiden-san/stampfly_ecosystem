@@ -44,12 +44,12 @@
     -- node[lbl, below, text=wscolor] {WebSocket (port 81)} ($(sf.south)+(0, -1.2)$)
     -- (sf.south);
 
-  % Labels for connections
-  \node[font=\scriptsize, blockcolor, right=2mm] at (pc.north) {commands};
-  \node[font=\scriptsize, wscolor, right=2mm] at (pc.south) {telemetry 400\,Hz};
+  % Labels on the horizontal segments of the paths
+  \node[font=\scriptsize, blockcolor, below left] at ($(sf.north)+(0, 1.2)$) {commands};
+  \node[font=\scriptsize, wscolor, above left] at ($(sf.south)+(0, -1.2)$) {telemetry 400\,Hz};
 
-  % Internal labels
-  \node[font=\scriptsize, arrowcolor, right=2mm] at (sf.south) {sensors / motors};
+  % Internal label
+  \node[font=\scriptsize, arrowcolor, below=3mm] at (sf.south east) {sensors / motors};
 
 \end{tikzpicture}
 \end{document}
