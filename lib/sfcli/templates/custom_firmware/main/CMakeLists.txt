@@ -1,17 +1,14 @@
 # Custom firmware main component
-# Reuses workshop infrastructure and vehicle sensor/peripheral tasks
+# Reuses vehicle sensor/peripheral tasks and initialization
+# vehicle のセンサ・周辺機器タスクと初期化を再利用
 
-set(WORKSHOP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../workshop/main")
 set(VEHICLE_TASKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../vehicle/main/tasks")
 set(VEHICLE_MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../vehicle/main")
 
 idf_component_register(
     SRCS
         "main.cpp"
-        "${WORKSHOP_DIR}/workshop_main.cpp"
-        "${WORKSHOP_DIR}/workshop_globals.cpp"
-        "${WORKSHOP_DIR}/workshop_task.cpp"
-        "${WORKSHOP_DIR}/workshop_api.cpp"
+        "${VEHICLE_MAIN_DIR}/globals.cpp"
         "${VEHICLE_TASKS_DIR}/imu_task.cpp"
         "${VEHICLE_TASKS_DIR}/optflow_task.cpp"
         "${VEHICLE_TASKS_DIR}/mag_task.cpp"
@@ -26,7 +23,6 @@ idf_component_register(
         "${VEHICLE_MAIN_DIR}/init.cpp"
     INCLUDE_DIRS
         "."
-        "${WORKSHOP_DIR}"
         "${VEHICLE_MAIN_DIR}"
         "${VEHICLE_MAIN_DIR}/tasks"
     REQUIRES
