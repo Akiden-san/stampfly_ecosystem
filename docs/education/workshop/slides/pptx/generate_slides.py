@@ -1455,8 +1455,8 @@ void loop_400Hz(float dt) {
         "",
         "セットアップ:",
         "1. VSCode 拡張: alexnesnes.teleplot をインストール",
-        "2. sf monitor でシリアル接続",
-        "3. Teleplot パネルで自動グラフ化",
+        "2. Teleplot パネルでシリアルポートを選択",
+        "3. 自動でグラフ化される",
         "",
         "注意: 400Hz 全 tick で出力するとシリアル帯域に負荷。4 tick 毎（100Hz）にデシメーション推奨",
     ])
@@ -1600,7 +1600,7 @@ def build_lesson_10() -> Presentation:
         'ws::print(">eskf_alt:%.2f", ws::estimated_altitude());',
         "",
         "セットアップ: VSCode 拡張 alexnesnes.teleplot をインストール",
-        "→ sf monitor でシリアル接続 → Teleplot パネルで自動グラフ化",
+        "→ Teleplot パネルでシリアルポートを選択 → 自動グラフ化",
     ])
 
     add_code_slide(prs, "実習: 全センサ Teleplot 出力", """
