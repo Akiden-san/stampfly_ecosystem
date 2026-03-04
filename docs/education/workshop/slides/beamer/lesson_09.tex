@@ -112,9 +112,9 @@
 \begin{frame}{加速度からのオイラー角算出 (1) --- 座標変換}
   \framesubtitle{Euler Angles from Accelerometer --- Gravity Decomposition}
 
-  \begin{block}{静止時、加速度センサは重力加速度のみを測定する}
+  \begin{block}{静止時、加速度センサは重力の\textbf{反力}を測定する}
     {\small
-    世界座標の重力 $[0,\,0,\,g]^T$ を ZYX 回転行列の転置 $\mathbf{R}^T$ でボディ座標に変換:
+    NED 座標系の重力 $[0,\,0,\,g]^T$ に対し、センサ出力は $\mathbf{R}^T\,[0,\,0,\,-g]^T$:
     }
   \end{block}
 
@@ -122,11 +122,11 @@
   \[
   \begin{bmatrix} a_x \\ a_y \\ a_z \end{bmatrix}
   = \mathbf{R}^T
-  \begin{bmatrix} 0 \\ 0 \\ g \end{bmatrix}
+  \begin{bmatrix} 0 \\ 0 \\ -g \end{bmatrix}
   = \begin{bmatrix}
-    -g\sin\theta \\
-    g\sin\phi\cos\theta \\
-    g\cos\phi\cos\theta
+    g\sin\theta \\
+    -g\sin\phi\cos\theta \\
+    -g\cos\phi\cos\theta
   \end{bmatrix}
   \]
   }
@@ -154,19 +154,19 @@
 \begin{frame}{加速度からのオイラー角算出 (2) --- Roll と Pitch の導出}
   \framesubtitle{Euler Angles from Accelerometer --- Solving for $\phi$ and $\theta$}
 
-  \begin{block}{Roll $\phi$ の算出: $a_y$ と $a_z$ の比}
+  \begin{block}{Roll $\phi$ の算出: $(-a_y)$ と $(-a_z)$ の比}
     {\small
-    $a_y / a_z$ をとると $\cos\theta$ が約分され $\theta$ が消える:
+    $(-a_y)/(-a_z)$ をとると $g\cos\theta$ が約分され $\theta$ が消える:
     }
     \vspace{-0.5em}
     {\footnotesize
     \[
-    \frac{a_y}{a_z}
+    \frac{-a_y}{-a_z}
     = \frac{g\sin\phi\cos\theta}{g\cos\phi\cos\theta}
     = \frac{\sin\phi}{\cos\phi}
     = \tan\phi
     \qquad\Longrightarrow\qquad
-    \boxed{\;\phi = \mathrm{atan2}(a_y,\; a_z)\;}
+    \boxed{\;\phi = \mathrm{atan2}(-a_y,\; -a_z)\;}
     \]
     }
   \end{block}
@@ -180,11 +180,11 @@
     \vspace{-0.5em}
     {\footnotesize
     \[
-    \frac{-a_x}{\sqrt{a_y^2 + a_z^2}}
+    \frac{a_x}{\sqrt{a_y^2 + a_z^2}}
     = \frac{g\sin\theta}{g\cos\theta}
     = \tan\theta
     \qquad\Longrightarrow\qquad
-    \boxed{\;\theta = \mathrm{atan2}\!\bigl(-a_x,\;\sqrt{a_y^2 + a_z^2}\bigr)\;}
+    \boxed{\;\theta = \mathrm{atan2}\!\bigl(a_x,\;\sqrt{a_y^2 + a_z^2}\bigr)\;}
     \]
     }
   \end{block}

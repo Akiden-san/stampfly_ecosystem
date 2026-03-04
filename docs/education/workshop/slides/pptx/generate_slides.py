@@ -1410,10 +1410,10 @@ def build_lesson_09() -> Presentation:
     ])
 
     add_content_slide(prs, "加速度からのオイラー角算出 (1) — 座標変換", [
-        "静止時、加速度センサは重力加速度のみを測定する",
-        "世界座標の重力 [0, 0, g]ᵀ を ZYX 回転行列の転置 Rᵀ でボディ座標に変換:",
+        "静止時、加速度センサは重力の反力を測定する",
+        "NED 座標系の重力 [0, 0, g]ᵀ に対し、センサ出力は Rᵀ [0, 0, -g]ᵀ:",
         "",
-        "[ax, ay, az]ᵀ = Rᵀ [0, 0, g]ᵀ = [-g sinθ, g sinφ cosθ, g cosφ cosθ]ᵀ",
+        "[ax, ay, az]ᵀ = Rᵀ [0, 0, -g]ᵀ = [g sinθ, -g sinφ cosθ, -g cosφ cosθ]ᵀ",
         "",
         "• ax はピッチ角 θ のみに依存（φ を含まない）",
         "• ay と az はロール角 φ とピッチ角 θ の両方に依存",
@@ -1423,13 +1423,13 @@ def build_lesson_09() -> Presentation:
     ])
 
     add_content_slide(prs, "加速度からのオイラー角算出 (2) — Roll と Pitch の導出", [
-        "【Roll φ】ay/az をとると cosθ が約分され θ が消える:",
-        "ay/az = (g sinφ cosθ)/(g cosφ cosθ) = sinφ/cosφ = tanφ",
-        "→ φ = atan2(ay, az)",
+        "【Roll φ】(-ay)/(-az) をとると g cosθ が約分され θ が消える:",
+        "(-ay)/(-az) = (g sinφ cosθ)/(g cosφ cosθ) = sinφ/cosφ = tanφ",
+        "→ φ = atan2(-ay, -az)",
         "",
         "【Pitch θ】ay²+az² = g² cos²θ (sin²φ+cos²φ) = g² cos²θ より:",
-        "-ax / √(ay²+az²) = g sinθ / g cosθ = tanθ",
-        "→ θ = atan2(-ax, √(ay²+az²))",
+        "ax / √(ay²+az²) = g sinθ / g cosθ = tanθ",
+        "→ θ = atan2(ax, √(ay²+az²))",
         "",
         "Yaw ψ: 加速度のみでは算出不可（磁気センサが必要）",
         "長所: ドリフトなし  短所: 振動ノイズ大",
