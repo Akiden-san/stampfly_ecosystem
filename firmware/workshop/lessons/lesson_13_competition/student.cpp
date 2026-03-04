@@ -1,8 +1,8 @@
 #include "workshop_api.hpp"
 
 // =========================================================================
-// Lesson 12: Precision Landing Competition
-// レッスン 12: 精密着陸競技
+// Lesson 13: Precision Landing Competition
+// レッスン 13: 精密着陸競技
 // =========================================================================
 //
 // Goal: Optimize your rate PID gains for precision landing.
@@ -56,7 +56,7 @@ static float clamp(float val, float lim)
 
 void setup()
 {
-    ws::print("Lesson 12: Precision Landing Competition");
+    ws::print("Lesson 13: Precision Landing Competition");
     ws::print("Tune your PID gains for precision landing!");
     // ゲインを調整して、精密着陸を目指そう！
 

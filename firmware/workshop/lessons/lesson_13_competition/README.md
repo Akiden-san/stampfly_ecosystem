@@ -1,4 +1,4 @@
-# Lesson 12: Precision Landing Competition
+# Lesson 13: Precision Landing Competition
 
 ## Goal / 目標
 Optimize your controller for precise 3m landing on a helipad.
@@ -102,7 +102,7 @@ d_filtered = 0.8f * d_filtered + 0.2f * d_raw;  // alpha = 0.8
 
 ## Steps / 手順
 
-1. `sf lesson switch 12`
+1. `sf lesson switch 13`
 2. Build and test the default PID controller / デフォルトPIDをビルドしてテスト
 3. Practice takeoff and landing / 離着陸を練習
 4. Tune gains: P → D → I / ゲイン調整: P → D → I の順
