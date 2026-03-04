@@ -1535,14 +1535,28 @@ def build_lesson_10() -> Presentation:
         ],
     )
 
-    add_table_slide(prs, "StampFlyState: 全センサアクセス",
-        ["メソッド", "センサ", "取得データ"],
+    add_table_slide(prs, "推定値 API / Estimation API",
+        ["関数", "説明", "単位"],
+        [
+            ["estimated_roll()", "ESKF ロール推定角", "rad"],
+            ["estimated_pitch()", "ESKF ピッチ推定角", "rad"],
+            ["estimated_yaw()", "ESKF ヨー推定角", "rad"],
+            ["estimated_altitude()", "ESKF 推定高度", "m"],
+        ],
+    )
+
+    add_table_slide(prs, "StampFlyState: 全センサ + 推定値アクセス",
+        ["メソッド", "ソース", "取得データ"],
         [
             ["getBaroData()", "BMP280 気圧", "高度 [m], 気圧 [Pa]"],
             ["getMagData()", "BMM150 磁気", "磁気 x,y,z [uT]"],
             ["getToFData(pos)", "VL53L3CX ToF", "下方/前方距離 [m]"],
             ["getFlowData()", "PMW3901 光学フロー", "速度 vx,vy [m/s]"],
             ["getPowerData()", "電源", "電圧 [V], 電流 [A]"],
+            ["getAttitude()", "ESKF 推定", "roll, pitch, yaw [rad]"],
+            ["getPosition()", "ESKF 推定", "x, y, z [m]"],
+            ["getVelocity()", "ESKF 推定", "vx, vy, vz [m/s]"],
+            ["getAltitude()", "ESKF 推定", "高度 [m]"],
         ],
     )
 
@@ -1590,12 +1604,12 @@ def build_lesson_10() -> Presentation:
         "",
         "printf(\">baro_alt:%.2f\\n\", baro.altitude);",
         "printf(\">tof_bottom:%.3f\\n\", tof.distance);",
-        "printf(\">eskf_alt:%.2f\\n\", att.z);",
+        "printf(\">eskf_alt:%.2f\\n\", s.getAltitude());",
+        "printf(\">eskf_roll:%.1f\\n\", att.x * 57.3f);",
         "printf(\">mag_x:%.1f\\n\", mag.x);",
-        "printf(\">flow_vx:%.3f\\n\", flow.vx);",
         "",
-        "複数センサの同時グラフ化で",
-        "気圧高度 vs ToF vs ESKF 推定高度の比較が可能",
+        "気圧高度 vs ToF vs ESKF 推定高度の比較、",
+        "センサ生値と推定値の違いを観察",
     ])
 
     add_code_slide(prs, "実習: 全センサ読み取り", """
@@ -1605,15 +1619,15 @@ void setup() { ws::print("Lesson 10: API Overview"); }
 void loop_400Hz(float dt) {
     static uint32_t tick = 0; tick++;
     if (tick % 8 != 0) return;  // 50 Hz
+    // ws:: API for ESKF estimation
+    ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
+    ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
+    // StampFlyState for raw sensor data
     auto& s = StampFlyState::getInstance();
     auto baro = s.getBaroData();
-    auto tof  = s.getToFData(ToFPosition::BOTTOM);
-    auto mag  = s.getMagData();
-    // Teleplot output
     ws::print(">baro_alt:%.2f", baro.altitude);
+    auto tof = s.getToFData(ToFPosition::BOTTOM);
     ws::print(">tof_bottom:%.3f", tof.distance);
-    float heading = atan2f(-mag.y, mag.x) * 57.3f;
-    ws::print(">heading:%.1f", heading);
 }
 """)
 

@@ -17,8 +17,8 @@ ws:: API の全体像を理解し、StampFlyState で全センサにアクセス
 | `ws::battery_voltage()` | Battery voltage | V |
 | `ws::print(fmt, ...)` | Serial print (Teleplot compatible) | - |
 
-### StampFlyState (Direct sensor access)
-| Method | Sensor | Data |
+### StampFlyState (Direct sensor + estimation access)
+| Method | Source | Data |
 |--------|--------|------|
 | `getBaroData()` | BMP280 Barometer | altitude [m], pressure [Pa] |
 | `getMagData()` | BMM150 Magnetometer | x, y, z [uT] |
@@ -26,6 +26,10 @@ ws:: API の全体像を理解し、StampFlyState で全センサにアクセス
 | `getFlowData()` | PMW3901 Optical Flow | vx, vy [m/s] |
 | `getFlowRawData()` | PMW3901 Raw | delta_x, delta_y, squal |
 | `getPowerData()` | Power monitor | voltage [V], current [A] |
+| `getAttitude()` | ESKF estimation | roll, pitch, yaw [rad] |
+| `getPosition()` | ESKF estimation | x, y, z [m] |
+| `getVelocity()` | ESKF estimation | vx, vy, vz [m/s] |
+| `getAltitude()` | ESKF estimation | altitude [m] |
 
 ## Hardware Sensors / ハードウェアセンサ
 

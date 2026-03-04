@@ -37,8 +37,9 @@ void loop_400Hz(float dt)
     // auto tof = state.getToFData(ToFPosition::BOTTOM);
     // ws::print(">tof_bottom:%.3f", tof.distance);
 
-    // TODO: Compare barometric altitude with ws::estimated_altitude()
-    // TODO: 気圧高度とws::estimated_altitude()を比較
+    // TODO: Get ESKF estimation values (roll/pitch/yaw/altitude)
+    // TODO: ESKF推定値を取得（ロール/ピッチ/ヨー/高度）
+    // ws::print(">eskf_roll:%.1f", ws::estimated_roll() * 57.3f);
     // ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
 
     // TODO: Get magnetic data and compute heading

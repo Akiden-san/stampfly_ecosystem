@@ -37,8 +37,10 @@ void loop_400Hz(float dt)
     ws::print(">tof_bottom:%.3f", tof_bottom.distance);
     ws::print(">tof_front:%.3f", tof_front.distance);
 
-    // ESKF estimated altitude for comparison
-    // 比較用のESKF推定高度
+    // ESKF estimation values (ws:: API) / ESKF推定値（ws:: API）
+    ws::print(">eskf_roll:%.1f", ws::estimated_roll() * 57.3f);
+    ws::print(">eskf_pitch:%.1f", ws::estimated_pitch() * 57.3f);
+    ws::print(">eskf_yaw:%.1f", ws::estimated_yaw() * 57.3f);
     ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
 
     // Magnetic data and heading / 磁気データと方位角
