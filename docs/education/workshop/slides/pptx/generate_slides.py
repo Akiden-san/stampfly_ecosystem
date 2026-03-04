@@ -1636,93 +1636,90 @@ def build_lesson_11() -> Presentation:
                     "Custom Firmware Development")
 
     add_content_slide(prs, "今日のゴール / Today's Goal", [
-        "sf app new で独自プロジェクトを作り、StampFlyState で全センサにアクセスする",
+        "sf app new で独自プロジェクトを作り、ネイティブ API で全センサにアクセスする",
         "",
-        "• StampFly エコシステムの全体像を理解",
-        "• sf app new でカスタムファームウェアプロジェクトを生成",
-        "• プロジェクト構成（CMakeLists.txt, main.cpp）を把握",
-        "• StampFlyState で全センサに直接アクセスし Teleplot で可視化",
+        "• sf app new で独自ファームウェアプロジェクトを作成",
+        "• テンプレートの構造（app_main, ControlTask）を理解",
+        "• StampFlyState で全センサ・推定値に直接アクセス",
+        "• Teleplot でセンサデータをリアルタイム可視化",
     ])
 
-    add_content_slide(prs, "エコシステム概要 / Ecosystem Overview", [
-        "【開発ツール】",
-        "• sf build / flash / monitor",
-        "• sf cal gyro/accel/mag",
-        "• sf log wifi / capture / viz",
-        "• sf sim list / run",
+    add_content_slide(prs, "ワークショップ → ネイティブ開発", [
+        "【ws:: ワークショップ】",
+        "• ws::gyro_x(), ws::alt()",
+        "• ws::print(\">tag:%.2f\", v)",
+        "• setup() / loop_400Hz(dt)",
+        "• 1 関数 = 1 センサ値",
         "",
-        "【解析・応用】",
-        "• Python SDK（開発中）",
-        "• Jupyter Notebooks",
-        "• Genesis シミュレータ",
-        "• フライトログ解析",
+        "【ネイティブ開発】",
+        "• state.getIMUData(a, g)",
+        "• printf(\">tag:%.2f\\n\", v)",
+        "• app_main() / ControlTask()",
+        "• 構造体で複数値を一括取得",
+        "",
+        "ネイティブ = vehicle ファームウェアと同じ構成。あらゆるアルゴリズムを実装可能。",
     ])
 
-    add_content_slide(prs, "独自ファーム作成: sf app new", [
-        "sf app new でカスタムプロジェクトを生成",
-        "vehicle のコンポーネントを再利用しつつ、独自の main.cpp を記述",
+    add_content_slide(prs, "sf app new でプロジェクト作成", [
+        "vehicle と同じ環境を独自プロジェクトとして生成",
         "",
-        "# sf app new my_drone",
-        "#  → firmware/my_drone/ が生成される",
-        "# sf build my_drone",
-        "# sf flash my_drone -m",
+        "# sf app new my_drone    → firmware/my_drone/ が生成",
+        "# sf build my_drone      → ビルド",
+        "# sf flash my_drone -m   → 書き込み + モニタ",
         "",
-        "仕組み: EXTRA_COMPONENT_DIRS で vehicle/components と common を参照",
-        "IMU, 気圧, ToF, 光学フロー, モーター等すべてのコンポーネントが使える",
+        "【テンプレートの特徴】",
+        "• vehicle と同じセンサタスク・初期化コードを再利用",
+        "• ControlTask() のみを独自実装",
+        "• IMU, 気圧, ToF, 光学フロー, モーター等すべて利用可能",
     ])
 
-    add_content_slide(prs, "プロジェクト構成 / Project Structure", [
-        "firmware/my_drone/",
-        "  CMakeLists.txt          # EXTRA_COMPONENT_DIRS 設定",
-        "  main/",
-        "    CMakeLists.txt        # main コンポーネント定義",
-        "    main.cpp              # setup() + loop_400Hz() を実装",
-        "    workshop_api.hpp -> .. # ws:: API ヘッダ（シンボリックリンク）",
+    add_content_slide(prs, "main.cpp の構造", [
+        "【app_main() — ブートシーケンス】",
+        "NVS → センサ初期化 → ESKF 起動 → タスク起動（自動生成済み）",
         "",
-        "【CMakeLists.txt】",
-        "vehicle/components と common を EXTRA_COMPONENT_DIRS で参照",
+        "【ControlTask() — 400 Hz ユーザーコード ← ここを編集】",
+        "センサ読み取り・制御計算・モーター出力を記述するメインループ",
         "",
-        "【main.cpp】",
-        "setup() と loop_400Hz(dt) を実装するだけで全機能が使える",
+        "【コールバック関数】",
+        "• onButtonEvent() — ボタン押下で ARM / DISARM",
+        "• handleControlInput() — コントローラからの操縦入力を処理",
     ])
 
-    add_table_slide(prs, "StampFlyState: 全センサ + 推定値アクセス",
+    add_table_slide(prs, "StampFlyState API",
         ["メソッド", "ソース", "取得データ"],
         [
-            ["getIMUData(a, g)", "BMI270 IMU", "加速度 + ジャイロ生値"],
-            ["getIMUCorrected(a, g)", "バイアス補正", "バイアス除去済み IMU"],
-            ["getBaroData(alt, p)", "BMP280 気圧", "高度 [m], 気圧 [Pa]"],
-            ["getMagData(mag)", "BMM150 磁気", "磁気 x,y,z [uT]"],
-            ["getToFData(b, f)", "VL53L3CX ToF", "下方/前方距離 [m]"],
-            ["getFlowData(vx, vy)", "PMW3901 フロー", "速度 vx,vy [m/s]"],
-            ["getAttitude()", "ESKF 推定", "roll, pitch, yaw [rad]"],
-            ["getPosition()", "ESKF 推定", "x, y, z [m]"],
-            ["getVelocity()", "ESKF 推定", "vx, vy, vz [m/s]"],
+            ["getIMUData(a, g)", "BMI270", "加速度 + ジャイロ"],
+            ["getBaroData(alt, p)", "BMP280", "高度 [m], 気圧 [Pa]"],
+            ["getMagData(mag)", "BMM150", "磁気 x,y,z [uT]"],
+            ["getToFData(b, f)", "VL53L3CX", "下方/前方距離 [m]"],
+            ["getFlowData(vx, vy)", "PMW3901", "速度 vx,vy [m/s]"],
+            ["getAttitudeEuler(r, p, y)", "ESKF", "roll, pitch, yaw [rad]"],
+            ["getPowerData(v, i)", "INA3221", "電圧 [V], 電流 [A]"],
         ],
     )
 
-    add_code_slide(prs, "実習: StampFlyState で全センサ取得", """
-#include "workshop_api.hpp"
-#include "stampfly_state.hpp"
+    add_code_slide(prs, "実習: 全センサ Teleplot 可視化", """
 auto& state = stampfly::StampFlyState::getInstance();
-void setup() { ws::print("L11: StampFlyState"); }
-void loop_400Hz(float dt) {
-    static uint32_t tick = 0; tick++;
-    if (tick % 8 != 0) return;  // 50 Hz
-    float alt, p; state.getBaroData(alt, p);
-    float bot, fnt; state.getToFData(bot, fnt);
-    ws::print(">baro_alt:%.2f", alt);
-    ws::print(">baro_pa:%.0f", p);
-    ws::print(">tof_bot:%.3f", bot);
+stampfly::Vec3 accel, gyro;
+state.getIMUData(accel, gyro);
+float alt, p;
+state.getBaroData(alt, p);
+float roll, pitch, yaw;
+state.getAttitudeEuler(roll, pitch, yaw);
+
+static uint32_t tick = 0; tick++;
+if (tick % 8 == 0) {  // 50 Hz
+    printf(">baro_alt:%.2f\\n", alt);
+    printf(">roll_deg:%.1f\\n", roll * 57.3f);
+    printf(">gyro_x:%.3f\\n", gyro.x);
 }
 """)
 
     add_checkpoint_slide(prs, [
-        "StampFly エコシステムの構成を理解した",
-        "sf app new でカスタムプロジェクトを作成できた",
-        "プロジェクト構成（CMakeLists.txt の役割）を把握した",
+        "sf app new でプロジェクトを作成しビルドできた",
+        "app_main() と ControlTask() の役割を理解した",
         "StampFlyState で全センサ値を直接取得できた",
-        "Teleplot で StampFlyState の値を可視化した",
+        "Teleplot でリアルタイムグラフを確認した",
     ], "Lesson 12: Python SDK プログラム飛行")
 
     return prs
