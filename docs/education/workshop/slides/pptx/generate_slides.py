@@ -1525,10 +1525,11 @@ def build_lesson_10() -> Presentation:
                     "ws:: API Reference")
 
     add_content_slide(prs, "今日のゴール / Today's Goal", [
-        "ws:: API の全 43 関数を把握し、全センサにアクセスする",
+        "ws:: API 全 43 関数をカテゴリ別に理解し、各関数の使い方を把握する",
         "",
-        "• ws:: API のカテゴリ別全関数を把握",
-        "• 環境・距離センサ API（気圧・磁気・ToF・光学フロー）を使用",
+        "• ws:: API 全 43 関数をカテゴリ別に理解",
+        "• 各 API の使い方をコード例で確認",
+        "• 環境・距離センサ API で全センサに直接アクセス",
         "• StampFlyState による上級アクセスを知る",
     ])
 
@@ -1553,21 +1554,6 @@ def build_lesson_10() -> Presentation:
             ["estimated_pitch()", "ESKF ピッチ推定角", "rad"],
             ["estimated_yaw()", "ESKF ヨー推定角", "rad"],
             ["estimated_altitude()", "ESKF 推定高度", "m"],
-        ],
-    )
-
-    add_table_slide(prs, "StampFlyState: 全センサ + 推定値アクセス",
-        ["メソッド", "ソース", "取得データ"],
-        [
-            ["getBaroData()", "BMP280 気圧", "高度 [m], 気圧 [Pa]"],
-            ["getMagData()", "BMM150 磁気", "磁気 x,y,z [uT]"],
-            ["getToFData(pos)", "VL53L3CX ToF", "下方/前方距離 [m]"],
-            ["getFlowData()", "PMW3901 光学フロー", "速度 vx,vy [m/s]"],
-            ["getPowerData()", "電源", "電圧 [V], 電流 [A]"],
-            ["getAttitude()", "ESKF 推定", "roll, pitch, yaw [rad]"],
-            ["getPosition()", "ESKF 推定", "x, y, z [m]"],
-            ["getVelocity()", "ESKF 推定", "vx, vy, vz [m/s]"],
-            ["getAltitude()", "ESKF 推定", "高度 [m]"],
         ],
     )
 
@@ -1605,6 +1591,18 @@ def build_lesson_10() -> Presentation:
         ],
     )
 
+    add_content_slide(prs, "Teleplot: リアルタイムグラフ化", [
+        "Teleplot 形式 (>name:value) でシリアル出力すると、",
+        "VS Code 拡張 Teleplot がリアルタイムグラフを描画する",
+        "",
+        'ws::print(">baro_alt:%.2f", ws::baro_altitude());',
+        'ws::print(">tof_bottom:%.3f", ws::tof_bottom());',
+        'ws::print(">eskf_alt:%.2f", ws::estimated_altitude());',
+        "",
+        "セットアップ: VSCode 拡張 alexnesnes.teleplot をインストール",
+        "→ sf monitor でシリアル接続 → Teleplot パネルで自動グラフ化",
+    ])
+
     add_code_slide(prs, "実習: 全センサ Teleplot 出力", """
 #include "workshop_api.hpp"
 void setup() { ws::print("Lesson 10: Sensor API"); }
@@ -1624,6 +1622,7 @@ void loop_400Hz(float dt) {
 
     add_checkpoint_slide(prs, [
         "ws:: API 全 43 関数のカテゴリと役割を把握した",
+        "Motor / RC / IMU / Sensor / Estimation の使い方を理解した",
         "気圧・磁気・ToF・光学フロー API で値を取得できた",
         "Teleplot で複数センサのグラフを同時表示した",
     ], "Lesson 11: 独自ファームウェア開発")
@@ -1638,12 +1637,12 @@ def build_lesson_11() -> Presentation:
                     "Custom Firmware Development")
 
     add_content_slide(prs, "今日のゴール / Today's Goal", [
-        "sf app new で独自プロジェクトを作り、全センサを Teleplot で可視化する",
+        "sf app new で独自プロジェクトを作り、StampFlyState で全センサにアクセスする",
         "",
         "• StampFly エコシステムの全体像を理解",
         "• sf app new でカスタムファームウェアプロジェクトを生成",
         "• プロジェクト構成（CMakeLists.txt, main.cpp）を把握",
-        "• Teleplot で全センサデータをリアルタイム可視化",
+        "• StampFlyState で全センサに直接アクセスし Teleplot で可視化",
     ])
 
     add_content_slide(prs, "エコシステム概要 / Ecosystem Overview", [
@@ -1673,41 +1672,58 @@ def build_lesson_11() -> Presentation:
         "IMU, 気圧, ToF, 光学フロー, モーター等すべてのコンポーネントが使える",
     ])
 
-    add_content_slide(prs, "Teleplot によるセンサ可視化", [
-        "Teleplot 形式 (>name:value) でシリアル出力すると、",
-        "VS Code 拡張 Teleplot がリアルタイムグラフを描画する",
+    add_content_slide(prs, "プロジェクト構成 / Project Structure", [
+        "firmware/my_drone/",
+        "  CMakeLists.txt          # EXTRA_COMPONENT_DIRS 設定",
+        "  main/",
+        "    CMakeLists.txt        # main コンポーネント定義",
+        "    main.cpp              # setup() + loop_400Hz() を実装",
+        "    workshop_api.hpp -> .. # ws:: API ヘッダ（シンボリックリンク）",
         "",
-        'ws::print(">baro_alt:%.2f", ws::baro_altitude());',
-        'ws::print(">tof_bottom:%.3f", ws::tof_bottom());',
-        'ws::print(">eskf_alt:%.2f", ws::estimated_altitude());',
+        "【CMakeLists.txt】",
+        "vehicle/components と common を EXTRA_COMPONENT_DIRS で参照",
         "",
-        "気圧高度 vs ToF vs ESKF 推定高度の比較で、",
-        "センサ融合の効果を観察",
+        "【main.cpp】",
+        "setup() と loop_400Hz(dt) を実装するだけで全機能が使える",
     ])
 
-    add_code_slide(prs, "実習: 全センサ可視化ファーム", """
+    add_table_slide(prs, "StampFlyState: 全センサ + 推定値アクセス",
+        ["メソッド", "ソース", "取得データ"],
+        [
+            ["getIMUData(a, g)", "BMI270 IMU", "加速度 + ジャイロ生値"],
+            ["getIMUCorrected(a, g)", "バイアス補正", "バイアス除去済み IMU"],
+            ["getBaroData(alt, p)", "BMP280 気圧", "高度 [m], 気圧 [Pa]"],
+            ["getMagData(mag)", "BMM150 磁気", "磁気 x,y,z [uT]"],
+            ["getToFData(b, f)", "VL53L3CX ToF", "下方/前方距離 [m]"],
+            ["getFlowData(vx, vy)", "PMW3901 フロー", "速度 vx,vy [m/s]"],
+            ["getAttitude()", "ESKF 推定", "roll, pitch, yaw [rad]"],
+            ["getPosition()", "ESKF 推定", "x, y, z [m]"],
+            ["getVelocity()", "ESKF 推定", "vx, vy, vz [m/s]"],
+        ],
+    )
+
+    add_code_slide(prs, "実習: StampFlyState で全センサ取得", """
 #include "workshop_api.hpp"
-void setup() { ws::print("Lesson 11: Custom Firmware"); }
+#include "stampfly_state.hpp"
+auto& state = stampfly::StampFlyState::getInstance();
+void setup() { ws::print("L11: StampFlyState"); }
 void loop_400Hz(float dt) {
     static uint32_t tick = 0; tick++;
     if (tick % 8 != 0) return;  // 50 Hz
-    // IMU
-    ws::print(">gyro_x:%.3f", ws::gyro_x());
-    ws::print(">accel_z:%.2f", ws::accel_z());
-    // Environmental sensors
-    ws::print(">baro_alt:%.2f", ws::baro_altitude());
-    ws::print(">mag_x:%.1f", ws::mag_x());
-    ws::print(">tof_bottom:%.3f", ws::tof_bottom());
-    ws::print(">flow_vx:%.3f", ws::flow_vx());
-    // ESKF estimation
-    ws::print(">eskf_alt:%.2f", ws::estimated_altitude());
+    float alt, p; state.getBaroData(alt, p);
+    float bot, fnt; state.getToFData(bot, fnt);
+    ws::print(">baro_alt:%.2f", alt);
+    ws::print(">baro_pa:%.0f", p);
+    ws::print(">tof_bot:%.3f", bot);
 }
 """)
 
     add_checkpoint_slide(prs, [
+        "StampFly エコシステムの構成を理解した",
         "sf app new でカスタムプロジェクトを作成できた",
-        "ws:: API で全センサ値を Teleplot 出力できた",
-        "Teleplot で複数センサのグラフを同時表示した",
+        "プロジェクト構成（CMakeLists.txt の役割）を把握した",
+        "StampFlyState で全センサ値を直接取得できた",
+        "Teleplot で StampFlyState の値を可視化した",
     ], "Lesson 12: Python SDK プログラム飛行")
 
     return prs
