@@ -331,8 +331,9 @@ void handleControlInput(uint16_t throttle, uint16_t roll, uint16_t pitch,
                 g_buzzer.armTone();
                 ESP_LOGI(TAG, "Motors ARMED (from controller)");
             }
-        } else if (flight_state == stampfly::FlightState::ARMED) {
-            // ARMED → DISARM
+        } else if (flight_state == stampfly::FlightState::ARMED ||
+                   flight_state == stampfly::FlightState::FLYING) {
+            // ARMED/FLYING → DISARM
             if (state.requestDisarm()) {
                 g_motor.saveStatsToNVS();  // モーター統計保存
                 g_motor.disarm();  // Disable motor driver and stop motors

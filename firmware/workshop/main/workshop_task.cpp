@@ -39,7 +39,8 @@ void handleControlInput(uint16_t throttle, uint16_t roll, uint16_t pitch,
                 g_buzzer.armTone();
                 ESP_LOGI(TAG, "Motors ARMED");
             }
-        } else if (flight_state == stampfly::FlightState::ARMED) {
+        } else if (flight_state == stampfly::FlightState::ARMED ||
+                   flight_state == stampfly::FlightState::FLYING) {
             if (state.requestDisarm()) {
                 g_motor.saveStatsToNVS();
                 g_motor.disarm();
@@ -85,16 +86,9 @@ void ControlTask(void* pvParameters)
         auto& state = stampfly::StampFlyState::getInstance();
         stampfly::FlightState flight_state = state.getFlightState();
 
-        // Only call user loop when armed OR when LED task disabled (safety)
-        // ARM状態、または LED タスク無効時のみユーザーループを呼ぶ
-        if (flight_state == stampfly::FlightState::ARMED ||
-            flight_state == stampfly::FlightState::FLYING ||
-            ws::is_led_task_disabled()) {
-            loop_400Hz(dt);
-        } else {
-            // Not armed - ensure motors are stopped
-            ws::motor_stop_all();
-        }
+        // Always call user loop (allows sensor reading / LED control while disarmed)
+        // 常にユーザーループを呼ぶ（DISARM中もセンサ読取・LED制御を可能にする）
+        loop_400Hz(dt);
 
         // Safety: always stop motors when not armed, regardless of user code
         // 安全対策: ARM状態でない場合は常にモーターを停止
