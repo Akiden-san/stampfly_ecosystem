@@ -1410,6 +1410,16 @@ def build_lesson_09() -> Presentation:
         image_path=IMAGES_DIR / "comp_filter.png",
     )
 
+    add_table_slide(prs, "姿勢推定 API",
+        ["関数", "説明", "単位"],
+        [
+            ["gyro_x/y/z()", "角速度（Roll/Pitch/Yaw）", "rad/s"],
+            ["accel_x/y/z()", "加速度（X/Y/Z）", "m/s²"],
+            ["estimated_roll/pitch/yaw()", "ESKF 推定姿勢角", "rad"],
+            ["print(fmt, ...)", "シリアル出力（Teleplot 対応）", "---"],
+        ],
+    )
+
     add_code_slide(prs, "実習: 相補フィルタ + Teleplot", """
 #include "workshop_api.hpp"
 #include <cmath>
