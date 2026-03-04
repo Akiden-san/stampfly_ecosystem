@@ -28,9 +28,9 @@ void loop_400Hz(float dt)
     float az = ws::accel_z();
 
     // TODO: Compute accelerometer-based angles
-    // 加速度センサからの角度を計算する
-    // Hint: accel_roll  = atan2f(ay, az)
-    //       accel_pitch = atan2f(-ax, az)
+    // 加速度センサからの角度を計算する（反力モデル: 静止時 az ≈ -9.81）
+    // Hint: accel_roll  = atan2f(-ay, -az)
+    //       accel_pitch = atan2f(ax, sqrtf(ay*ay + az*az))
     // float accel_roll  = ???;
     // float accel_pitch = ???;
 

@@ -27,10 +27,10 @@ void loop_400Hz(float dt)
     float ay = ws::accel_y();
     float az = ws::accel_z();
 
-    // Accelerometer-based angles
-    // 加速度センサから角度を計算
-    float accel_roll  = atan2f(ay, az);
-    float accel_pitch = atan2f(-ax, az);
+    // Accelerometer-based angles (reaction force: az ≈ -9.81 when level)
+    // 加速度センサから角度を計算（反力モデル: 静止時 az ≈ -9.81）
+    float accel_roll  = atan2f(-ay, -az);
+    float accel_pitch = atan2f(ax, sqrtf(ay * ay + az * az));
 
     // Complementary filter
     // 相補フィルタ: ジャイロ98% + 加速度2%
