@@ -26,6 +26,122 @@
 \end{frame}
 
 % ------------------------------------------------------------------
+% Frame 3: Euler Angle Representation
+% ------------------------------------------------------------------
+\begin{frame}{姿勢の表現 --- ZYX オイラー角}
+  \framesubtitle{Attitude Representation --- ZYX Euler Angles}
+
+  \begin{block}{オイラー角とは}
+    3次元の姿勢（回転）を 3 つの角度で表現する方法の一つ
+  \end{block}
+
+  \vspace{0.3em}
+
+  {\small
+  \begin{tabular}{lcll}
+    \hline
+    \textbf{記号} & \textbf{名称} & \textbf{回転軸} & \textbf{意味} \\
+    \hline
+    $\phi$   & Roll（ロール）  & $X''$ 軸 & 左右の傾き \\
+    $\theta$ & Pitch（ピッチ） & $Y'$ 軸  & 前後の傾き \\
+    $\psi$   & Yaw（ヨー）     & $Z$ 軸   & 機首方向 \\
+    \hline
+  \end{tabular}
+  }
+
+  \vspace{0.5em}
+
+  \begin{alertblock}{StampFly の規約: ZYX オイラー角}
+    {\small
+    回転順序: $Z$ 軸 $(\psi)$ → $Y'$ 軸 $(\theta)$ → $X''$ 軸 $(\phi)$\\[2pt]
+    航空宇宙分野で標準的な \textbf{Tait--Bryan 角}。ジンバルロック ($\theta = \pm 90°$) に注意。
+    }
+  \end{alertblock}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame 4: Euler Angle Kinematics
+% ------------------------------------------------------------------
+\begin{frame}{オイラー角微分とジャイロ角速度の関係}
+  \framesubtitle{Euler Angle Rates vs Body Angular Velocity}
+
+  \begin{block}{ジャイロの測定値 $\boldsymbol{\omega}$ $\neq$ オイラー角の時間微分 $\dot{\boldsymbol{\Theta}}$}
+    {\small
+    ジャイロはボディ座標系の角速度を測定。オイラー角の微分に変換するには変換行列 $\mathbf{E}$ が必要:
+    }
+  \end{block}
+
+  {\footnotesize
+  \[
+  \begin{bmatrix} \dot{\phi} \\ \dot{\theta} \\ \dot{\psi} \end{bmatrix}
+  =
+  \underbrace{
+  \begin{bmatrix}
+  1 & \sin\phi\tan\theta & \cos\phi\tan\theta \\[2pt]
+  0 & \cos\phi & -\sin\phi \\[2pt]
+  0 & \frac{\sin\phi}{\cos\theta} & \frac{\cos\phi}{\cos\theta}
+  \end{bmatrix}
+  }_{\displaystyle \mathbf{E}(\phi,\,\theta)}
+  \begin{bmatrix} \omega_x \\ \omega_y \\ \omega_z \end{bmatrix}
+  \qquad
+  \Longrightarrow
+  \qquad
+  \boldsymbol{\Theta}_{k+1} = \boldsymbol{\Theta}_k + \mathbf{E}\,\boldsymbol{\omega}\,\Delta t
+  \]
+  }
+
+  \vspace{-0.3em}
+
+  \begin{exampleblock}{小角度近似（$\phi,\,\theta \approx 0$）→ 相補フィルタで使用}
+    {\small
+    $\mathbf{E} \approx \mathbf{I}$ → $\dot{\phi} \approx \omega_x,\;\dot{\theta} \approx \omega_y,\;\dot{\psi} \approx \omega_z$
+    → コード: \code{cf\_roll += gx * dt}
+    }
+  \end{exampleblock}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame 5: Euler Angles from Accelerometer
+% ------------------------------------------------------------------
+\begin{frame}{加速度からのオイラー角算出}
+  \framesubtitle{Euler Angles from Accelerometer}
+
+  \begin{block}{原理: 静止時、加速度センサは重力のみを測定}
+    {\footnotesize
+    ZYX 回転行列で重力ベクトルをボディ座標系に変換:
+    $a_x = -g\sin\theta,\quad
+    a_y = g\sin\phi\cos\theta,\quad
+    a_z = g\cos\phi\cos\theta$
+    }
+  \end{block}
+
+  \vspace{0.2em}
+
+  {\small
+  \begin{tabular}{lll}
+    \hline
+    \textbf{角度} & \textbf{計算式} & \textbf{コード} \\
+    \hline
+    Roll $\phi$ & $\mathrm{atan2}(a_y,\; a_z)$ & \code{atan2f(ay, az)} \\
+    Pitch $\theta$ & $\mathrm{atan2}\!\bigl(-a_x,\; \sqrt{a_y^2 + a_z^2}\bigr)$ & \code{atan2f(-ax, az)}$^*$ \\
+    Yaw $\psi$ & \textcolor{sfred}{算出不可}（重力は鉛直方向のみ） & 磁気センサが必要 \\
+    \hline
+  \end{tabular}
+  }
+
+  \vspace{0.3em}
+
+  {\footnotesize
+    \textbf{長所:} ドリフトなし（重力基準）\qquad
+    \textbf{短所:} 振動・機体加速でノイズ大
+  }
+
+  \vspace{0.2em}
+
+  {\scriptsize $^*$ 実装では小角度近似 \code{atan2f(-ax, az)} を使用（$\phi \approx 0$ のとき $\sqrt{a_y^2+a_z^2} \approx a_z$）}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}{ジャイロドリフト問題 / Gyro Drift Problem}
   \begin{columns}[c]
     \begin{column}{0.48\textwidth}

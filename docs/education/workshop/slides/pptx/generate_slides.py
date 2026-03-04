@@ -1384,6 +1384,46 @@ def build_lesson_09() -> Presentation:
         "• Teleplot で CF vs ESKF をリアルタイム比較",
     ])
 
+    add_content_slide(prs, "姿勢の表現 — ZYX オイラー角", [
+        "オイラー角: 3次元の姿勢（回転）を 3 つの角度で表現する方法の一つ",
+        "",
+        "φ (Roll): X'' 軸回り — 左右の傾き",
+        "θ (Pitch): Y' 軸回り — 前後の傾き",
+        "ψ (Yaw): Z 軸回り — 機首方向",
+        "",
+        "StampFly は ZYX オイラー角（Tait-Bryan 角）を使用",
+        "回転順序: Z軸(ψ) → Y'軸(θ) → X''軸(φ)",
+        "ジンバルロック (θ = ±90°) に注意",
+    ])
+
+    add_content_slide(prs, "オイラー角微分とジャイロ角速度の関係", [
+        "ジャイロの測定値 ω ≠ オイラー角の時間微分 Θ̇",
+        "",
+        "[φ̇, θ̇, ψ̇]ᵀ = E(φ,θ) · [ωx, ωy, ωz]ᵀ",
+        "",
+        "E = [[1, sinφ tanθ, cosφ tanθ],",
+        "     [0, cosφ,      -sinφ],",
+        "     [0, sinφ/cosθ, cosφ/cosθ]]",
+        "",
+        "小角度近似 (φ,θ ≈ 0): E ≈ I（単位行列）",
+        "→ φ̇ ≈ ωx, θ̇ ≈ ωy, ψ̇ ≈ ωz",
+        "→ 相補フィルタはこの近似を使用: cf_roll += gx * dt",
+    ])
+
+    add_content_slide(prs, "加速度からのオイラー角算出", [
+        "静止時、加速度センサは重力のみを測定",
+        "ZYX 回転行列から: ax=-g sinθ, ay=g sinφ cosθ, az=g cosφ cosθ",
+        "",
+        "Roll φ = atan2(ay, az)         → atan2f(ay, az)",
+        "Pitch θ = atan2(-ax, √(ay²+az²)) → atan2f(-ax, az)*",
+        "Yaw ψ = 算出不可（重力は鉛直方向のみ、磁気センサが必要）",
+        "",
+        "長所: ドリフトなし（重力基準）",
+        "短所: 振動・機体加速でノイズ大",
+        "",
+        "* 実装では小角度近似 atan2f(-ax, az) を使用 (φ≈0 のとき √(ay²+az²)≈az)",
+    ])
+
     add_content_slide(
         prs, "ジャイロドリフト問題 / Gyro Drift Problem",
         [
