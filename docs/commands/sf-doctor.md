@@ -36,7 +36,7 @@ Python:
   [OK] numpy installed
 
 Project:
-  [OK] Root: /path/to/stampfly-ecosystem
+  [OK] Root: /path/to/stampfly_ecosystem
   [OK] Vehicle firmware found
   [OK] Controller firmware found
 

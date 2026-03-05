@@ -78,7 +78,7 @@ sudo udevadm trigger
 source ~/esp/esp-idf/export.sh
 
 # プロジェクトディレクトリに移動
-cd path/to/stampfly-ecosystem
+cd path/to/stampfly_ecosystem
 
 # 環境診断
 sf doctor
@@ -185,7 +185,7 @@ sudo udevadm trigger
 source ~/esp/esp-idf/export.sh
 
 # Navigate to project
-cd path/to/stampfly-ecosystem
+cd path/to/stampfly_ecosystem
 
 # Run diagnostics
 sf doctor

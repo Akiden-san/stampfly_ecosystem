@@ -72,7 +72,7 @@ Controller ─── WiFi STA ───→ Vehicle (WiFi AP)
 ## 3. ディレクトリ構成
 
 ```
-stampfly-ecosystem/
+stampfly_ecosystem/
 ├── docs/                # ドキュメント
 ├── firmware/
 │   ├── vehicle/         # 機体ファームウェア
@@ -173,7 +173,7 @@ Controller and Vehicle support two communication modes:
 ## 3. Directory Structure
 
 ```
-stampfly-ecosystem/
+stampfly_ecosystem/
 ├── docs/                # Documentation
 ├── firmware/
 │   ├── vehicle/         # Vehicle firmware

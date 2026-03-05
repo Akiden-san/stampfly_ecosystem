@@ -16,10 +16,10 @@ sf version
 
 ```
 StampFly CLI v0.1.0
-  Project: stampfly-ecosystem
+  Project: stampfly_ecosystem
   Python: 3.12.0
   ESP-IDF: v5.5.2
-  Path: /path/to/stampfly-ecosystem
+  Path: /path/to/stampfly_ecosystem
 ```
 
 ---

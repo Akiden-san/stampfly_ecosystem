@@ -139,7 +139,7 @@ Checking ESP-IDF...
 ## 5. ファイル構成
 
 ```
-stampfly-ecosystem/
+stampfly_ecosystem/
 ├── install.sh              # エントリポイント（Unix）
 ├── install.bat             # エントリポイント（Windows）
 ├── scripts/

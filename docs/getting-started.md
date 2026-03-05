@@ -24,7 +24,7 @@
 
 ```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly-ecosystem
+cd stampfly_ecosystem
 ./install.sh
 ```
 
@@ -123,7 +123,7 @@ sf sim run vpython --seed 12345       # シード指定
 
 ```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly-ecosystem
+cd stampfly_ecosystem
 ```
 
 ### Step 2: インストーラを実行
@@ -422,7 +422,7 @@ Even without the actual drone, you can experience drone piloting with just the c
 
 ```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly-ecosystem
+cd stampfly_ecosystem
 ./install.sh
 ```
 
@@ -501,7 +501,7 @@ sf sim run genesis
 
 ```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly-ecosystem
+cd stampfly_ecosystem
 ```
 
 ### Step 2: Run Installer

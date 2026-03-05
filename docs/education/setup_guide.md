@@ -26,8 +26,8 @@
 ### リポジトリのクローン
 
 ```bash
-git clone https://github.com/stampfly/stampfly-ecosystem.git
-cd stampfly-ecosystem
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
 ```
 
 ### Python 環境のセットアップ
@@ -114,8 +114,8 @@ drone.end()
 ### Clone Repository
 
 ```bash
-git clone https://github.com/stampfly/stampfly-ecosystem.git
-cd stampfly-ecosystem
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
 ```
 
 ### Python Environment Setup

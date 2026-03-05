@@ -79,7 +79,7 @@ CH9102F（M5Stack製品）用ドライバ:
 source ~/esp/esp-idf/export.sh
 
 # プロジェクトディレクトリに移動
-cd /mnt/c/path/to/stampfly-ecosystem
+cd /mnt/c/path/to/stampfly_ecosystem
 
 # 環境診断
 sf doctor
@@ -180,7 +180,7 @@ CH9102F (M5Stack products) driver:
 source ~/esp/esp-idf/export.sh
 
 # Navigate to project
-cd /mnt/c/path/to/stampfly-ecosystem
+cd /mnt/c/path/to/stampfly_ecosystem
 
 # Run diagnostics
 sf doctor

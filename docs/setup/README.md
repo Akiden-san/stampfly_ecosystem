@@ -20,8 +20,8 @@ StampFly Ecosystemの開発環境セットアップガイドです。
 ### ステップ 1: リポジトリをクローン
 
 ```bash
-git clone https://github.com/your-org/stampfly-ecosystem.git
-cd stampfly-ecosystem
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
 ```
 
 ### ステップ 2: インストーラを実行
@@ -120,8 +120,8 @@ Setup guide for StampFly Ecosystem development environment.
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/your-org/stampfly-ecosystem.git
-cd stampfly-ecosystem
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
 ```
 
 ### Step 2: Run Installer

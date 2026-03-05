@@ -9,7 +9,7 @@
 ### インストール
 
 ```bash
-cd stampfly-ecosystem
+cd stampfly_ecosystem
 ./install.sh
 source ~/esp/esp-idf/export.sh
 ```
@@ -110,7 +110,7 @@ sf version                 # バージョン情報
 ### Installation
 
 ```bash
-cd stampfly-ecosystem
+cd stampfly_ecosystem
 ./install.sh
 source ~/esp/esp-idf/export.sh
 ```
