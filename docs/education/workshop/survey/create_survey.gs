@@ -140,10 +140,47 @@ function createWorkshopSurvey() {
     .setRequired(true);
 
   // =====================================================================
-  // Section 4: Learning Outcomes / 学習成果
+  // Section 4: StampFly Ecosystem / エコシステム評価
   // =====================================================================
 
-  form.addPageBreakItem().setTitle('セクション 4: 学習成果');
+  form.addPageBreakItem().setTitle('セクション 4: StampFly Ecosystem について');
+
+  form.addScaleItem()
+    .setTitle('Q12. StampFly Ecosystem（ファームウェア, ツール, ドキュメント等）の全体構成は理解できましたか？')
+    .setLabels('全く理解できなかった', '十分に理解できた')
+    .setBounds(1, 5)
+    .setRequired(true);
+
+  form.addScaleItem()
+    .setTitle('Q13. ワークショップ終了後も StampFly Ecosystem を使って開発を続けたいと思いますか？')
+    .setLabels('全く思わない', 'ぜひ続けたい')
+    .setBounds(1, 5)
+    .setRequired(true);
+
+  var ecosystemItem = form.addCheckboxItem();
+  ecosystemItem.setTitle('Q14. StampFly Ecosystem の中で、特に便利だった・良かったものを選んでください（複数選択可）');
+  ecosystemItem.setChoices([
+    ecosystemItem.createChoice('ws:: API（ワークショップ用簡易API）'),
+    ecosystemItem.createChoice('sf CLI（ビルド・書き込みツール）'),
+    ecosystemItem.createChoice('Teleplot（リアルタイム可視化）'),
+    ecosystemItem.createChoice('CLI コンソール（シリアルコマンド）'),
+    ecosystemItem.createChoice('スライド教材（Beamer / PPTX）'),
+    ecosystemItem.createChoice('Python SDK'),
+    ecosystemItem.createChoice('ドキュメント / README'),
+    ecosystemItem.createChoice('その他')
+  ]);
+  ecosystemItem.showOtherOption(true);
+  ecosystemItem.setRequired(false);
+
+  form.addParagraphTextItem()
+    .setTitle('Q15. StampFly Ecosystem に今後追加・改善してほしい機能やツールがあれば教えてください')
+    .setRequired(false);
+
+  // =====================================================================
+  // Section 5: Learning Outcomes / 学習成果
+  // =====================================================================
+
+  form.addPageBreakItem().setTitle('セクション 5: 学習成果');
 
   var skillAreas = [
     '制御工学の基礎理論（PID, フィードバック）',
@@ -163,33 +200,33 @@ function createWorkshopSurvey() {
   ];
 
   var skillGrid = form.addGridItem();
-  skillGrid.setTitle('Q12. ワークショップ受講前と比べて、以下の知識・スキルはどの程度向上しましたか？');
+  skillGrid.setTitle('Q16. ワークショップ受講前と比べて、以下の知識・スキルはどの程度向上しましたか？');
   skillGrid.setRows(skillAreas);
   skillGrid.setColumns(improvementLevels);
   skillGrid.setRequired(true);
 
   form.addScaleItem()
-    .setTitle('Q13. 最終課題（精密着陸競技会）で、自分の成果に満足していますか？')
+    .setTitle('Q17. 最終課題（精密着陸競技会）で、自分の成果に満足していますか？')
     .setLabels('不満', '大変満足')
     .setBounds(1, 5)
     .setRequired(false);
 
   // =====================================================================
-  // Section 5: Free-form / 自由記述
+  // Section 6: Free-form / 自由記述
   // =====================================================================
 
-  form.addPageBreakItem().setTitle('セクション 5: 自由記述');
+  form.addPageBreakItem().setTitle('セクション 6: 自由記述');
 
   form.addParagraphTextItem()
-    .setTitle('Q14. ワークショップで最も印象に残ったこと・学んだことを教えてください')
+    .setTitle('Q18. ワークショップで最も印象に残ったこと・学んだことを教えてください')
     .setRequired(false);
 
   form.addParagraphTextItem()
-    .setTitle('Q15. 改善してほしい点、追加してほしい内容があれば教えてください')
+    .setTitle('Q19. 改善してほしい点、追加してほしい内容があれば教えてください')
     .setRequired(false);
 
   var futureItem = form.addCheckboxItem();
-  futureItem.setTitle('Q16. 今後、以下のような発展コースがあれば参加したいですか？（複数選択可）');
+  futureItem.setTitle('Q20. 今後、以下のような発展コースがあれば参加したいですか？（複数選択可）');
   futureItem.setChoices([
     futureItem.createChoice('自律飛行（GPS/ビジョンベース）'),
     futureItem.createChoice('機械学習を用いた制御'),
@@ -203,7 +240,7 @@ function createWorkshopSurvey() {
   futureItem.setRequired(false);
 
   form.addParagraphTextItem()
-    .setTitle('Q17. その他、講師・運営へのメッセージがあればお願いします')
+    .setTitle('Q21. その他、講師・運営へのメッセージがあればお願いします')
     .setRequired(false);
 
   // =====================================================================
