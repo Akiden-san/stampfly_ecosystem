@@ -177,7 +177,8 @@ void onButtonEvent(stampfly::Button::Event event)
 {
     auto& state = stampfly::StampFlyState::getInstance();
 
-    if (event == stampfly::Button::Event::CLICK) {
+    switch (event) {
+    case stampfly::Button::Event::CLICK:
         if (state.getFlightState() == stampfly::FlightState::IDLE) {
             if (g_landing_handler.canArm() && state.requestArm()) {
                 initializeAttitudeFromBuffers();
@@ -192,6 +193,31 @@ void onButtonEvent(stampfly::Button::Event event)
                 ESP_LOGI(TAG, "DISARMED");
             }
         }
+        break;
+
+    case stampfly::Button::Event::LONG_PRESS_3S:
+        // Enter pairing mode (same as vehicle firmware)
+        // ペアリングモードに入る（vehicle ファームウェアと同じ）
+        ESP_LOGI(TAG, "Button: LONG_PRESS (3s) - Entering pairing mode");
+        g_comm.enterPairingMode();
+        state.setPairingState(stampfly::PairingState::PAIRING);
+        stampfly::LEDManager::getInstance().requestChannel(
+            stampfly::LEDChannel::SYSTEM, stampfly::LEDPriority::PAIRING,
+            stampfly::LEDPattern::BLINK_FAST, 0x0000FF);
+        g_buzzer.beep();
+        break;
+
+    case stampfly::Button::Event::LONG_PRESS_5S:
+        // System reset
+        // システムリセット
+        ESP_LOGI(TAG, "Button: LONG_PRESS (5s) - System reset");
+        g_buzzer.beep();
+        vTaskDelay(pdMS_TO_TICKS(600));
+        esp_restart();
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -475,6 +501,21 @@ extern "C" void app_main(void)
         initializeAttitudeFromBuffers();
         g_eskf_ready = true;
         ESP_LOGI(TAG, "ESKF initialized");
+    }
+
+    // Auto-enter pairing mode if no controller is paired
+    // 未ペアリング時は自動的にペアリングモードに入る
+    if (!g_comm.isPaired()) {
+        ESP_LOGI(TAG, "No controller paired - entering pairing mode automatically");
+        ESP_LOGI(TAG, "  Long press button (3s) to re-enter pairing mode later");
+        g_comm.enterPairingMode();
+        state.setPairingState(stampfly::PairingState::PAIRING);
+        stampfly::LEDManager::getInstance().requestChannel(
+            stampfly::LEDChannel::SYSTEM, stampfly::LEDPriority::PAIRING,
+            stampfly::LEDPattern::BLINK_FAST, 0x0000FF);
+        g_buzzer.beep();
+    } else {
+        ESP_LOGI(TAG, "Controller paired: ready for control input");
     }
 
     // Ready
