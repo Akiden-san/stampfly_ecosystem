@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - 前回のコミットログ（Next stepsから作業を再開）
 - **応答は日本語で行うこと**
 - **コードを変更したら必ずコミットすること** - 変更をローカルに残さず、適切な単位でコミットする
-  - **必ず `/commit` スキルを使用する** - `docs/COMMIT_GUIDELINES.md` に基づいたコミットメッセージを自動作成
+  - **必ず `/commit` スキルを使用する** - `docs/contributing/commit-guidelines.md` に基づいたコミットメッセージを自動作成
   - **Next steps セクションを必ず含める** - 次回セッション開始時のタスクを明記
   - 作業終了時、ファイル変更後、重要な節目で自動実行
 - **sf CLI を積極的に使用すること** - ビルド、書き込み、診断などは `idf.py` を直接呼ぶのではなく `sf` コマンドを優先する

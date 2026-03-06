@@ -53,9 +53,9 @@
 | ファイル | 説明 |
 |---------|------|
 | [tools/tools-guide.md](tools/tools-guide.md) | 開発ツール使用ガイド |
-| [wifi-sta-setup.md](wifi-sta-setup.md) | WiFi STA モードセットアップ |
-| [tello_api_reference.md](tello_api_reference.md) | Tello 互換 API リファレンス |
-| [DEBUG_ROS2_UDP_CONTROL.md](DEBUG_ROS2_UDP_CONTROL.md) | ROS2 UDP 制御デバッグガイド |
+| [setup/wifi-sta.md](setup/wifi-sta.md) | WiFi STA モードセットアップ |
+| [architecture/tello-api-reference.md](architecture/tello-api-reference.md) | Tello 互換 API リファレンス |
+| [architecture/ros2-udp-debug.md](architecture/ros2-udp-debug.md) | ROS2 UDP 制御デバッグガイド |
 
 ### チュートリアル
 
@@ -68,10 +68,10 @@
 | ファイル | 説明 |
 |---------|------|
 | [README.md](README.md) | docs/ ディレクトリガイド |
-| [STYLE_GUIDE.md](STYLE_GUIDE.md) | ドキュメント記述スタイル規約 |
-| [COMMIT_GUIDELINES.md](COMMIT_GUIDELINES.md) | コミットメッセージ規約 |
-| [contributing/adding-commands.md](contributing/adding-commands.md) | コマンド追加ガイド |
-| [contributing/adding-cli-commands.md](contributing/adding-cli-commands.md) | CLI コマンド追加ガイド |
+| [contributing/style-guide.md](contributing/style-guide.md) | ドキュメント記述スタイル規約 |
+| [contributing/commit-guidelines.md](contributing/commit-guidelines.md) | コミットメッセージ規約 |
+| [contributing/adding-sf-commands.md](contributing/adding-sf-commands.md) | コマンド追加ガイド |
+| [contributing/adding-firmware-commands.md](contributing/adding-firmware-commands.md) | CLI コマンド追加ガイド |
 | [contributing/scaffolding-tool.md](contributing/scaffolding-tool.md) | スキャフォールディングツール |
 
 ### 教育資料
@@ -111,9 +111,9 @@
 | ファイル | 説明 |
 |---------|------|
 | [firmware/vehicle/README.md](../firmware/vehicle/README.md) | 機体ファームウェア全体ガイド |
-| [firmware/vehicle/PLAN.md](../firmware/vehicle/PLAN.md) | 設計方針 |
-| [firmware/vehicle/PHASE3_TEST_PLAN.md](../firmware/vehicle/PHASE3_TEST_PLAN.md) | Phase3 テスト計画 |
-| [firmware/vehicle/PHASE3_TEST_GUIDE.md](../firmware/vehicle/PHASE3_TEST_GUIDE.md) | Phase3 テストガイド |
+| [plans/vehicle-firmware.md](plans/vehicle-firmware.md) | 設計方針 |
+| [plans/archive/vehicle-phase3-test.md](plans/archive/vehicle-phase3-test.md) | Phase3 テスト計画 |
+| [plans/archive/vehicle-phase3-test-guide.md](plans/archive/vehicle-phase3-test-guide.md) | Phase3 テストガイド |
 
 ### Vehicle コンポーネントドキュメント
 
@@ -152,8 +152,8 @@
 | ファイル | 説明 |
 |---------|------|
 | [firmware/controller/README.md](../firmware/controller/README.md) | コントローラファームウェア全体ガイド |
-| [firmware/controller/TDMA_USAGE.md](../firmware/controller/TDMA_USAGE.md) | TDMA 通信詳細ガイド |
-| [firmware/controller/docs/ESP-IDF_MIGRATION_PLAN.md](../firmware/controller/docs/ESP-IDF_MIGRATION_PLAN.md) | ESP-IDF マイグレーション計画 |
+| [architecture/tdma-usage.md](architecture/tdma-usage.md) | TDMA 通信詳細ガイド |
+| [plans/archive/controller-espidf-migration.md](plans/archive/controller-espidf-migration.md) | ESP-IDF マイグレーション計画 |
 
 ### Common（共有コード）
 
@@ -199,7 +199,7 @@
 | [simulator/genesis/README.md](../simulator/genesis/README.md) | Genesis シミュレータ |
 | [simulator/genesis/docs/urdf_mesh_normals.md](../simulator/genesis/docs/urdf_mesh_normals.md) | URDF メッシュ法線ガイド |
 | [simulator/sandbox/README.md](../simulator/sandbox/README.md) | サンドボックス |
-| [simulator/MIGRATION_PLAN.md](../simulator/MIGRATION_PLAN.md) | シミュレータマイグレーション計画 |
+| [plans/simulator-migration.md](plans/simulator-migration.md) | シミュレータマイグレーション計画 |
 | [ros/README.md](../ros/README.md) | ROS 連携（構築中） |
 | [examples/README.md](../examples/README.md) | 学習用サンプル |
 
@@ -260,9 +260,9 @@
 | File | Description |
 |------|-------------|
 | [tools/tools-guide.md](tools/tools-guide.md) | Development tools guide |
-| [wifi-sta-setup.md](wifi-sta-setup.md) | WiFi STA mode setup |
-| [tello_api_reference.md](tello_api_reference.md) | Tello-compatible API reference |
-| [DEBUG_ROS2_UDP_CONTROL.md](DEBUG_ROS2_UDP_CONTROL.md) | ROS2 UDP control debug guide |
+| [setup/wifi-sta.md](setup/wifi-sta.md) | WiFi STA mode setup |
+| [architecture/tello-api-reference.md](architecture/tello-api-reference.md) | Tello-compatible API reference |
+| [architecture/ros2-udp-debug.md](architecture/ros2-udp-debug.md) | ROS2 UDP control debug guide |
 
 ### Tutorials
 
@@ -275,10 +275,10 @@
 | File | Description |
 |------|-------------|
 | [README.md](README.md) | docs/ directory guide |
-| [STYLE_GUIDE.md](STYLE_GUIDE.md) | Document writing style guide |
-| [COMMIT_GUIDELINES.md](COMMIT_GUIDELINES.md) | Commit message guidelines |
-| [contributing/adding-commands.md](contributing/adding-commands.md) | Adding commands guide |
-| [contributing/adding-cli-commands.md](contributing/adding-cli-commands.md) | Adding CLI commands guide |
+| [contributing/style-guide.md](contributing/style-guide.md) | Document writing style guide |
+| [contributing/commit-guidelines.md](contributing/commit-guidelines.md) | Commit message guidelines |
+| [contributing/adding-sf-commands.md](contributing/adding-sf-commands.md) | Adding commands guide |
+| [contributing/adding-firmware-commands.md](contributing/adding-firmware-commands.md) | Adding CLI commands guide |
 | [contributing/scaffolding-tool.md](contributing/scaffolding-tool.md) | Scaffolding tool |
 
 ### Educational Materials
@@ -318,9 +318,9 @@
 | File | Description |
 |------|-------------|
 | [firmware/vehicle/README.md](../firmware/vehicle/README.md) | Vehicle firmware complete guide |
-| [firmware/vehicle/PLAN.md](../firmware/vehicle/PLAN.md) | Design policy |
-| [firmware/vehicle/PHASE3_TEST_PLAN.md](../firmware/vehicle/PHASE3_TEST_PLAN.md) | Phase3 test plan |
-| [firmware/vehicle/PHASE3_TEST_GUIDE.md](../firmware/vehicle/PHASE3_TEST_GUIDE.md) | Phase3 test guide |
+| [plans/vehicle-firmware.md](plans/vehicle-firmware.md) | Design policy |
+| [plans/archive/vehicle-phase3-test.md](plans/archive/vehicle-phase3-test.md) | Phase3 test plan |
+| [plans/archive/vehicle-phase3-test-guide.md](plans/archive/vehicle-phase3-test-guide.md) | Phase3 test guide |
 
 ### Vehicle Component Documentation
 
@@ -345,8 +345,8 @@
 | File | Description |
 |------|-------------|
 | [firmware/controller/README.md](../firmware/controller/README.md) | Controller firmware complete guide |
-| [firmware/controller/TDMA_USAGE.md](../firmware/controller/TDMA_USAGE.md) | TDMA communication detailed guide |
-| [firmware/controller/docs/ESP-IDF_MIGRATION_PLAN.md](../firmware/controller/docs/ESP-IDF_MIGRATION_PLAN.md) | ESP-IDF migration plan |
+| [architecture/tdma-usage.md](architecture/tdma-usage.md) | TDMA communication detailed guide |
+| [plans/archive/controller-espidf-migration.md](plans/archive/controller-espidf-migration.md) | ESP-IDF migration plan |
 
 ### Common (Shared Code)
 

@@ -7,7 +7,7 @@ disable-model-invocation: true
 # Git Commit with Guidelines
 # ガイドラインに基づいたGitコミット
 
-このスキルは、プロジェクトのコミットガイドライン（`docs/COMMIT_GUIDELINES.md`）に基づいて適切なコミットメッセージを作成し、コミットを実行します。
+このスキルは、プロジェクトのコミットガイドライン（`docs/contributing/commit-guidelines.md`）に基づいて適切なコミットメッセージを作成し、コミットを実行します。
 
 ## 実行手順
 
@@ -261,5 +261,5 @@ EOF
 ## 参考
 
 詳細は以下を参照：
-- プロジェクト内: `docs/COMMIT_GUIDELINES.md`
+- プロジェクト内: `docs/contributing/commit-guidelines.md`
 - Conventional Commits: https://www.conventionalcommits.org/

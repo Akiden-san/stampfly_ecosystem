@@ -11,14 +11,16 @@
 
 ### 記述規約
 
-ドキュメントの記述スタイルは [STYLE_GUIDE.md](./STYLE_GUIDE.md) に従うこと。
+ドキュメントの記述スタイルは [contributing/style-guide.md](./contributing/style-guide.md) に従うこと。
 
 ## 2. ディレクトリ構成
 
 ```
 docs/
 ├── README.md              # 本ファイル（ディレクトリガイド）
-├── STYLE_GUIDE.md         # 記述スタイル規約
+├── contributing/          # 開発ガイドライン
+│   ├── style-guide.md         # 記述スタイル規約
+│   ├── commit-guidelines.md   # コミットメッセージ規約
 ├── overview.md            # プロジェクト全体の俯瞰図
 ├── getting-started.md     # 初学者向けクイックスタート
 │

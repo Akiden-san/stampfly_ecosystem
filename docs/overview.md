@@ -110,7 +110,7 @@ stampfly_ecosystem/
 - [はじめに](getting-started.md) - 環境構築と初飛行
 - [プロトコル仕様](../protocol/README.md) - 通信プロトコル詳細
 - [コントローラ](../firmware/controller/README.md) - コントローラファームウェア
-- [TDMA使用ガイド](../firmware/controller/TDMA_USAGE.md) - 複数機運用
+- [TDMA使用ガイド](architecture/tdma-usage.md) - 複数機運用
 
 ---
 
@@ -211,4 +211,4 @@ stampfly_ecosystem/
 - [Getting Started](getting-started.md) - Setup and first flight
 - [Protocol Specification](../protocol/README.md) - Communication protocol details
 - [Controller](../firmware/controller/README.md) - Controller firmware
-- [TDMA Guide](../firmware/controller/TDMA_USAGE.md) - Multi-vehicle operation
+- [TDMA Guide](architecture/tdma-usage.md) - Multi-vehicle operation
