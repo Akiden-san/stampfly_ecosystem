@@ -8,6 +8,7 @@ Subcommands:
     list      - List all available lessons
     switch    - Switch to a lesson (copy student.cpp to user_code.cpp)
     solution  - Show solution diff for a lesson
+    info      - Show detailed lesson information
     build     - Build workshop firmware (= sf build workshop)
     flash     - Flash workshop firmware (= sf flash workshop -m)
 """
@@ -16,7 +17,7 @@ import argparse
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..utils import console, paths
 
@@ -26,6 +27,16 @@ COMMAND_HELP = "Workshop lesson management"
 # Lesson directory naming convention: lesson_NN_name
 LESSONS_DIR = "lessons"
 USER_CODE = "user_code.cpp"
+MANIFEST_FILE = "lesson_manifest.yaml"
+
+# Day grouping for display
+DAY_GROUPS = [
+    (1, [0, 1, 2]),
+    (2, [3, 4, 5]),
+    (3, [6, 7, 8]),
+    (4, [9, 10, 11, 12]),
+    (5, [13]),
+]
 
 
 def _get_lessons_dir() -> Path:
@@ -36,6 +47,22 @@ def _get_lessons_dir() -> Path:
 def _get_user_code_path() -> Path:
     """Get the user_code.cpp path"""
     return paths.workshop() / "main" / USER_CODE
+
+
+def _load_manifest() -> Optional[List[Dict[str, Any]]]:
+    """Load lesson manifest YAML. Returns None if unavailable."""
+    manifest_path = _get_lessons_dir() / MANIFEST_FILE
+    if not manifest_path.exists():
+        return None
+    try:
+        import yaml
+        with open(manifest_path) as f:
+            data = yaml.safe_load(f)
+        return data.get("lessons", [])
+    except ImportError:
+        return None
+    except Exception:
+        return None
 
 
 def _discover_lessons() -> List[Tuple[int, str, Path]]:
@@ -68,22 +95,49 @@ def _discover_lessons() -> List[Tuple[int, str, Path]]:
     return lessons
 
 
-def _find_lesson(num: int) -> Optional[Path]:
-    """Find lesson directory by number"""
+def _find_lesson(identifier) -> Optional[Path]:
+    """Find lesson directory by number or ID.
+
+    Args:
+        identifier: int (lesson number) or str (lesson ID like 'motor_control')
+    """
+    manifest = _load_manifest()
+
+    # Try manifest first for ID-based lookup
+    if manifest and isinstance(identifier, str):
+        for entry in manifest:
+            if entry.get("id") == identifier:
+                fw_dir = entry.get("firmware_dir")
+                if fw_dir and fw_dir is not None:
+                    path = _get_lessons_dir() / fw_dir
+                    if path.exists():
+                        return path
+                return None
+
+    # Number-based lookup (works with or without manifest)
+    num = identifier if isinstance(identifier, int) else None
+    if num is None:
+        try:
+            num = int(identifier)
+        except (ValueError, TypeError):
+            return None
+
+    # If manifest available, use firmware_dir mapping
+    if manifest:
+        for entry in manifest:
+            if entry.get("number") == num:
+                fw_dir = entry.get("firmware_dir")
+                if fw_dir and fw_dir is not None:
+                    path = _get_lessons_dir() / fw_dir
+                    if path.exists():
+                        return path
+                return None
+
+    # Fallback: directory scan
     for n, _, path in _discover_lessons():
         if n == num:
             return path
     return None
-
-
-def _get_lesson_title(lesson_dir: Path) -> str:
-    """Get lesson title from README.md if available"""
-    readme = lesson_dir / "README.md"
-    if readme.exists():
-        first_line = readme.read_text().split("\n")[0]
-        # Strip markdown heading
-        return first_line.lstrip("# ").strip()
-    return lesson_dir.name
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
@@ -116,9 +170,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         description="Copy lesson student.cpp to user_code.cpp for building.",
     )
     switch_parser.add_argument(
-        "number",
-        type=int,
-        help="Lesson number (e.g., 0, 1, 5)",
+        "identifier",
+        help="Lesson number (e.g., 0, 5) or ID (e.g., motor_control)",
     )
     switch_parser.add_argument(
         "--solution",
@@ -134,11 +187,22 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         description="Display diff between student.cpp and solution.cpp.",
     )
     solution_parser.add_argument(
-        "number",
-        type=int,
-        help="Lesson number (e.g., 5, 6)",
+        "identifier",
+        help="Lesson number (e.g., 5) or ID (e.g., pid_control)",
     )
     solution_parser.set_defaults(func=run_solution)
+
+    # --- info ---
+    info_parser = lesson_subparsers.add_parser(
+        "info",
+        help="Show detailed lesson information",
+        description="Display detailed information for a lesson.",
+    )
+    info_parser.add_argument(
+        "identifier",
+        help="Lesson number (e.g., 5) or ID (e.g., pid_control)",
+    )
+    info_parser.set_defaults(func=run_info)
 
     # --- build ---
     build_parser = lesson_subparsers.add_parser(
@@ -187,8 +251,78 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=lambda args: (parser.print_help(), 0)[1])
 
 
+def _parse_identifier(raw: str):
+    """Parse identifier as int if possible, otherwise return as string."""
+    try:
+        return int(raw)
+    except ValueError:
+        return raw
+
+
 def run_list(args: argparse.Namespace) -> int:
     """List all available lessons"""
+    manifest = _load_manifest()
+
+    if manifest:
+        return _run_list_manifest(manifest)
+    return _run_list_fallback()
+
+
+def _run_list_manifest(manifest: List[Dict[str, Any]]) -> int:
+    """List lessons from manifest with day grouping"""
+    # Check current lesson
+    user_code_path = _get_user_code_path()
+    current_content = ""
+    if user_code_path.exists():
+        current_content = user_code_path.read_text()
+
+    # Build number->entry lookup
+    by_number = {e["number"]: e for e in manifest}
+
+    console.header("Workshop Lessons")
+    console.print()
+
+    for day, numbers in DAY_GROUPS:
+        console.print(f"  Day {day}:")
+        for num in numbers:
+            entry = by_number.get(num)
+            if not entry:
+                continue
+
+            fw_dir = entry.get("firmware_dir")
+            lesson_path = None
+            if fw_dir and fw_dir is not None:
+                lesson_path = _get_lessons_dir() / fw_dir
+                if not lesson_path.exists():
+                    lesson_path = None
+
+            # Check if current
+            is_current = False
+            if lesson_path and current_content:
+                for fname in ("student.cpp", "solution.cpp"):
+                    fpath = lesson_path / fname
+                    if fpath.exists() and fpath.read_text() == current_content:
+                        is_current = True
+                        break
+
+            marker = " >> " if is_current else "    "
+            title_ja = entry.get("title_ja", "")
+            title_en = entry.get("title_en", "")
+            desc_ja = entry.get("description_ja", "")
+
+            console.print(f"{marker}Lesson {num:2d}: {title_ja} / {title_en}")
+            if desc_ja:
+                console.print(f"              {desc_ja}")
+        console.print()
+
+    console.print(f"  Total: {len(manifest)} lessons")
+    console.print(f"  Switch: sf lesson switch <N or id>")
+
+    return 0
+
+
+def _run_list_fallback() -> int:
+    """List lessons by directory scan (fallback when no manifest)"""
     lessons = _discover_lessons()
 
     if not lessons:
@@ -196,7 +330,6 @@ def run_list(args: argparse.Namespace) -> int:
         console.print(f"  Expected at: {_get_lessons_dir()}")
         return 1
 
-    # Check current lesson
     user_code_path = _get_user_code_path()
     current_content = ""
     if user_code_path.exists():
@@ -206,37 +339,18 @@ def run_list(args: argparse.Namespace) -> int:
     console.print()
 
     for num, name, path in lessons:
-        # Check if files exist
         has_student = (path / "student.cpp").exists()
         has_solution = (path / "solution.cpp").exists()
-        has_readme = (path / "README.md").exists()
 
-        # Check if this is the current lesson
         is_current = False
-        if has_student and current_content:
-            student_content = (path / "student.cpp").read_text()
-            if student_content == current_content:
-                is_current = True
-        if not is_current and has_solution and current_content:
-            solution_content = (path / "solution.cpp").read_text()
-            if solution_content == current_content:
-                is_current = True
+        if current_content:
+            for fname, exists in [("student.cpp", has_student), ("solution.cpp", has_solution)]:
+                if exists and (path / fname).read_text() == current_content:
+                    is_current = True
+                    break
 
-        # Format status indicators
         marker = " >> " if is_current else "    "
-        title = _get_lesson_title(path)
-        files = []
-        if has_student:
-            files.append("student")
-        if has_solution:
-            files.append("solution")
-        if has_readme:
-            files.append("readme")
-
         console.print(f"{marker}Lesson {num:02d}: {name}")
-        if title != path.name:
-            console.print(f"              {title}")
-        console.print(f"              [{', '.join(files)}]")
         console.print()
 
     console.print(f"  Total: {len(lessons)} lessons")
@@ -247,15 +361,20 @@ def run_list(args: argparse.Namespace) -> int:
 
 def run_switch(args: argparse.Namespace) -> int:
     """Switch to a lesson"""
-    lesson_dir = _find_lesson(args.number)
+    identifier = _parse_identifier(args.identifier)
+    lesson_dir = _find_lesson(identifier)
 
     if lesson_dir is None:
-        console.error(f"Lesson {args.number} not found")
-        # Show available lessons
-        lessons = _discover_lessons()
-        if lessons:
-            nums = [str(n) for n, _, _ in lessons]
-            console.print(f"  Available: {', '.join(nums)}")
+        console.error(f"Lesson '{args.identifier}' not found")
+        manifest = _load_manifest()
+        if manifest:
+            ids = [f"{e['number']} ({e['id']})" for e in manifest if e.get("firmware_dir") and e["firmware_dir"] != "null"]
+            console.print(f"  Available: {', '.join(ids)}")
+        else:
+            lessons = _discover_lessons()
+            if lessons:
+                nums = [str(n) for n, _, _ in lessons]
+                console.print(f"  Available: {', '.join(nums)}")
         return 1
 
     # Determine source file
@@ -267,7 +386,7 @@ def run_switch(args: argparse.Namespace) -> int:
         label = "student"
 
     if not src.exists():
-        console.error(f"{label}.cpp not found for Lesson {args.number}")
+        console.error(f"{label}.cpp not found for Lesson '{args.identifier}'")
         return 1
 
     dst = _get_user_code_path()
@@ -276,13 +395,22 @@ def run_switch(args: argparse.Namespace) -> int:
     shutil.copy2(src, dst)
 
     # Clean build directory to ensure the new user_code.cpp is compiled
-    # ビルドディレクトリを削除して新しいuser_code.cppが確実にコンパイルされるようにする
     build_dir = paths.workshop() / "build"
     if build_dir.exists():
         shutil.rmtree(build_dir, ignore_errors=True)
         console.info("Build directory cleaned")
 
-    console.success(f"Switched to Lesson {args.number:02d} ({label})")
+    # Display lesson info from manifest
+    num_display = args.identifier
+    manifest = _load_manifest()
+    if manifest:
+        num = identifier if isinstance(identifier, int) else None
+        for entry in manifest:
+            if entry.get("number") == num or entry.get("id") == identifier:
+                num_display = f"{entry['number']:02d} - {entry['title_ja']}"
+                break
+
+    console.success(f"Switched to Lesson {num_display} ({label})")
     console.print(f"  Source: {src}")
     console.print(f"  Target: {dst}")
     console.print()
@@ -293,27 +421,27 @@ def run_switch(args: argparse.Namespace) -> int:
 
 def run_solution(args: argparse.Namespace) -> int:
     """Show solution diff for a lesson"""
-    lesson_dir = _find_lesson(args.number)
+    identifier = _parse_identifier(args.identifier)
+    lesson_dir = _find_lesson(identifier)
 
     if lesson_dir is None:
-        console.error(f"Lesson {args.number} not found")
+        console.error(f"Lesson '{args.identifier}' not found")
         return 1
 
     student = lesson_dir / "student.cpp"
     solution = lesson_dir / "solution.cpp"
 
     if not student.exists():
-        console.error(f"student.cpp not found for Lesson {args.number}")
+        console.error(f"student.cpp not found for Lesson '{args.identifier}'")
         return 1
 
     if not solution.exists():
-        console.error(f"solution.cpp not found for Lesson {args.number}")
+        console.error(f"solution.cpp not found for Lesson '{args.identifier}'")
         return 1
 
-    console.header(f"Lesson {args.number:02d} Solution Diff")
+    console.header(f"Lesson {args.identifier} Solution Diff")
     console.print()
 
-    # Use diff command
     result = subprocess.run(
         ["diff", "-u", "--color=auto", str(student), str(solution)],
         capture_output=False,
@@ -321,6 +449,47 @@ def run_solution(args: argparse.Namespace) -> int:
 
     if result.returncode == 0:
         console.info("student.cpp and solution.cpp are identical")
+
+    return 0
+
+
+def run_info(args: argparse.Namespace) -> int:
+    """Show detailed lesson information"""
+    identifier = _parse_identifier(args.identifier)
+    manifest = _load_manifest()
+
+    if not manifest:
+        console.error("Manifest not found — cannot show lesson info")
+        return 1
+
+    # Find entry
+    entry = None
+    for e in manifest:
+        if e.get("number") == identifier or e.get("id") == identifier:
+            entry = e
+            break
+
+    if not entry:
+        console.error(f"Lesson '{args.identifier}' not found in manifest")
+        return 1
+
+    num = entry["number"]
+    console.header(f"Lesson {num}: {entry['title_ja']} / {entry['title_en']}")
+    console.print()
+    console.print(f"  ID:          {entry['id']}")
+    console.print(f"  Description: {entry.get('description_ja', '-')}")
+    console.print(f"               {entry.get('description_en', '-')}")
+    console.print(f"  Slide:       chapters/{entry.get('slide_file', '-')}.tex")
+
+    fw_dir = entry.get("firmware_dir")
+    if fw_dir and fw_dir is not None:
+        fw_path = _get_lessons_dir() / fw_dir
+        console.print(f"  Firmware:    {fw_path}")
+        has_student = (fw_path / "student.cpp").exists()
+        has_solution = (fw_path / "solution.cpp").exists()
+        console.print(f"  Files:       student={'yes' if has_student else 'no'}, solution={'yes' if has_solution else 'no'}")
+    else:
+        console.print(f"  Firmware:    (no firmware directory)")
 
     return 0
 

@@ -1,0 +1,134 @@
+# Lesson Manifest — Single Source of Truth for lesson ordering
+# レッスンマニフェスト — レッスン順序の唯一の情報源
+
+lessons:
+  # === Day 1 ===
+  - number: 0
+    id: environment_setup
+    title_ja: 環境セットアップ
+    title_en: Environment Setup
+    description_ja: ESP-IDF環境構築、ビルド・書き込み・モニタの基本
+    description_en: ESP-IDF setup, build/flash/monitor basics
+    firmware_dir: lesson_00_setup
+    slide_file: environment_setup
+
+  - number: 1
+    id: motor_control
+    title_ja: モータ制御
+    title_en: Motor Control
+    description_ja: PWMデューティ比によるモータ制御、ARM/DISARM
+    description_en: Motor control via PWM duty cycle, arm/disarm
+    firmware_dir: lesson_01_motor
+    slide_file: motor_control
+
+  - number: 2
+    id: controller_input
+    title_ja: コントローラ入力
+    title_en: Controller Input
+    description_ja: ESP-NOW無線通信、RCスティック値、オープンループ制御
+    description_en: ESP-NOW wireless, RC stick values, open-loop control
+    firmware_dir: lesson_02_controller
+    slide_file: controller_input
+
+  # === Day 2 ===
+  - number: 3
+    id: led_control
+    title_ja: LED制御
+    title_en: LED Control
+    description_ja: システム状態をLEDで可視化、バッテリー電圧表示
+    description_en: Visualize system state with LED, battery voltage display
+    firmware_dir: lesson_03_led
+    slide_file: led_control
+
+  - number: 4
+    id: imu_sensor
+    title_ja: IMUセンサー
+    title_en: IMU Sensor
+    description_ja: 加速度・ジャイロセンサーの読み取りとデータ解釈
+    description_en: Accelerometer and gyroscope reading and data interpretation
+    firmware_dir: lesson_04_imu
+    slide_file: imu_sensor
+
+  - number: 5
+    id: rate_p_control
+    title_ja: レートP制御 + 初フライト
+    title_en: Rate P-Control + First Flight
+    description_ja: ジャイロフィードバックによるP制御、初めてのフライト
+    description_en: Gyro feedback P-control, first flight
+    firmware_dir: lesson_05_p_control
+    slide_file: rate_p_control
+
+  # === Day 3 ===
+  - number: 6
+    id: system_modeling
+    title_ja: システムモデリング
+    title_en: System Modeling
+    description_ja: 伝達関数の導出、ブロック図、制御系設計の基礎
+    description_en: Transfer function derivation, block diagrams, control design basics
+    firmware_dir: lesson_06_modeling
+    slide_file: system_modeling
+
+  - number: 7
+    id: system_identification
+    title_ja: システム同定
+    title_en: System Identification
+    description_ja: フライトデータからモデルパラメータを推定・検証
+    description_en: Estimate and validate model parameters from flight data
+    firmware_dir: lesson_07_sysid
+    slide_file: system_identification
+
+  - number: 8
+    id: pid_control
+    title_ja: PID制御
+    title_en: PID Control
+    description_ja: モデルに基づくI/D項の追加で制御性能を改善
+    description_en: Improve control with model-based I/D term addition
+    firmware_dir: lesson_08_pid
+    slide_file: pid_control
+
+  # === Day 4 ===
+  - number: 9
+    id: attitude_estimation
+    title_ja: 姿勢推定
+    title_en: Attitude Estimation
+    description_ja: 相補フィルタ・センサフュージョンで角度を推定
+    description_en: Estimate angles with complementary filter and sensor fusion
+    firmware_dir: lesson_09_estimation
+    slide_file: attitude_estimation
+
+  - number: 10
+    id: api_reference
+    title_ja: "ws:: APIリファレンス"
+    title_en: "ws:: API Reference"
+    description_ja: ワークショップAPI全関数の解説と使用例
+    description_en: Complete reference and examples for workshop API
+    firmware_dir: lesson_10_api_overview
+    slide_file: api_reference
+
+  - number: 11
+    id: custom_firmware
+    title_ja: 独自ファームウェア開発
+    title_en: Custom Firmware Development
+    description_ja: "ws:: APIを組み合わせたオリジナルファームウェアの作成"
+    description_en: "Build original firmware combining ws:: APIs"
+    firmware_dir: ~
+    slide_file: custom_firmware
+
+  - number: 12
+    id: python_sdk
+    title_ja: Python SDK プログラム飛行
+    title_en: Python SDK Programmatic Flight
+    description_ja: Python SDKによる自動飛行プログラムの作成
+    description_en: Create autonomous flight programs with Python SDK
+    firmware_dir: lesson_12_python_sdk
+    slide_file: python_sdk
+
+  # === Day 5 ===
+  - number: 13
+    id: precision_landing
+    title_ja: 精密着陸競技会
+    title_en: Precision Landing Competition
+    description_ja: ホバリング精度と着陸精度を競う競技会
+    description_en: Competition for hovering and landing precision
+    firmware_dir: lesson_13_competition
+    slide_file: precision_landing
