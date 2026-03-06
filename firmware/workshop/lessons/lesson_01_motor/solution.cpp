@@ -8,6 +8,7 @@
 static uint32_t motor_timer = 0;
 static int current_motor = 1;
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 1: Motor Control - Solution");
@@ -16,7 +17,9 @@ void setup()
     // モーター出力を有効化（これがないとモーターは回らない）
     ws::arm();
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     // Cycle through motors: each motor spins for 2 seconds
@@ -44,3 +47,4 @@ void loop_400Hz(float dt)
         ws::print("Motor %d active", current_motor);
     }
 }
+// @@end-snippet: loop

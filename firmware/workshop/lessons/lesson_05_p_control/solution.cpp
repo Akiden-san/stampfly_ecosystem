@@ -7,6 +7,7 @@
 
 static uint32_t tick = 0;
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 5: Rate P-Control - Solution");
@@ -15,7 +16,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     tick++;
@@ -78,3 +81,4 @@ void loop_400Hz(float dt)
                   throttle);
     }
 }
+// @@end-snippet: loop

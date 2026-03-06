@@ -7,6 +7,7 @@
 
 static uint32_t tick = 0;
 
+// @@snippet: setup
 void setup()
 {
     ws::print("L2: Open-Loop Control - Solution");
@@ -15,7 +16,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     tick++;
@@ -40,3 +43,4 @@ void loop_400Hz(float dt)
         ws::print("T=%.2f R=%.2f P=%.2f Y=%.2f", t, r, p, y);
     }
 }
+// @@end-snippet: loop

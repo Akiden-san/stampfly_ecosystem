@@ -25,6 +25,7 @@ static float clamp(float val, float lim)
     return val;
 }
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 6: System Modeling - Solution");
@@ -33,7 +34,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     tick++;
@@ -96,3 +99,4 @@ void loop_400Hz(float dt)
                   zeta, Kp_roll, Kp_pitch, Kp_yaw);
     }
 }
+// @@end-snippet: loop

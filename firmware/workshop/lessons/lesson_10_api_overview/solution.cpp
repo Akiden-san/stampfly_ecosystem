@@ -6,6 +6,7 @@
 // デシメーション用のtickカウンタ
 static uint32_t tick = 0;
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 10: API Overview & App Development - Solution");
@@ -14,7 +15,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     tick++;
@@ -59,3 +62,4 @@ void loop_400Hz(float dt)
     // Battery voltage / バッテリ電圧
     ws::print(">voltage:%.2f", ws::battery_voltage());
 }
+// @@end-snippet: loop

@@ -38,6 +38,7 @@ static float clamp(float val, float lim)
     return val;
 }
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 13: Precision Landing Competition - Reference");
@@ -46,7 +47,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     tick++;
@@ -100,3 +103,4 @@ void loop_400Hz(float dt)
     ws::motor_mixer(throttle, roll_output, pitch_output, yaw_output);
 
 }
+// @@end-snippet: loop

@@ -6,6 +6,7 @@
 static float roll_int = 0, pitch_int = 0, yaw_int = 0;
 static float roll_prev = 0, pitch_prev = 0, yaw_prev = 0;
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 12: Python SDK - Stable flight mode (Solution)");
@@ -14,7 +15,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     // Standard PID control (same as Lesson 8 solution)
@@ -68,3 +71,4 @@ void loop_400Hz(float dt)
 
     ws::motor_mixer(ws::rc_throttle(), roll_out, pitch_out, yaw_out);
 }
+// @@end-snippet: loop

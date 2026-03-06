@@ -5,6 +5,7 @@
 // レッスン 3: LED制御 - 解答
 // =========================================================================
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 3: LED Control - Solution");
@@ -17,7 +18,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     if (ws::is_armed()) {
@@ -42,3 +45,4 @@ void loop_400Hz(float dt)
         ws::led_color(r, g, 0);
     }
 }
+// @@end-snippet: loop

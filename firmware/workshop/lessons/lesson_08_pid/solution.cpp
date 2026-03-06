@@ -54,6 +54,7 @@ static float clamp(float value, float limit)
     return value;
 }
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 8: PID Control - Solution");
@@ -62,7 +63,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     tick++;
@@ -162,3 +165,4 @@ void loop_400Hz(float dt)
                   yaw_P, yaw_I);
     }
 }
+// @@end-snippet: loop

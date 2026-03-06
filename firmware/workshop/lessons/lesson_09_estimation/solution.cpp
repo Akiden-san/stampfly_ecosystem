@@ -7,6 +7,7 @@ static float cf_roll = 0.0f;
 static float cf_pitch = 0.0f;
 static uint32_t tick = 0;
 
+// @@snippet: setup
 void setup()
 {
     ws::print("Lesson 9: Attitude Estimation - Solution");
@@ -15,7 +16,9 @@ void setup()
     // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
     ws::set_channel(1);
 }
+// @@end-snippet: setup
 
+// @@snippet: loop
 void loop_400Hz(float dt)
 {
     tick++;
@@ -62,3 +65,4 @@ void loop_400Hz(float dt)
                   eskf_roll * 57.3f, eskf_pitch * 57.3f);
     }
 }
+// @@end-snippet: loop
