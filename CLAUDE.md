@@ -218,9 +218,8 @@ ASCII アートを活用する：
 
 1. **Beamer の `.tex` を1ページずつ読み、チェックリストを適用する**
 2. **TikZ の `.tex` を1ファイルずつ読み、チェックリストを適用する**
-3. **PPTX ビルダー (`generate_slides.py`) と Beamer の内容を突き合わせる**
-4. **PDF を画像化して全ページ目視確認する**（テキストレビューだけでは検出できないレイアウト崩れを発見するため）
-5. 問題を発見したら修正し、修正ごとに fix コミットする
+3. **PDF を画像化して全ページ目視確認する**（テキストレビューだけでは検出できないレイアウト崩れを発見するため）
+4. 問題を発見したら修正し、修正ごとに fix コミットする
 
 ### 画像化による目視確認手順
 
@@ -278,14 +277,6 @@ magick -density 200 "<lesson>.pdf[1]" -quality 95 /tmp/beamer_<lesson>_p2.png
 | T11 | **分岐点のジャンクションドット:** 信号線が分岐する箇所に `\fill circle` で黒丸を配置しているか。ドットがないと信号の分岐元が不明瞭になる | sysid\_concept output tap |
 | T12 | **矢印経路の微小セグメント:** `\|-` や `-\|` で生成される直角経路に、微小な水平/垂直セグメント（接続先ノードのすぐ隣で折れ曲がる等）が含まれていないか。タップ点を接続先の真上/真横に配置し直線化するか、経路を見直して解消する | sysid\_concept `\|-` で y(t) 側に微小左ジョグ発生 |
 
-#### C: コンテンツ整合性（Beamer ↔ PPTX）
-
-| ID | チェック内容 | 過去の発生例 |
-|----|------------|-------------|
-| C1 | Beamer にあるスライドが PPTX ビルダーにも存在するか（逆も同様） | L5 safety/checkpoint, L6 tuning, L7 experiment |
-| C2 | コードスニペットの内容が Beamer と PPTX で一致しているか | L6 motor\_mixer 引数不一致 |
-| C3 | チェックポイント項目が Beamer と PPTX で一致しているか | L5 checkpoint items |
-
 #### S: スライド構造
 
 | ID | チェック内容 |
@@ -300,10 +291,9 @@ magick -density 200 "<lesson>.pdf[1]" -quality 95 /tmp/beamer_<lesson>_p2.png
 2. **TikZ タイトル重複:** TikZ 側のタイトルを削除（Beamer frame title に委ねる）
 3. **ラベル重なり:** `above`/`below`/`left`/`right` の位置変更、または `xshift`/`yshift` で微調整
 4. **ブロック図の信号フロー:** フィードバック分岐は出力信号線上に junction dot を置く
-5. **Beamer/PPTX 不一致:** Beamer を正（SSOT）として PPTX を合わせる
-6. **フィードバック矢印の経路:** 終点を `.west` や `.south` に変更し、説明テキストの外側を迂回させる（例: `-| ($(node.west)+(-8mm,0)$) -- (node.west)`）
-7. **分岐点のドット欠落:** `\fill[color] (tap) circle (2.5pt);` でジャンクションドットを追加
-8. **矢印の微小セグメント:** タップ点の座標を接続先ノードの真上/真横に合わせ（例: `\coordinate (tap) at (est.east |- plant.east);`）、`|-` を直線 `--` に置き換えて微小折れ曲がりを解消
+5. **フィードバック矢印の経路:** 終点を `.west` や `.south` に変更し、説明テキストの外側を迂回させる（例: `-| ($(node.west)+(-8mm,0)$) -- (node.west)`）
+6. **分岐点のドット欠落:** `\fill[color] (tap) circle (2.5pt);` でジャンクションドットを追加
+7. **矢印の微小セグメント:** タップ点の座標を接続先ノードの真上/真横に合わせ（例: `\coordinate (tap) at (est.east |- plant.east);`）、`|-` を直線 `--` に置き換えて微小折れ曲がりを解消
 
 ## Project Overview
 

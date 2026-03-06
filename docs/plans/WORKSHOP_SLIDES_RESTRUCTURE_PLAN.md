@@ -139,7 +139,6 @@ lessons:
 - `sf lesson list` がこのファイルを読んで番号・タイトル・概要を表示
 - Makefile / スクリプトがこのファイルを参照してビルド順を決定
 - レッスン追加・並べ替えはこのファイルの編集だけで完結
-- PPTXジェネレータもこのファイルからレッスン情報を取得可能
 
 ---
 
@@ -271,7 +270,6 @@ Workshop Lessons
 1. 旧 `lesson_XX.tex` ファイルを削除
 2. `.gitignore` 更新（一時展開ファイルの除外）
 3. ドキュメント更新（DOCUMENT_INDEX.md、README等）
-4. PPTXジェネレータは現状維持（必要が生じた場合にのみ対応）
 
 ---
 
@@ -388,7 +386,7 @@ Firmware source files are annotated with `@@snippet` / `@@end-snippet` markers. 
 | 1 | File restructure | Create `chapters/`, `main.tex`, rename files, update Makefile |
 | 2 | Lesson manifest | Create YAML, update `sf lesson` command |
 | 3 | Code snippet sync | Create extractor, add markers, update slides |
-| 4 | Cleanup | Remove old files, update docs. PPTX generator left as-is (update only when needed) |
+| 4 | Cleanup | Remove old files, update docs |
 
 ---
 
