@@ -356,22 +356,22 @@ void ControlTask(void* pvParameters)
 
             // Apply to motors via built-in X-quad mixer
             // 内蔵 X-quad ミキサー経由でモーターに出力
-            g_motor.setMixerOutput(throttle, out_roll, out_pitch, out_yaw);
+            g_motor.setMixerOutput(throttle, out_roll*3.7, out_pitch*3.7, out_yaw*3.7);
         }
 
         // --- Teleplot output at 50Hz (400Hz / 8) ---
         // --- Teleplot 出力 50Hz（400Hz / 8） ---
         static uint32_t tick = 0;
         tick++;
-        if (tick % 8 == 0) {
-            printf(">gyro_x:%.2f\n", gyro.x);
-            printf(">gyro_y:%.2f\n", gyro.y);
-            printf(">gyro_z:%.2f\n", gyro.z);
-            printf(">roll_deg:%.1f\n", att_roll * 57.3f);
-            printf(">pitch_deg:%.1f\n", att_pitch * 57.3f);
-            printf(">throttle:%.2f\n", throttle);
-            printf(">vbat:%.2f\n", voltage);
-        }
+        //if (tick % 8 == 0) {
+        //    printf(">gyro_x:%.2f\n", gyro.x);
+        //    printf(">gyro_y:%.2f\n", gyro.y);
+        //    printf(">gyro_z:%.2f\n", gyro.z);
+        //    printf(">roll_deg:%.1f\n", att_roll * 57.3f);
+        //    printf(">pitch_deg:%.1f\n", att_pitch * 57.3f);
+        //    printf(">throttle:%.2f\n", throttle);
+        //    printf(">vbat:%.2f\n", voltage);
+        //}
     }
 }
 

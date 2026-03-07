@@ -1,84 +1,78 @@
 #include "workshop_api.hpp"
 
 // =========================================================================
-// Lesson 5: Rate P-Control + First Flight
-// レッスン 5: レートP制御 + 初フライト
+// Lesson 7: System Identification - Solution
+// レッスン 7: システム同定 - 解答
 // =========================================================================
 //
-// Goal: Implement proportional (P) feedback control on angular rate.
-// 目標: 角速度に対する比例(P)フィードバック制御を実装する
+// Fly with P control (Kp=0.5), capture telemetry via WiFi,
+// then run: sf sysid fit flight.csv --kp 0.5 --plot
 //
-// Block diagram:
-//   rc_stick --> [scale] --> target_rate -->(+)--> error --> [Kp] --> output --> motor_mixer
-//                                           ^(-)
-//                                           |
-//                                      gyro (actual rate)
+// P 制御（Kp=0.5）で飛行し、WiFi テレメトリを取得後:
+//   sf sysid fit flight.csv --kp 0.5 --plot
+
+static uint32_t tick = 0;
+
+// P gain (remember for sf sysid fit --kp 0.5)
+// P ゲイン（sf sysid fit --kp 0.5 に渡す値）
+static float Kp = 0.5f;
+static float Kp_yaw = 2.0f;
+
+// Rate limits (sf sysid fit --rate-max uses default 1.0 for roll/pitch)
+// レート制限（sf sysid fit --rate-max のデフォルト 1.0 が roll/pitch 用）
+static const float rate_max_rp  = 1.0f;    // [rad/s]
+static const float rate_max_yaw = 5.0f;    // [rad/s]
+
+static float clamp(float val, float lim)
+{
+    if (val >  lim) return  lim;
+    if (val < -lim) return -lim;
+    return val;
+}
 
 void setup()
 {
-    ws::print("Lesson 5: Rate P-Control");
+    ws::print("Lesson 7: System Identification - Solution");
 
-    // TODO: Set your WiFi channel (1, 6, or 11)
-    // TODO: 自分のWiFiチャンネルを設定する（1, 6, 11のいずれか）
-    ws::set_channel(11);
+    // Set WiFi channel (use 1, 6, or 11 to avoid interference)
+    // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
+    ws::set_channel(1);
 }
 
 void loop_400Hz(float dt)
 {
-    // Safety: only run control when armed
-    // 安全: ARM状態のときだけ制御を実行
+    tick++;
+
     if (!ws::is_armed()) {
         ws::motor_stop_all();
+        ws::led_color(0, 0, 50);
         return;
     }
 
+    ws::led_color(0, 50, 0);  // Green = flying
     float throttle = ws::rc_throttle();
 
-    // --- P gain ---
-    // P ゲイン
-    float Kp_roll  = 1.362f;  // TODO: tune this value / この値を調整
-    float Kp_pitch = 1.984f;  // TODO: tune this value / この値を調整
-    float Kp_yaw   = 7.310f;  // TODO: tune this value / この値を調整
-
-    // --- Maximum angular rate [rad/s] ---
-    // 最大角速度 [rad/s]
-    float rate_max_rp  = 1.0f;  // roll/pitch max rate
-    float rate_max_yaw = 5.0f;  // yaw max rate
-
-    // --- Roll axis ---
-    // ロール軸
-    // TODO: Compute target rate from stick input
-    float roll_target = ws::rc_roll() * rate_max_rp;
-
-    // TODO: Read actual rate from gyro
-    float roll_actual = ws::gyro_x();
-
-    // TODO: Compute error (target - actual)
-    float roll_error = roll_target - roll_actual;
-
-    // TODO: Apply P gain to get control output
-    float roll_output = Kp_roll * roll_error;
-
-
-    // --- Pitch axis ---
-    // ピッチ軸
-    // TODO: Same as roll but for pitch axis
-    // ヒント: ws::rc_pitch(), ws::gyro_y()
+    // =====================================================================
+    // P control (same as L5)
+    // P 制御（L5 と同じ）
+    // =====================================================================
+    float roll_target  = ws::rc_roll()  * rate_max_rp;
     float pitch_target = ws::rc_pitch() * rate_max_rp;
-    float pitch_actual = ws::gyro_y();
-    float pitch_error = pitch_target - pitch_actual;
-    float pitch_output = Kp_pitch * pitch_error;
+    float yaw_target   = ws::rc_yaw()   * rate_max_yaw;
 
-    // --- Yaw axis ---
-    // ヨー軸
-    // TODO: Same as roll but for yaw axis
-    // ヒント: ws::rc_yaw(), ws::gyro_z()
-    float yaw_target = ws::rc_yaw() * rate_max_yaw;
-    float yaw_actual = ws::gyro_z();
-    float yaw_error = yaw_target - yaw_actual;
-    float yaw_output = Kp_yaw * yaw_error;
+    float roll_cmd  = Kp     * (roll_target  - ws::gyro_x());
+    float pitch_cmd = Kp     * (pitch_target - ws::gyro_y());
+    float yaw_cmd   = Kp_yaw * (yaw_target   - ws::gyro_z());
 
-    // --- Apply to motors ---
-    // モーターに適用
-    ws::motor_mixer(throttle, roll_output, pitch_output, yaw_output);
+    ws::motor_mixer(throttle,
+                    clamp(roll_cmd,  1.0f),
+                    clamp(pitch_cmd, 1.0f),
+                    clamp(yaw_cmd,   1.0f));
+
+    // Debug print (2Hz)
+    // デバッグ出力 (2Hz)
+    if (tick % 200 == 0) {
+        ws::print("Kp=%.2f rate_max=%.1f gyro_x=%.3f",
+                  Kp, rate_max_rp, ws::gyro_x());
+    }
 }
