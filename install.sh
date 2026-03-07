@@ -264,4 +264,4 @@ echo
 # Run Python installer
 # -u: unbuffered stdout to keep correct output ordering with subprocesses
 # -u: サブプロセスとの出力順序を正しく保つためバッファなし出力
-exec "$PYTHON_CMD" -u "$SCRIPT_DIR/scripts/installer.py" "$@"
+"$PYTHON_CMD" -u "$SCRIPT_DIR/scripts/installer.py" "$@"
