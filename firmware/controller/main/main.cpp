@@ -1875,7 +1875,10 @@ static void main_loop(void)
     // メニューナビゲーション（メニュー状態時のみ）
     // 常に物理的な右スティックを使用（StickModeに依存しない）
     // Always use physical right stick (independent of StickMode)
-    if (menu_get_state() == SCREEN_STATE_MENU) {
+    // Use current_state (captured at frame start) to prevent same-frame
+    // transition from sub-screen triggering menu_select()
+    // フレーム開始時の状態を使い、同一フレーム内遷移での誤選択を防止
+    if (current_state == SCREEN_STATE_MENU) {
         static uint32_t last_nav_time = 0;
         const uint32_t NAV_DEBOUNCE_MS = 200;
         uint32_t now = millis_now();
