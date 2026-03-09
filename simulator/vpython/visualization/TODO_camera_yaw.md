@@ -4,53 +4,35 @@
 
 ## 1. 状態
 
-- **修正済み**（2026-03-09）
-- 対象ファイル: `vpython_backend.py` の `follow_camera_setting()`, `camera_init()`, `fix_camera_setting()`, `fix_human_setting()`
+- **解決済み**（2026-03-09）
 
-## 2. 症状（修正前）
+## 2. 原因と修正
 
-- ドローンが Yaw 回転しても風景が動かない（カメラが追従しない）
-- ±π 境界を跨いだときだけカメラアングルが急に切り替わる
-- 画面上でドローンが回転しているのが見える（本来は機体中央固定で風景が流れるべき）
+問題は2つあった：
 
-## 3. 根本原因
+### 問題1: カメラが派生プロパティを使用していた
 
-VPython のカメラには**プライマリプロパティ**と**派生プロパティ**がある:
+`scene.camera.pos` / `scene.camera.axis` は VPython の派生プロパティで、セッター内部で `scene.center` を上書きする依存関係ループが存在した。
 
-| 種別 | プロパティ | 用途 |
-|------|-----------|------|
-| プライマリ | `scene.center`, `scene.forward`, `scene.range`, `scene.up`, `scene.fov` | カメラを直接制御 |
-| 派生 | `scene.camera.pos`, `scene.camera.axis` | プライマリから計算される |
+**修正:** プライマリプロパティ (`scene.center`, `scene.forward`, `scene.range`) のみ使用するように変更。
 
-`camera.axis` のセッターが `camera.pos` の**古い値**を参照して `scene.center` を上書きする:
+### 問題2: euler[2][0] が step_fast で正しく更新されなかった（根本原因）
 
+| データソース | yaw 値 | 状態 |
+|-------------|--------|------|
+| `drone.body.euler[2][0]` | 常に 0（まれに正しい値） | 不正 |
+| `drone.body.DCM[1,0], DCM[0,0]` から `atan2` | 正しく変化 | 正常 |
+
+DCM はドローンの描画に使われており、ドローンは正しく回転していた。しかしカメラは `euler[2][0]` を使っていたため追従しなかった。
+
+**修正:** カメラの yaw を `euler[2][0]` ではなく DCM から直接計算：
 ```python
-# VPython 内部コード (vpython.py line ~2865)
-@axis.setter
-def axis(self, value):
-    c.center = self.pos + value   # ← 古い pos を使う！
-    c.axis = norm(value)
-    c.range = mag(value) * tan(c.fov / 2)
+direction = atan2(drone.body.DCM[1,0], drone.body.DCM[0,0])
 ```
 
-`camera.pos` → `camera.axis` の順で設定すると **依存関係ループ** が発生し、yaw 方向の変化が正しく反映されなかった。
+### 残課題
 
-## 4. 修正内容
-
-全カメラ関数で `camera.pos` / `camera.axis`（派生プロパティ）の使用をやめ、プライマリプロパティのみを使用:
-
-```python
-# 修正後
-self.scene.center = vector(...)    # 注視点
-self.scene.forward = vector(...)   # カメラ方向（正規化）
-self.scene.range = d               # カメラ距離
-self.scene.up = vector(0, 0, -1)   # 上方向
-self.scene.fov = ...               # 視野角
-```
-
-## 5. 要確認
-
-- 実機で yaw 操作時にカメラが追従するか目視確認
+`euler[2][0]` が `step_fast()` で正しく更新されない根本原因は未調査。`step_fast()` 内の 484 行目で `self.euler[2][0]` に書き込んでいるが、レンダリング時に 0 に戻っている。ACRO ログとカメラで異なるタイミングで値が異なるケースも確認された。
 
 ---
 
@@ -58,50 +40,32 @@ self.scene.fov = ...               # 視野角
 
 ## 1. Status
 
-- **Fixed** (2026-03-09)
-- Target files: `follow_camera_setting()`, `camera_init()`, `fix_camera_setting()`, `fix_human_setting()` in `vpython_backend.py`
+- **Resolved** (2026-03-09)
 
-## 2. Symptoms (before fix)
+## 2. Cause and Fix
 
-- Scenery did not move when drone yawed (camera did not follow)
-- Camera angle snapped only when crossing ±π boundary
-- Drone visibly rotated on screen (should stay centered with scenery flowing)
+Two issues were found:
 
-## 3. Root Cause
+### Issue 1: Camera used derived properties
 
-VPython camera has **primary properties** and **derived properties**:
+`scene.camera.pos` / `scene.camera.axis` are VPython derived properties with a dependency loop in their setters that corrupts `scene.center`.
 
-| Type | Properties | Purpose |
-|------|-----------|---------|
-| Primary | `scene.center`, `scene.forward`, `scene.range`, `scene.up`, `scene.fov` | Direct camera control |
-| Derived | `scene.camera.pos`, `scene.camera.axis` | Computed from primary |
+**Fix:** Use only primary properties (`scene.center`, `scene.forward`, `scene.range`).
 
-The `camera.axis` setter references the **old** `camera.pos` value to overwrite `scene.center`:
+### Issue 2: euler[2][0] not reliably updated in step_fast (root cause)
 
+| Data source | Yaw value | Status |
+|-------------|-----------|--------|
+| `drone.body.euler[2][0]` | Always 0 (rarely correct) | Broken |
+| `atan2(drone.body.DCM[1,0], DCM[0,0])` | Correctly changing | Working |
+
+DCM was used for drone rendering and showed correct rotation. But the camera used `euler[2][0]`, which stayed at 0.
+
+**Fix:** Compute camera yaw directly from DCM:
 ```python
-# VPython internal code (vpython.py line ~2865)
-@axis.setter
-def axis(self, value):
-    c.center = self.pos + value   # ← uses OLD pos!
-    c.axis = norm(value)
-    c.range = mag(value) * tan(c.fov / 2)
+direction = atan2(drone.body.DCM[1,0], drone.body.DCM[0,0])
 ```
 
-Setting `camera.pos` then `camera.axis` creates a **dependency loop**, preventing yaw changes from being reflected correctly.
+### Remaining issue
 
-## 4. Fix
-
-All camera functions now use primary properties only (no `camera.pos` / `camera.axis` setters):
-
-```python
-# After fix
-self.scene.center = vector(...)    # look-at point
-self.scene.forward = vector(...)   # camera direction (normalized)
-self.scene.range = d               # camera distance
-self.scene.up = vector(0, 0, -1)   # up direction
-self.scene.fov = ...               # field of view
-```
-
-## 5. Verification needed
-
-- Visual confirmation that camera follows yaw during live simulation
+Root cause of why `euler[2][0]` is not properly updated in `step_fast()` is uninvestigated. Line 484 writes to `self.euler[2][0]`, but the value reverts to 0 by rendering time.
