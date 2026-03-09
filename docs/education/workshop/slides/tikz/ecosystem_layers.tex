@@ -74,7 +74,7 @@
   % firmware → simulator (test before flight)
   % 実装をシミュレータで事前テスト
   \draw[arr=cfirmware] (fw.west) -- (sim.east)
-    node[arrlabel, midway, above=2.5mm] {仮想テスト};
+    node[arrlabel, pos=0.5, below=12mm] {仮想テスト};
 
   % simulator → control (refine design)
   % シミュレーション結果をもとに制御を改善
@@ -84,7 +84,7 @@
   % firmware → analysis (telemetry data)
   % フライトデータを解析に送る
   \draw[arr=cfirmware] (fw.east) -- (ana.west)
-    node[arrlabel, midway, above=2.5mm] {テレメトリ};
+    node[arrlabel, pos=0.5, below=12mm] {テレメトリ};
 
   % analysis → control (insights feed back)
   % 解析結果から制御を改善
