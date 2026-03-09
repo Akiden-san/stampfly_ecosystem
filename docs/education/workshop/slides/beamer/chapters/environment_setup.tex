@@ -38,27 +38,9 @@
 
 % ------------------------------------------------------------------
 \begin{frame}{エコシステム全体像 / Ecosystem Overview}
-  \begin{columns}[T]
-    \begin{column}{0.52\textwidth}
-      \centering
-      \vspace{-2mm}
-      \resizebox{0.95\columnwidth}{!}{\input{../tikz/ecosystem_layers}}
-    \end{column}
-    \begin{column}{0.45\textwidth}
-      \footnotesize
-      \begin{block}{開発サイクル}\setlength{\itemsep}{2pt}
-        \begin{enumerate}
-          \item 制御則を設計する \textcolor{black!50}{(Day\,3)}
-          \item シミュレータで安全に検証 \textcolor{black!50}{(Day\,3)}
-          \item ファームウェアに実装して飛ばす \textcolor{black!50}{(Day\,1--2)}
-          \item フライトデータを解析 \textcolor{black!50}{(Day\,4)}
-          \item 結果をもとに設計を改善
-        \end{enumerate}
-      \end{block}
-      \vspace{2pt}
-      {\scriptsize\textcolor{black!50}{sf CLI と protocol/ が全体を支えるインフラ}}
-    \end{column}
-  \end{columns}
+  \centering
+  \vspace{2mm}
+  \resizebox{!}{0.78\textheight}{\input{../tikz/ecosystem_layers}}
 \end{frame}
 
 % ------------------------------------------------------------------
