@@ -719,6 +719,23 @@ class render():
         self.scene.fov = 2*atan2(scene_range, d)
 
 
+    @staticmethod
+    def _wrap_angle(angle):
+        """Wrap angle to [-pi, pi]
+        角度を[-π, π]に正規化"""
+        from math import pi
+        while angle > pi:
+            angle -= 2 * pi
+        while angle < -pi:
+            angle += 2 * pi
+        return angle
+
+    def _smooth_angle(self, current, target, alpha):
+        """Smooth angle with proper wrapping to avoid discontinuity snap.
+        角度の不連続点（±π境界）を考慮したスムージング"""
+        diff = self._wrap_angle(target - current)
+        return self._wrap_angle(current + alpha * diff)
+
     def follow_camera_setting(self, drone, t):
         #Cameraの設定
         #カメラの見たい場所（目標）
@@ -727,12 +744,21 @@ class render():
         zf_target = drone.body.position[2][0]
         direction = drone.body.euler[2][0]
 
+        # Yaw角のスムージング（±π境界でのカメラジャンプを防止）
+        # Smooth yaw angle to prevent camera snap at ±π boundary
+        alpha_yaw = 0.05  # Yaw用（小さいほど滑らか）
+        if not hasattr(self, '_smoothed_yaw'):
+            self._smoothed_yaw = direction
+        else:
+            self._smoothed_yaw = self._smooth_angle(
+                self._smoothed_yaw, direction, alpha_yaw)
+
         #カメラの位置（目標）
         pattern = 0
         if pattern == 0:
-            #後ろから追いかける
-            xc_target = xf_target - 1*cos(direction)
-            yc_target = yf_target - 1*sin(direction)
+            #後ろから追いかける（スムージング済みYawを使用）
+            xc_target = xf_target - 1*cos(self._smoothed_yaw)
+            yc_target = yf_target - 1*sin(self._smoothed_yaw)
             zc_target = zf_target - 0.15
         elif pattern == 1:
             #上から追いかける
