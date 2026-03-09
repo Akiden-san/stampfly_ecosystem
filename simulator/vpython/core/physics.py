@@ -46,7 +46,7 @@ class rigidbody():
         # Pre-compute inverse inertia matrix (constant, avoids 8000 inv/s)
         # 慣性逆行列を事前計算（定数なので毎ステップの計算を回避）
         self.inertia_inv = np.linalg.inv(np.array(inersia))
-        self.euler = np.array(euler)
+        self.euler = np.array(euler, dtype=float)
         self.quat = self.euler2quat(euler)
         self.DCM = self.quat_dcm(self.quat)
         self.position = np.array(position)#np.zeros((3,1))
@@ -238,7 +238,7 @@ class rigidbody():
         self._update_dcm_cache(self.dcm)
 
     def set_euler(self, euler):
-        self.euler = np.array(euler)
+        self.euler = np.array(euler, dtype=float)
         self.quat = self.euler2quat(self.euler)
         self.dcm = self.euler_dcm(self.euler)
         self.s_q0 = float(self.quat[0][0])
