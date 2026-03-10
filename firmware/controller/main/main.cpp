@@ -747,28 +747,52 @@ static void render_menu_screen(void)
     uint8_t scroll_offset = menu_get_scroll_offset();
     int w = M5.Display.width();
 
+    // Clear old cursor position only when selection/scroll changes
+    // カーソル移動時のみ旧位置をクリア（毎フレームのfillRectによるちらつき防止）
+    static uint8_t prev_selected = 0;
+    static uint8_t prev_scroll = 0;
+    if (scroll_offset != prev_scroll) {
+        // Scroll changed: clear all menu lines once
+        // スクロール変化時: 全行を一度クリア
+        for (int j = 0; j < visible_lines; j++) {
+            M5.Display.fillRect(0, 2 + (j + 1) * line_height, w, line_height, SF_BLACK);
+        }
+    } else if (selected != prev_selected) {
+        // Cursor moved: clear old cursor line once
+        // カーソル移動: 旧カーソル行のみクリア
+        int old_pos = (int)prev_selected - (int)scroll_offset;
+        if (old_pos >= 0 && old_pos < visible_lines) {
+            M5.Display.fillRect(0, 2 + (old_pos + 1) * line_height, w, line_height, SF_BLACK);
+        }
+    }
+    prev_selected = selected;
+    prev_scroll = scroll_offset;
+
     for (int i = 0; i < visible_lines; i++) {
         uint8_t item_index = scroll_offset + i;
         int y = 2 + (i + 1) * line_height;
 
         if (item_index < item_count) {
             if (item_index == selected) {
-                // Fill line background then draw text (no residue with proportional font)
-                // 行背景を塗ってからテキスト描画（プロポーショナルフォントでも残像なし）
+                // Selected: fill full line with white background
+                // 選択行: 行全体を白背景で塗りつぶし
                 M5.Display.fillRect(0, y, w, line_height, SF_WHITE);
                 M5.Display.setCursor(4, y);
                 M5.Display.setTextColor(SF_BLACK, SF_WHITE);
                 M5.Display.printf("> %s", menu_get_item_label(item_index));
             } else {
-                M5.Display.fillRect(0, y, w, line_height, SF_BLACK);
+                // Non-selected: text with bg color, no fillRect
+                // 非選択行: テキスト背景色で描画、fillRectなし
                 M5.Display.setCursor(4, y);
                 M5.Display.setTextColor(SF_WHITE, SF_BLACK);
-                M5.Display.printf("  %s", menu_get_item_label(item_index));
+                M5.Display.printf("  %-14s", menu_get_item_label(item_index));
             }
         } else {
-            // 空行をクリア
-            // Clear empty line
-            M5.Display.fillRect(0, y, w, line_height, SF_BLACK);
+            // 空行: テキストでクリア
+            // Empty line: clear with text
+            M5.Display.setCursor(4, y);
+            M5.Display.setTextColor(SF_WHITE, SF_BLACK);
+            M5.Display.printf("                ");
         }
     }
 }
