@@ -741,26 +741,34 @@ static void render_menu_screen(void)
     M5.Display.printf("=== MENU ===    ");
 
     // メニュー項目（スクロール対応）
+    // Menu items (with scroll support)
     uint8_t item_count = menu_get_item_count();
     uint8_t selected = menu_get_selected_index();
     uint8_t scroll_offset = menu_get_scroll_offset();
+    int w = M5.Display.width();
 
     for (int i = 0; i < visible_lines; i++) {
         uint8_t item_index = scroll_offset + i;
-        M5.Display.setCursor(4, 2 + (i + 1) * line_height);
+        int y = 2 + (i + 1) * line_height;
 
         if (item_index < item_count) {
             if (item_index == selected) {
+                // Fill line background then draw text (no residue with proportional font)
+                // 行背景を塗ってからテキスト描画（プロポーショナルフォントでも残像なし）
+                M5.Display.fillRect(0, y, w, line_height, SF_WHITE);
+                M5.Display.setCursor(4, y);
                 M5.Display.setTextColor(SF_BLACK, SF_WHITE);
-                M5.Display.printf("> %-14s", menu_get_item_label(item_index));
+                M5.Display.printf("> %s", menu_get_item_label(item_index));
             } else {
+                M5.Display.fillRect(0, y, w, line_height, SF_BLACK);
+                M5.Display.setCursor(4, y);
                 M5.Display.setTextColor(SF_WHITE, SF_BLACK);
-                M5.Display.printf("  %-14s", menu_get_item_label(item_index));
+                M5.Display.printf("  %s", menu_get_item_label(item_index));
             }
         } else {
             // 空行をクリア
-            M5.Display.setTextColor(SF_WHITE, SF_BLACK);
-            M5.Display.printf("                ");
+            // Clear empty line
+            M5.Display.fillRect(0, y, w, line_height, SF_BLACK);
         }
     }
 }
