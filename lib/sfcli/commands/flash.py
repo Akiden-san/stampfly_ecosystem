@@ -41,7 +41,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument(
         "--legacy",
         action="store_true",
-        help="Flash factory legacy firmware (PlatformIO merged binary)",
+        help="Flash factory legacy firmware (vehicle or controller)",
     )
     parser.add_argument(
         "--build",
@@ -56,10 +56,34 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     parser.set_defaults(func=run)
 
 
+# Legacy binary definitions per target
+# ターゲットごとのレガシーバイナリ定義
+LEGACY_BINARIES = {
+    "vehicle": {
+        "file": "StampFlyVehicle_V1.0.0_merged_0x0.bin",
+        "offset": "0x0",
+        "label": "StampFly Vehicle (factory)",
+    },
+    "controller": {
+        "file": "StampFlyController_V1.0.0_20240802_offset_0x10000.bin",
+        "offset": "0x10000",
+        "label": "StampFly Controller (factory)",
+    },
+}
+
+
 def _flash_legacy(args: argparse.Namespace) -> int:
     """Flash legacy factory firmware (PlatformIO merged binary)
     レガシーファクトリーファームウェアを書き込む"""
-    legacy_bin = paths.firmware() / "legacy" / "merged.bin"
+    target = args.target
+
+    if target not in LEGACY_BINARIES:
+        console.error(f"No legacy firmware available for target: {target}")
+        console.print(f"  Available targets: {', '.join(LEGACY_BINARIES.keys())}")
+        return 1
+
+    info = LEGACY_BINARIES[target]
+    legacy_bin = paths.firmware() / "legacy" / info["file"]
     if not legacy_bin.exists():
         console.error(f"Legacy binary not found: {legacy_bin}")
         return 1
@@ -87,18 +111,19 @@ def _flash_legacy(args: argparse.Namespace) -> int:
 
     env = espidf.prepare_idf_env(idf_path)
 
-    # Use esptool.py to write merged binary at offset 0x0
-    # esptool.py でマージ済みバイナリをオフセット0x0に書き込む
+    # Use esptool.py to write binary at target-specific offset
+    # esptool.py でバイナリをターゲット固有のオフセットに書き込む
     cmd = [
         "python", "-m", "esptool",
         "--chip", "esp32s3",
         "--port", port,
         "--baud", str(args.baud),
-        "write_flash", "0x0", str(legacy_bin),
+        "write_flash", info["offset"], str(legacy_bin),
     ]
 
-    console.info("Flashing legacy factory firmware...")
+    console.info(f"Flashing legacy firmware: {info['label']}...")
     console.print(f"  Binary: {legacy_bin}")
+    console.print(f"  Offset: {info['offset']}")
     console.print(f"  Port:   {port}")
     console.print(f"  Baud:   {args.baud}")
     console.print()
@@ -107,11 +132,11 @@ def _flash_legacy(args: argparse.Namespace) -> int:
 
     if result.returncode == 0:
         console.print()
-        console.success("Legacy firmware flashed successfully")
+        console.success(f"Legacy firmware flashed successfully: {info['label']}")
         return 0
     else:
         console.print()
-        console.error("Legacy firmware flash failed")
+        console.error(f"Legacy firmware flash failed: {target}")
         return result.returncode
 
 
