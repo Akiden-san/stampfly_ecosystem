@@ -18,9 +18,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Environment
 
 ### ESP-IDF
-ESP-IDFの初期化:
+開発環境の初期化（`setup_env.sh` が ESP-IDF の `export.sh` を内部で呼ぶ）:
 ```bash
-source ~/esp/esp-idf/export.sh
+source setup_env.sh
 ```
 
 ファームウェアのビルド:
@@ -33,7 +33,7 @@ idf.py flash monitor
 ### sf CLI（推奨）
 sf CLI は ESP-IDF 環境に統合された開発ツール。`idf.py` を直接使う代わりにこちらを優先する：
 ```bash
-source ~/esp/esp-idf/export.sh  # ESP-IDF環境をアクティブ化（sfを使うため）
+source setup_env.sh  # 開発環境をアクティブ化（ESP-IDF + sf CLI）
 
 sf doctor              # 環境診断（問題があればまずこれを実行）
 sf build vehicle       # vehicleファームウェアをビルド
@@ -377,7 +377,7 @@ The `firmware/vehicle/` follows ESP-IDF component structure:
 ESP-IDF for embedded firmware (ESP32 target)。**sf CLI を優先して使用する:**
 ```bash
 # 推奨: sf CLI を使用
-source ~/esp/esp-idf/export.sh
+source setup_env.sh
 sf build vehicle
 sf flash vehicle -m
 

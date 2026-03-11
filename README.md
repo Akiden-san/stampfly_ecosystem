@@ -77,7 +77,7 @@ sf sim run genesis
 
 ```bash
 # 環境をアクティブ化
-source ~/esp/esp-idf/export.sh
+source setup_env.sh
 
 # 環境診断
 sf doctor
@@ -114,7 +114,7 @@ sf flash vehicle --legacy
 sf flash controller --legacy
 ```
 
-> **注意:** ESP-IDF 環境が必要です（`source ~/esp/esp-idf/export.sh`）。デバイスを USB 接続した状態で実行してください。
+> **注意:** 事前に `source setup_env.sh` で開発環境をセットアップしてください。デバイスを USB 接続した状態で実行してください。
 
 ---
 
@@ -248,7 +248,7 @@ You can fly a drone freely in the 3D view.
 
 ```bash
 # Activate environment
-source ~/esp/esp-idf/export.sh
+source setup_env.sh
 
 # Run diagnostics
 sf doctor
@@ -285,7 +285,7 @@ sf flash vehicle --legacy
 sf flash controller --legacy
 ```
 
-> **Note:** ESP-IDF environment is required (`source ~/esp/esp-idf/export.sh`). Connect the device via USB before running.
+> **Note:** Run `source setup_env.sh` to set up the development environment first. Connect the device via USB before running.
 
 ---
 
