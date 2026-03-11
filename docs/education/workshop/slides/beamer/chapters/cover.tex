@@ -31,6 +31,37 @@
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}[fragile]{工場出荷状態に戻す / Restore Factory Firmware}
+  \begin{alertblock}{注意}
+    {\small ワークショップを進めると、機体・送信機のファームウェアは上書きされます。\\
+    工場出荷状態に戻したい場合は、以下のコマンドを実行してください。}
+  \end{alertblock}
+
+  \vspace{-0.2em}
+
+  \begin{block}{機体（Vehicle）を工場出荷状態に戻す}
+  \begin{lstlisting}[style=sfcpp]
+sf flash vehicle --legacy
+  \end{lstlisting}
+  \end{block}
+
+  \vspace{-0.3em}
+
+  \begin{block}{送信機（Controller）を工場出荷状態に戻す}
+  \begin{lstlisting}[style=sfcpp]
+sf flash controller --legacy
+  \end{lstlisting}
+  \end{block}
+
+  \vspace{-0.2em}
+
+  {\scriptsize
+  \textbf{注意:} ESP-IDF 環境が必要です（\code{source \textasciitilde/esp/esp-idf/export.sh}）。\\
+  デバイスを USB 接続した状態で実行してください。
+  }
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}[fragile]{リポジトリの更新 / Sync Repository}
   \vspace{-0.3em}
 

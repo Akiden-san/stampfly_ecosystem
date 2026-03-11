@@ -101,6 +101,23 @@ sf build vehicle && sf flash vehicle -m
 
 ---
 
+## 工場出荷状態に戻す
+
+ワークショップやカスタムファームウェアの書き込みにより、機体・送信機のファームウェアは上書きされます。
+工場出荷状態に戻したい場合は、以下のコマンドを実行してください：
+
+```bash
+# 機体を工場出荷状態に戻す
+sf flash vehicle --legacy
+
+# 送信機を工場出荷状態に戻す
+sf flash controller --legacy
+```
+
+> **注意:** ESP-IDF 環境が必要です（`source ~/esp/esp-idf/export.sh`）。デバイスを USB 接続した状態で実行してください。
+
+---
+
 ## ディレクトリ構成
 
 ```
@@ -252,6 +269,23 @@ sf build vehicle && sf flash vehicle -m
 | `sf sim run vpython` | Run simulator |
 
 **→ [Command Reference](docs/commands/README.md)** | **[Setup Guide](docs/setup/README.md)**
+
+---
+
+## Restore Factory Firmware
+
+Workshop lessons and custom firmware will overwrite the factory firmware on your vehicle and controller.
+To restore the factory state, run:
+
+```bash
+# Restore vehicle to factory firmware
+sf flash vehicle --legacy
+
+# Restore controller to factory firmware
+sf flash controller --legacy
+```
+
+> **Note:** ESP-IDF environment is required (`source ~/esp/esp-idf/export.sh`). Connect the device via USB before running.
 
 ---
 
