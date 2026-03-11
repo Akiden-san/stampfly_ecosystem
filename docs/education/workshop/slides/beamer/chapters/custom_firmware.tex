@@ -23,7 +23,6 @@
 % Frame 3: Workflow Change
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{開発フロー / Development Flow}
-  \framesubtitle{ワークショップ vs ネイティブ開発}
 
   \begin{alertblock}{注意: これまでのレッスンとやり方が変わります}
     {\small
@@ -58,7 +57,6 @@
 % Frame 4: Workshop -> Native API comparison
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{API 比較 / API Comparison}
-  \framesubtitle{ws:: ワークショップ API vs ネイティブ API}
   \begin{columns}[t]
     \begin{column}{0.46\textwidth}
       \begin{exampleblock}{ws:: ワークショップ}
@@ -96,7 +94,10 @@
 % Frame 5: sf app new
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{プロジェクト作成 / Create Project}
-  \framesubtitle{\texttt{sf app new} で vehicle と同じ環境を独自プロジェクトとして生成}
+  {\small \texttt{sf app new} で vehicle と同じ環境を独自プロジェクトとして生成:}
+
+  \vspace{0.3em}
+
   \begin{lstlisting}[style=sfbash]
 sf app new my_drone    # firmware/my_drone/ が生成
 sf build my_drone      # ビルド
@@ -118,7 +119,10 @@ sf flash my_drone -m   # 書き込み + モニタ
 % Frame 6: Project File Structure
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{プロジェクト構成 / Project Structure}
-  \framesubtitle{\texttt{sf app new my\_drone} が生成するファイル}
+  {\small \texttt{sf app new my\_drone} が生成するファイル:}
+
+  \vspace{0.3em}
+
   \begin{lstlisting}[style=sfbash, basicstyle=\ttfamily\small]
 firmware/my_drone/
   CMakeLists.txt        # ビルド設定
@@ -146,7 +150,6 @@ firmware/my_drone/
 % Frame 7: main.cpp Overview
 % ------------------------------------------------------------------
 \begin{frame}{テンプレート構造 / Template Structure}
-  \framesubtitle{main.cpp の 3 要素}
 
   \begin{block}{\texttt{app\_main()} — ブートシーケンス}
     {\small NVS → センサ初期化 → ESKF 起動 → タスク起動（自動生成済み）}
@@ -174,7 +177,6 @@ firmware/my_drone/
 % Frame 8: ControlTask Detail
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{ControlTask / 制御ループ}
-  \framesubtitle{400\,Hz ループの処理フロー}
   \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
 void ControlTask(void* pvParameters) {
     while (true) {
@@ -203,7 +205,6 @@ void ControlTask(void* pvParameters) {
 % Frame 9: StampFlyState API Table
 % ------------------------------------------------------------------
 \begin{frame}{StampFlyState API}
-  \framesubtitle{全センサ + 推定値への直接アクセス}
   {\small
   \begin{tabular}{lll}
     \hline
@@ -230,8 +231,10 @@ void ControlTask(void* pvParameters) {
 % Frame 10: Hands-on
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: 全センサ Teleplot 可視化 / Hands-on}
-  \framesubtitle{%
-    編集ファイル: \texttt{firmware/my\_viz/main/main.cpp} の ControlTask 内}
+  {\small 編集ファイル: \texttt{firmware/my\_viz/main/main.cpp} の ControlTask 内}
+
+  \vspace{0.3em}
+
   \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
 auto& state = stampfly::StampFlyState::getInstance();
 stampfly::Vec3 accel, gyro;
