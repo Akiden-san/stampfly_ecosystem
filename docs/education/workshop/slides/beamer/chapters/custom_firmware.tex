@@ -22,8 +22,8 @@
 % ------------------------------------------------------------------
 % Frame 3: Workflow Change
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{作業フローの変更}
-  \framesubtitle{このレッスンでは \texttt{sf lesson switch} は使いません}
+\begin{frame}[fragile]{開発フロー / Development Flow}
+  \framesubtitle{ワークショップ vs ネイティブ開発}
 
   \begin{alertblock}{注意: これまでのレッスンとやり方が変わります}
     {\small
@@ -57,8 +57,8 @@
 % ------------------------------------------------------------------
 % Frame 4: Workshop -> Native API comparison
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{ワークショップ → ネイティブ開発}
-  \framesubtitle{ws:: API からネイティブ API への移行}
+\begin{frame}[fragile]{API 比較 / API Comparison}
+  \framesubtitle{ws:: ワークショップ API vs ネイティブ API}
   \begin{columns}[t]
     \begin{column}{0.46\textwidth}
       \begin{exampleblock}{ws:: ワークショップ}
@@ -95,8 +95,8 @@
 % ------------------------------------------------------------------
 % Frame 5: sf app new
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{sf app new でプロジェクト作成}
-  \framesubtitle{vehicle と同じ環境を独自プロジェクトとして生成}
+\begin{frame}[fragile]{プロジェクト作成 / Create Project}
+  \framesubtitle{\texttt{sf app new} で vehicle と同じ環境を独自プロジェクトとして生成}
   \begin{lstlisting}[style=sfbash]
 sf app new my_drone    # firmware/my_drone/ が生成
 sf build my_drone      # ビルド
@@ -145,8 +145,8 @@ firmware/my_drone/
 % ------------------------------------------------------------------
 % Frame 7: main.cpp Overview
 % ------------------------------------------------------------------
-\begin{frame}{main.cpp の全体構造}
-  \framesubtitle{テンプレートの 3 要素}
+\begin{frame}{テンプレート構造 / Template Structure}
+  \framesubtitle{main.cpp の 3 要素}
 
   \begin{block}{\texttt{app\_main()} — ブートシーケンス}
     {\small NVS → センサ初期化 → ESKF 起動 → タスク起動（自動生成済み）}
@@ -173,7 +173,7 @@ firmware/my_drone/
 % ------------------------------------------------------------------
 % Frame 8: ControlTask Detail
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{ControlTask の中身}
+\begin{frame}[fragile]{ControlTask / 制御ループ}
   \framesubtitle{400\,Hz ループの処理フロー}
   \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize]
 void ControlTask(void* pvParameters) {
