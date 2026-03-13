@@ -112,7 +112,7 @@ public:
     void getMagData(Vec3& mag) const;
     void getBaroData(float& altitude, float& pressure) const;
     void getToFData(float& bottom, float& front) const;
-    void getFlowData(float& vx, float& vy) const;
+    void getFlowData(float& vx, float& vy) const;         // Raw optical-flow deltas [counts/sample]
     void getFlowRawData(int16_t& dx, int16_t& dy, uint8_t& squal) const;
     void getPowerData(float& voltage, float& current) const;
 
@@ -132,7 +132,7 @@ public:
     void updateMag(float x, float y, float z);
     void updateBaro(float pressure, float temperature, float altitude);
     void updateToF(ToFPosition position, float distance, uint8_t status);
-    void updateOpticalFlow(int16_t delta_x, int16_t delta_y, uint8_t squal);
+    void updateOpticalFlow(int16_t delta_x, int16_t delta_y, uint8_t squal);  // Raw deltas [counts/sample]
     void updatePower(float voltage, float current);
 
     // Attitude data

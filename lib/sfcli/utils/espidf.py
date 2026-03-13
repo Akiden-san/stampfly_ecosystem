@@ -48,18 +48,31 @@ def idf_command(args: List[str]) -> List[str]:
 def prepare_idf_env(idf_path: Optional[Path] = None) -> dict:
     """Prepare environment with ESP-IDF settings
 
-    Since sfcli is now installed in ESP-IDF's Python environment,
-    we assume the user has already sourced export.sh before running sf commands.
-    We simply inherit the current environment.
+    Load ESP-IDF's exported environment so tools like cmake, ninja, and
+    the ESP-IDF Python packages are available even when the caller did not
+    run export.sh / export.bat in the current shell.
 
     Args:
-        idf_path: Path to ESP-IDF, or None to auto-detect (unused, kept for compatibility)
+        idf_path: Path to ESP-IDF, or None to auto-detect
 
     Returns:
-        Environment dictionary (copy of current environment)
+        Environment dictionary for subprocess.run
     """
-    # Just use the current environment - user should have sourced export.sh
-    return os.environ.copy()
+    if idf_path is None:
+        idf_path = find_idf_path()
+
+    if idf_path is None:
+        return os.environ.copy()
+
+    if platform.is_windows():
+        env = _prepare_idf_env_windows(idf_path)
+    elif platform.is_macos() or platform.is_linux():
+        env = _prepare_idf_env_unix(idf_path)
+    else:
+        env = os.environ.copy()
+
+    env.setdefault("IDF_PATH", str(idf_path))
+    return env
 
 
 def _prepare_idf_env_unix(idf_path: Path) -> dict:
@@ -113,6 +126,26 @@ def _prepare_idf_env_unix(idf_path: Path) -> dict:
     return os.environ.copy()
 
 
+def _active_idf_python_env_path() -> Optional[Path]:
+    """Return the current ESP-IDF Python environment path if running inside one."""
+    exe_path = Path(sys.executable).resolve()
+    if exe_path.name.lower() != "python.exe":
+        return None
+
+    scripts_dir = exe_path.parent
+    if scripts_dir.name.lower() != "scripts":
+        return None
+
+    env_path = scripts_dir.parent
+    env_root = env_path.parent
+    if env_root.name.lower() != "python_env":
+        return None
+    if env_root.parent.name.lower() != ".espressif":
+        return None
+
+    return env_path
+
+
 def _prepare_idf_env_windows(idf_path: Path) -> dict:
     """Prepare ESP-IDF environment for Windows"""
     export_script = idf_path / "export.bat"
@@ -120,11 +153,32 @@ def _prepare_idf_env_windows(idf_path: Path) -> dict:
         return os.environ.copy()
 
     try:
+        base_env = os.environ.copy()
+        active_venv = base_env.pop("VIRTUAL_ENV", None)
+        base_env.pop("PYTHONHOME", None)
+
+        idf_python_env = _active_idf_python_env_path()
+        if idf_python_env is not None:
+            base_env["IDF_PYTHON_ENV_PATH"] = str(idf_python_env)
+
+        if active_venv:
+            venv_path = Path(active_venv)
+            venv_entries = {
+                str(venv_path).lower(),
+                str(venv_path / "Scripts").lower(),
+            }
+            filtered_path = []
+            for entry in base_env.get("PATH", "").split(os.pathsep):
+                if entry and entry.lower() not in venv_entries:
+                    filtered_path.append(entry)
+            base_env["PATH"] = os.pathsep.join(filtered_path)
+
         result = subprocess.run(
-            f'cmd /c "{export_script}" && set',
+            f'call "{export_script}" && set',
             shell=True,
             capture_output=True,
             text=True,
+            env=base_env,
         )
         if result.returncode == 0:
             env = {}
@@ -135,6 +189,10 @@ def _prepare_idf_env_windows(idf_path: Path) -> dict:
                     value = value.strip()
                     if key:
                         env[key] = value
+            if "PATH" not in env and "Path" in env:
+                env["PATH"] = env["Path"]
+            if "IDF_PYTHON_ENV_PATH" not in env and idf_python_env is not None:
+                env["IDF_PYTHON_ENV_PATH"] = str(idf_python_env)
             env["IDF_PATH"] = str(idf_path)
             return env
     except Exception:

@@ -270,10 +270,10 @@ float tof_bottom();
 /** @brief Get front ToF distance [m] (VL53L3CX, 0-2m, -1 if unavailable) */
 float tof_front();
 
-/** @brief Get optical flow velocity X [m/s] (PMW3901) */
+/** @brief Get optical flow delta X [counts/sample] (PMW3901 raw, legacy name) */
 float flow_vx();
 
-/** @brief Get optical flow velocity Y [m/s] (PMW3901) */
+/** @brief Get optical flow delta Y [counts/sample] (PMW3901 raw, legacy name) */
 float flow_vy();
 
 /** @brief Get optical flow surface quality (0-255, higher=better) */

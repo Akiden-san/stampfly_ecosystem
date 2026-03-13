@@ -23,7 +23,7 @@ ws:: API の全体像を理解し、StampFlyState で全センサにアクセス
 | `getBaroData()` | BMP280 Barometer | altitude [m], pressure [Pa] |
 | `getMagData()` | BMM150 Magnetometer | x, y, z [uT] |
 | `getToFData(pos)` | VL53L3CX ToF | distance [m] |
-| `getFlowData()` | PMW3901 Optical Flow | vx, vy [m/s] |
+| `getFlowData()` | PMW3901 Optical Flow | delta_x, delta_y [counts/sample] (raw) |
 | `getFlowRawData()` | PMW3901 Raw | delta_x, delta_y, squal |
 | `getPowerData()` | Power monitor | voltage [V], current [A] |
 | `getAttitude()` | ESKF estimation | roll, pitch, yaw [rad] |
@@ -40,7 +40,7 @@ ws:: API の全体像を理解し、StampFlyState で全センサにアクセス
 | Magnetometer | BMM150 | 10-30 Hz | Magnetic vector |
 | ToF (bottom) | VL53L3CX | 30 Hz | Ground distance (0-2 m) |
 | ToF (front) | VL53L3CX | 30 Hz | Front distance (0-2 m) |
-| Optical Flow | PMW3901 | 100 Hz | Ground-relative velocity |
+| Optical Flow | PMW3901 | 100 Hz | Image motion delta (raw counts/sample) |
 
 ## Custom Firmware Project / カスタムファームウェアプロジェクト
 
@@ -99,7 +99,7 @@ firmware/my_sensor_app/
 | `>eskf_alt` | ESKF estimated altitude [m] |
 | `>mag_x/y/z` | Magnetic field [uT] |
 | `>heading` | Magnetic heading [deg] |
-| `>flow_vx/vy` | Optical flow velocity [m/s] |
+| `>flow_vx/vy` | Optical flow raw delta [counts/sample] |
 | `>voltage` | Battery voltage [V] |
 
 ## Key Concepts / キーコンセプト

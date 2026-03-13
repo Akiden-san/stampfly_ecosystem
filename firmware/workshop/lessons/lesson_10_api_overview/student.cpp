@@ -48,8 +48,8 @@ void loop_400Hz(float dt)
     // float heading = atan2f(-mag.y, mag.x) * 57.3f;
     // ws::print(">heading:%.1f", heading);
 
-    // TODO: Get optical flow velocity
-    // TODO: 光学フロー速度を取得
+    // TODO: Get optical flow raw delta
+    // TODO: 光学フロー生デルタを取得
     // auto flow = state.getFlowData();
     // ws::print(">flow_vx:%.3f", flow.vx);
     // ws::print(">flow_vy:%.3f", flow.vy);

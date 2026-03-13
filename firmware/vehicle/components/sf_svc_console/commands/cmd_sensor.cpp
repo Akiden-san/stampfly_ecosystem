@@ -70,7 +70,7 @@ static int cmd_sensor(int argc, char** argv)
     if (strcmp(sensor, "flow") == 0 || strcmp(sensor, "all") == 0) {
         float vx, vy;
         state.getFlowData(vx, vy);
-        console.print("OptFlow: Vx=%.3f, Vy=%.3f [m/s]\r\n", vx, vy);
+        console.print("OptFlow: Dx=%.0f, Dy=%.0f [counts/sample]\r\n", vx, vy);
         found = true;
     }
     if (strcmp(sensor, "power") == 0 || strcmp(sensor, "all") == 0) {
