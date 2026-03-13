@@ -144,7 +144,7 @@ def run(args: argparse.Namespace) -> int:
     """Execute flash command"""
     # Legacy firmware shortcut
     # レガシーファームウェアの書き込み
-    if args.legacy:
+    if getattr(args, "legacy", False):
         return _flash_legacy(args)
 
     # Determine target directory
