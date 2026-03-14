@@ -232,20 +232,16 @@ setup_env.bat
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: Hello StampFly / Hands-on}
-  \begin{sflisting}{user\_code.cpp}
+  \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{user\_code.cpp}
 #include "workshop_api.hpp"
-
-void setup()
-{
+void setup() {
     ws::print("Hello StampFly!");
 }
-
-void loop_400Hz(float dt)
-{
+void loop_400Hz(float dt) {
     // Nothing to do in Lesson 0
 }
   \end{sflisting}
-  \vspace{-0.8em}
+  \vspace{-0.5em}
   \begin{exampleblock}{手順}\small
     \textbf{1.}~\code{sf lesson switch 0}\\
     \textbf{2.}~上のコードを \code{user\_code.cpp} に書く\\
