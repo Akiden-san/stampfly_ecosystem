@@ -32,8 +32,15 @@ docs/
 ├── protocol/              # 通信プロトコル仕様
 │   └── (protocol/spec/ から生成または手書き)
 │
-├── tools/                 # ツール・ユーティリティ
-│   └── tools-guide.md           # 開発ツール使用ガイド
+├── guides/                # ユーザー向けガイド・リファレンス
+│   ├── safety.md                # 安全ガイド
+│   ├── troubleshooting.md       # トラブルシューティング
+│   ├── glossary.md              # 用語集
+│   ├── tools.md                 # 開発ツール使用ガイド
+│   └── flight-log-viz.md        # フライトログ可視化
+│
+├── assets/                # メディア・プレゼン資料
+│   └── (画像・PDF・PPTX)
 │
 ├── workshop/              # ワークショップ資料
 │   └── (実習ガイド・スライド・競技ルール)
@@ -79,17 +86,27 @@ docs/
 
 **注意:** 機械可読な仕様は `protocol/spec/` に置く。ここは人間向けの解説。
 
-### tools/
+### guides/
 
-**目的:** 開発・運用ツールの使い方を説明する
+**目的:** ユーザー向けのガイド・リファレンスを提供する
 
 **置くべき内容:**
-- ビルド・フラッシュ手順
-- キャリブレーションツールの使い方
-- ログ取得・解析ツールの使い方
-- CI/CDの設定と動作
+- 安全ガイド・トラブルシューティング
+- 用語集
+- ツールの使い方ガイド
+- チュートリアル（ログ可視化など）
 
-**読者:** 開発者、ツールを使う人
+**読者:** 全ユーザー（学生から開発者まで）
+
+### assets/
+
+**目的:** メディアファイル・プレゼン資料を格納する
+
+**置くべき内容:**
+- プロジェクト紹介用画像（機体写真、シミュレータスクリーンショット）
+- プレゼンテーション資料（PDF、HTML、PPTX）
+
+**読者:** ドキュメントから参照される
 
 ### workshop/
 
@@ -137,7 +154,7 @@ Q: 誰が読むか？
 Q: 何についてか？
 ├─ 設計判断・仕様 → architecture/
 ├─ 通信プロトコル → protocol/
-├─ ツールの使い方 → tools/
+├─ ツールの使い方・ハウツー → guides/
 ├─ 実装計画・TODO → plans/
 └─ プロジェクト全体の紹介 → ルート（overview.md等）
 ```
@@ -182,8 +199,15 @@ docs/
 ├── protocol/              # Communication protocol specs
 │   └── (generated from or handwritten based on protocol/spec/)
 │
-├── tools/                 # Tools & utilities
-│   └── tools-guide.md           # Development tools guide
+├── guides/                # User-facing guides & reference
+│   ├── safety.md                # Safety guide
+│   ├── troubleshooting.md       # Troubleshooting
+│   ├── glossary.md              # Glossary
+│   ├── tools.md                 # Development tools guide
+│   └── flight-log-viz.md        # Flight log visualization
+│
+├── assets/                # Media & presentation files
+│   └── (images, PDF, PPTX)
 │
 ├── workshop/              # Workshop materials
 │   └── (lab guides, slides, competition rules)
@@ -229,17 +253,27 @@ docs/
 
 **Note:** Machine-readable specs go in `protocol/spec/`. This is for human explanations.
 
-### tools/
+### guides/
 
-**Purpose:** Explain how to use development/operation tools
+**Purpose:** Provide user-facing guides and reference materials
 
 **Content:**
-- Build and flash procedures
-- Calibration tool usage
-- Log capture and analysis tool usage
-- CI/CD configuration and behavior
+- Safety guide & troubleshooting
+- Glossary
+- Tool usage guides
+- Tutorials (log visualization, etc.)
 
-**Audience:** Developers, tool users
+**Audience:** All users (students to developers)
+
+### assets/
+
+**Purpose:** Store media files and presentation materials
+
+**Content:**
+- Project images (drone photos, simulator screenshots)
+- Presentation files (PDF, HTML, PPTX)
+
+**Audience:** Referenced from documents
 
 ### workshop/
 
@@ -287,7 +321,7 @@ Q: Who is the reader?
 Q: What is it about?
 ├─ Design decisions/specs → architecture/
 ├─ Communication protocol → protocol/
-├─ Tool usage → tools/
+├─ Tool usage / how-to → guides/
 ├─ Implementation plans/TODO → plans/
 └─ Overall project intro → root (overview.md, etc.)
 ```

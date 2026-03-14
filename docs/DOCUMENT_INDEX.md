@@ -48,20 +48,18 @@
 | [architecture/stampfly-parameters.md](architecture/stampfly-parameters.md) | 物理パラメータリファレンス |
 | [architecture/genesis-integration.md](architecture/genesis-integration.md) | Genesis シミュレータ統合 |
 
-### ツール
+### ガイド・リファレンス (`guides/`)
 
 | ファイル | 説明 |
 |---------|------|
-| [tools/tools-guide.md](tools/tools-guide.md) | 開発ツール使用ガイド |
+| [guides/safety.md](guides/safety.md) | 安全ガイド |
+| [guides/troubleshooting.md](guides/troubleshooting.md) | トラブルシューティング |
+| [guides/glossary.md](guides/glossary.md) | 用語集 |
+| [guides/tools.md](guides/tools.md) | 開発ツール使用ガイド |
+| [guides/flight-log-viz.md](guides/flight-log-viz.md) | フライトログ可視化チュートリアル |
 | [setup/wifi-sta.md](setup/wifi-sta.md) | WiFi STA モードセットアップ |
 | [architecture/tello-api-reference.md](architecture/tello-api-reference.md) | Tello 互換 API リファレンス |
 | [architecture/ros2-udp-debug.md](architecture/ros2-udp-debug.md) | ROS2 UDP 制御デバッグガイド |
-
-### チュートリアル
-
-| ファイル | 説明 |
-|---------|------|
-| [tutorials/flight_log_visualization.md](tutorials/flight_log_visualization.md) | フライトログ可視化チュートリアル |
 
 ### 開発ガイドライン
 
@@ -78,10 +76,7 @@
 
 | ファイル | 説明 |
 |---------|------|
-| [glossary.md](glossary.md) | 用語集 |
-| [safety_guide.md](safety_guide.md) | 安全ガイド |
-| [setup_guide.md](setup_guide.md) | 教育向けセットアップガイド |
-| [troubleshooting.md](troubleshooting.md) | トラブルシューティング |
+| [setup/education.md](setup/education.md) | 教育向けセットアップガイド |
 | [university/syllabus.md](university/syllabus.md) | 大学講義シラバス |
 | [university/assessment_rubric.md](university/assessment_rubric.md) | 評価ルーブリック |
 | [workshop/workshop_guide.md](workshop/workshop_guide.md) | ワークショップガイド |
@@ -255,20 +250,18 @@
 | [architecture/stampfly-parameters.md](architecture/stampfly-parameters.md) | Physical parameters reference |
 | [architecture/genesis-integration.md](architecture/genesis-integration.md) | Genesis simulator integration |
 
-### Tools
+### Guides & Reference (`guides/`)
 
 | File | Description |
 |------|-------------|
-| [tools/tools-guide.md](tools/tools-guide.md) | Development tools guide |
+| [guides/safety.md](guides/safety.md) | Safety guide |
+| [guides/troubleshooting.md](guides/troubleshooting.md) | Troubleshooting |
+| [guides/glossary.md](guides/glossary.md) | Glossary |
+| [guides/tools.md](guides/tools.md) | Development tools guide |
+| [guides/flight-log-viz.md](guides/flight-log-viz.md) | Flight log visualization tutorial |
 | [setup/wifi-sta.md](setup/wifi-sta.md) | WiFi STA mode setup |
 | [architecture/tello-api-reference.md](architecture/tello-api-reference.md) | Tello-compatible API reference |
 | [architecture/ros2-udp-debug.md](architecture/ros2-udp-debug.md) | ROS2 UDP control debug guide |
-
-### Tutorials
-
-| File | Description |
-|------|-------------|
-| [tutorials/flight_log_visualization.md](tutorials/flight_log_visualization.md) | Flight log visualization tutorial |
 
 ### Development Guidelines
 
@@ -285,10 +278,7 @@
 
 | File | Description |
 |------|-------------|
-| [glossary.md](glossary.md) | Glossary |
-| [safety_guide.md](safety_guide.md) | Safety guide |
-| [setup_guide.md](setup_guide.md) | Education-oriented setup guide |
-| [troubleshooting.md](troubleshooting.md) | Troubleshooting |
+| [setup/education.md](setup/education.md) | Education-oriented setup guide |
 | [university/syllabus.md](university/syllabus.md) | University course syllabus |
 | [university/assessment_rubric.md](university/assessment_rubric.md) | Assessment rubric |
 | [workshop/workshop_guide.md](workshop/workshop_guide.md) | Workshop guide |

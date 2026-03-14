@@ -82,8 +82,8 @@
 
 | 資料 | 説明 |
 |------|------|
-| `docs/setup_guide.md` | 環境構築手順 |
-| `docs/safety_guide.md` | 飛行安全ガイド |
+| `docs/setup/education.md` | 環境構築手順 |
+| `docs/guides/safety.md` | 飛行安全ガイド |
 | `docs/university/assessment_rubric.md` | 評価ルーブリック |
 
 ---
