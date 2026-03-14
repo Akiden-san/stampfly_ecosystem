@@ -89,7 +89,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: モータを順番に回す / Hands-on}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp}]
+  \begin{sflisting}{user\_code.cpp}
 #include "workshop_api.hpp"
 static uint32_t timer = 0;
 
@@ -104,7 +104,7 @@ void loop_400Hz(float dt) {
     ws::motor_stop_all();
     ws::motor_set_duty(motor_id, 0.1f);
 }
-  \end{lstlisting}
+  \end{sflisting}
 \end{frame}
 
 % ------------------------------------------------------------------

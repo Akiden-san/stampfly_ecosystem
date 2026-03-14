@@ -130,6 +130,38 @@
 }
 \lstset{style=sfcpp}
 
+% --- tcolorbox + listings code block ---
+% Usage: \begin{sflisting}{filename} ... \end{sflisting}
+% tcolorbox でタイトルバー付きコードブロックを描画
+\usepackage[skins, listings]{tcolorbox}
+
+\newtcblisting{sflisting}[2][]{%
+  enhanced,
+  listing only,
+  listing options={style=sfcpp, #1},
+  title={\color{sfblue!80}\phantom{#2}},
+  coltitle=sfblue!80,
+  colframe=sfblue!80,
+  colback=sflight,
+  fonttitle=\sffamily\small\bfseries,
+  boxrule=0.5pt,
+  arc=1.5pt,
+  top=2pt, bottom=2pt, left=4pt, right=4pt,
+  toptitle=2pt, bottomtitle=2pt,
+  overlay={\fill[sfblue!80] (title.south west) rectangle (title.north east);
+            \node[white, font=\sffamily\small\bfseries] at (title) {#2};},
+}
+
+% Backward compat: \codefile still works for cases not yet migrated
+\newcommand{\codefile}[1]{%
+  \par\noindent
+  \colorbox{sfblue!80}{%
+    \parbox{\dimexpr\linewidth-2\fboxsep\relax}{%
+      \centering\color{white}\sffamily\small\bfseries #1%
+    }%
+  }\par\vspace{-2.5pt}%
+}
+
 % --- Graphics (for including generated PNG diagrams) ---
 \usepackage{graphicx}
 \graphicspath{{../images/}}

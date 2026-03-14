@@ -82,7 +82,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: ARM 状態で LED 色を変える / Hands-on}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp}, basicstyle=\ttfamily\scriptsize]
+  \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{user\_code.cpp}
 #include "workshop_api.hpp"
 void setup() {
     ws::print("Lesson 3: LED Control");
@@ -102,7 +102,7 @@ void loop_400Hz(float dt) {
         ws::led_color(r, g, 0);  // Red=low, Green=full
     }
 }
-  \end{lstlisting}
+  \end{sflisting}
 \end{frame}
 
 % ------------------------------------------------------------------

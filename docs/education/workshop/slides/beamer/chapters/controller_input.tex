@@ -145,7 +145,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: 手動ミキシング (1/2) / Hands-on: Setup}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp --- setup}]
+  \begin{sflisting}{user\_code.cpp --- setup}
 #include "workshop_api.hpp"
 static uint32_t tick = 0;
 
@@ -154,7 +154,7 @@ void setup() {
     ws::arm();              // Enable motor output
     ws::set_channel(1);     // 1, 6, or 11
 }
-  \end{lstlisting}
+  \end{sflisting}
 
   \vspace{0.5em}
 
@@ -166,7 +166,7 @@ void setup() {
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: 手動ミキシング (2/2) / Hands-on: Loop}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp --- loop}]
+  \begin{sflisting}{user\_code.cpp --- loop}
 void loop_400Hz(float dt) {
     tick++;
     float t = ws::rc_throttle();
@@ -181,7 +181,7 @@ void loop_400Hz(float dt) {
         ws::print("T=%.2f R=%.2f P=%.2f Y=%.2f",
             t, r, p, y);
 }
-  \end{lstlisting}
+  \end{sflisting}
 \end{frame}
 
 % ------------------------------------------------------------------

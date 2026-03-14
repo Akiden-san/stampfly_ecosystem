@@ -251,7 +251,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: 相補フィルタ + Teleplot / Hands-on}
-  \begin{lstlisting}[style=sfcpp, basicstyle=\ttfamily\scriptsize, title={user\_code.cpp (excerpt)}]
+  \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{user\_code.cpp (excerpt)}
 #include "workshop_api.hpp"
 #include <cmath>
 static float cf_roll = 0.0f, cf_pitch = 0.0f;
@@ -269,7 +269,7 @@ void loop_400Hz(float dt) {
     ws::print(">cf_roll:%.1f", cf_roll*57.3f);
     ws::print(">eskf_roll:%.1f", ws::estimated_roll()*57.3f);
 }
-  \end{lstlisting}
+  \end{sflisting}
 \end{frame}
 
 % ------------------------------------------------------------------

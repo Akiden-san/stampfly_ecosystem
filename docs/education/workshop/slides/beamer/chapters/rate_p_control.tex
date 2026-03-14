@@ -42,7 +42,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: 3軸 P 制御 / Hands-on}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp}]
+  \begin{sflisting}{user\_code.cpp}
 #include "workshop_api.hpp"
 void setup() { ws::print("Lesson 5: Rate P-Control"); }
 void loop_400Hz(float dt) {
@@ -60,7 +60,7 @@ void loop_400Hz(float dt) {
     ws::motor_mixer(ws::rc_throttle(),
         Kp_rp*roll_e, Kp_rp*pitch_e, Kp_yaw*yaw_e);
 }
-  \end{lstlisting}
+  \end{sflisting}
 \end{frame}
 
 % ------------------------------------------------------------------

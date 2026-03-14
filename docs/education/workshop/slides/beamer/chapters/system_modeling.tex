@@ -288,7 +288,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習: モデルベースゲイン設計 / Hands-on}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp (excerpt)}]
+  \begin{sflisting}{user\_code.cpp (excerpt)}
 // Model-based Kp design (target zeta = 0.7)
 const float tau_m = 0.02f;
 const float K_roll  = 102.0f;
@@ -304,7 +304,7 @@ float Kp_yaw   = 1.0f/(4*zeta*zeta*K_yaw  *tau_m);
 float roll_cmd  = Kp_roll  * (target_roll  - ws::gyro_x());
 float pitch_cmd = Kp_pitch * (target_pitch - ws::gyro_y());
 float yaw_cmd   = Kp_yaw   * (target_yaw   - ws::gyro_z());
-  \end{lstlisting}
+  \end{sflisting}
 \end{frame}
 
 % ------------------------------------------------------------------

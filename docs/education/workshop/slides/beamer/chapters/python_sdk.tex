@@ -85,7 +85,7 @@
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{コード例: 基本フライト / Basic Flight}
-  \begin{lstlisting}[style=sfpython, title={flight\_basic.py}]
+  \begin{sflisting}[language=Python]{flight\_basic.py}
 from stampfly import StampFly
 
 drone = StampFly()
@@ -98,12 +98,12 @@ drone.move_forward(50)
 drone.land()
 
 drone.end()
-  \end{lstlisting}
+  \end{sflisting}
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{コード例: テレメトリ取得 / Telemetry}
-  \begin{lstlisting}[style=sfpython, title={flight\_telemetry.py}]
+  \begin{sflisting}[language=Python]{flight\_telemetry.py}
 import time
 from stampfly import StampFly
 
@@ -120,7 +120,7 @@ for _ in range(50):
 
 drone.land()
 drone.end()
-  \end{lstlisting}
+  \end{sflisting}
 \end{frame}
 
 % ------------------------------------------------------------------

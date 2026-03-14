@@ -151,7 +151,7 @@
 % Slide 8: Hands-on Step 1 -- Ideal PID
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習 Step\,1: 理想 PID / Ideal PID}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp (roll axis excerpt)}]
+  \begin{sflisting}{user\_code.cpp (roll axis excerpt)}
 float Kp=0.25f, Ti=1.67f, Td=0.01f;
 float integral=0, prev_err=0;
 // inside loop_400Hz(dt)
@@ -163,7 +163,7 @@ float I = Kp * integral;
 float D = Kp*Td*(error - prev_err)/dt; // ideal D
 prev_err = error;
 float roll_out = P + I + D;
-  \end{lstlisting}
+  \end{sflisting}
 
   \begin{exampleblock}{やってみよう}
     飛ばしてみて $\to$ 高周波振動に注目
@@ -174,7 +174,7 @@ float roll_out = P + I + D;
 % Slide 9: Hands-on Step 2 -- Incomplete Derivative Filter
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{実習 Step\,2: 不完全微分 / Incomplete Derivative}
-  \begin{lstlisting}[style=sfcpp, title={user\_code.cpp (D term replacement)}]
+  \begin{sflisting}{user\_code.cpp (D term replacement)}
 // Replace ideal D with incomplete derivative filter
 float eta = 0.125f;
 float d_filt = 0;  // persistent state
@@ -184,7 +184,7 @@ float a = (alpha - 1) / (alpha + 1);
 float b = 2*Td / ((alpha + 1) * dt);
 d_filt = a * d_filt + b * (error - prev_err);
 float D = Kp * d_filt;  // Filtered!
-  \end{lstlisting}
+  \end{sflisting}
 
   \begin{exampleblock}{やってみよう}
     再び飛ばして $\to$ 高周波振動が減ったことを確認
