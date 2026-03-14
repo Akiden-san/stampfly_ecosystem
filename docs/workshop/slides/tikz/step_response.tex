@@ -1,0 +1,83 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+
+\definecolor{refcolor}{RGB}{0, 120, 200}    % Blue - reference
+\definecolor{respcolor}{RGB}{220, 50, 30}   % Red - response
+\definecolor{gridcolor}{RGB}{200, 200, 200}
+\definecolor{labelcolor}{RGB}{80, 80, 80}
+\definecolor{annocolor}{RGB}{40, 160, 40}   % Green - annotations
+\begin{tikzpicture}[
+    axis/.style={-{Stealth[length=3mm]}, line width=1pt, labelcolor},
+    ref/.style={refcolor, line width=2pt},
+    resp/.style={respcolor, line width=2pt},
+    anno/.style={annocolor, line width=1pt, dashed},
+    dim/.style={{Stealth[length=2mm]}-{Stealth[length=2mm]}, annocolor, line width=0.8pt},
+    annolbl/.style={font=\small\bfseries, annocolor},
+  ]
+
+  % Grid
+  \foreach \x in {0, 1, ..., 12} {
+    \draw[gridcolor] (\x, 0) -- (\x, 6);
+  }
+  \foreach \y in {0, 1, ..., 6} {
+    \draw[gridcolor] (0, \y) -- (12, \y);
+  }
+
+  % Axes
+  \draw[axis] (-0.3, 0) -- (12.5, 0) node[right, font=\bfseries] {$t$ [s]};
+  \draw[axis] (0, -0.3) -- (0, 6.5) node[above, font=\bfseries] {$\omega$ [rad/s]};
+
+  % Time labels
+  \foreach \x/\t in {0/0, 2/0.5, 4/1.0, 6/1.5, 8/2.0, 10/2.5, 12/3.0} {
+    \node[font=\scriptsize, below, labelcolor] at (\x, -0.1) {\t};
+  }
+
+  % Reference (step input at t=0.5s = x=2)
+  \draw[ref] (0, 0) -- (2, 0) -- (2, 4) -- (12, 4);
+  \node[font=\small\bfseries, refcolor, above left] at (1, 0.3) {Target};
+
+  % Response curve — exact second-order underdamped step response
+  % y(τ) = A · [1 − exp(−ζωₙτ) / √(1−ζ²) · sin(ωd·τ + φ)]
+  % ζ = 0.3, ωₙ = 6.5 rad/s, ωd = 6.20 rad/s, φ = arccos(ζ), A = 4.0
+  \pgfmathsetmacro{\zetawn}{1.95}       % ζωₙ = 0.3 × 6.5
+  \pgfmathsetmacro{\wddeg}{355.24}      % ωd [deg/s] = 6.20 × 180/π
+  \pgfmathsetmacro{\phideg}{acos(0.3)}  % φ = arccos(ζ) [deg]
+  \pgfmathsetmacro{\invsqrt}{1/sqrt(1-0.09)} % 1/√(1−ζ²)
+  \draw[resp] (0, 0) -- (2, 0);
+  \draw[resp] plot[domain=0:2.5, samples=200]
+    ({2 + \x*4}, {4*(1 - \invsqrt*exp(-\zetawn*\x)*sin(\wddeg*\x + \phideg))});
+  \node[font=\small\bfseries, respcolor, above right] at (9, 4.1) {Response};
+
+  % --- Annotations ---
+
+  % Overshoot (peak: τ=π/ωd=0.507s → x=4.03, y=5.49)
+  \draw[anno] (4.0, 4.0) -- (4.0, 5.5);   % vertical at peak
+  \draw[anno] (4.0, 5.5) -- (5.7, 5.5);   % top extension line
+  \draw[anno] (5.2, 4.0) -- (5.7, 4.0);   % bottom extension line
+  \draw[dim] (5.5, 4.0) -- (5.5, 5.5);    % dimension arrow
+  \node[annolbl, right] at (5.6, 4.75) {Overshoot};
+
+  % Rise time
+  \draw[anno] (2, -0.8) -- (2, -0.3);
+  \draw[anno] (3.2, -0.8) -- (3.2, -0.3);
+  \draw[dim] (2, -0.6) -- (3.2, -0.6);
+  \node[annolbl, below] at (2.6, -0.85) {Rise Time};
+
+  % Settling time
+  \draw[anno] (2, -1.8) -- (2, -1.5);
+  \draw[anno] (8.2, -1.8) -- (8.2, -1.5);
+  \draw[dim] (2, -1.65) -- (8.2, -1.65);
+  \node[annolbl, below] at (5, -1.85) {Settling Time};
+
+  % Steady-state value line
+  \draw[refcolor, line width=0.5pt, dashed] (0, 4) -- (12, 4);
+
+  % Settling band (5%)
+  \fill[annocolor, opacity=0.08] (0, 3.8) rectangle (12, 4.2);
+  \node[font=\scriptsize, annocolor, right] at (10, 3.2) {$\pm 5\%$ band};
+
+\end{tikzpicture}
+\end{document}

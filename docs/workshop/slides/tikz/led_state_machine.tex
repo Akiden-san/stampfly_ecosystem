@@ -1,0 +1,46 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, automata, calc}
+
+\begin{document}
+
+\definecolor{redstate}{RGB}{220, 50, 30}
+\definecolor{greenstate}{RGB}{40, 160, 40}
+\definecolor{gray1}{RGB}{120, 120, 120}
+\begin{tikzpicture}[
+    state/.style={
+      circle, draw=#1, line width=2pt, fill=#1!10,
+      minimum size=32mm, font=\bfseries\large, text=#1, align=center
+    },
+    trans/.style={-{Stealth[length=3.5mm]}, line width=1.5pt, gray1},
+    tlbl/.style={font=\small, text=gray1, align=center, fill=white, inner sep=2pt},
+    every initial by arrow/.style={trans},
+  ]
+
+  % States
+  \node[state=redstate] (disarm) at (0, 0)
+    {DISARM\\[2pt]\scriptsize\textcolor{gray1}{Battery gradient}\\
+     \scriptsize\textcolor{redstate}{3.3\,V = Red}
+     \textcolor{gray1}{$\rightarrow$}
+     \textcolor{greenstate}{4.2\,V = Green}};
+  \node[state=greenstate, right=55mm of disarm] (arm)
+    {ARM\\\textcolor{greenstate!70}{\rule{8pt}{8pt}} Green};
+
+  % Transitions
+  \draw[trans] (disarm) to[bend left=20]
+    node[tlbl, above] {is\_armed() == true} (arm);
+  \draw[trans] (arm) to[bend left=20]
+    node[tlbl, below] {is\_armed() == false} (disarm);
+
+  % Initial
+  \draw[trans] (-4.5, 0) -- (disarm)
+    node[near start, above, font=\small, text=gray1] {Power ON};
+
+  % LED color labels
+  \node[font=\scriptsize, text=gray1, below=1mm of disarm]
+    {led\_color(r, g, 0)};
+  \node[font=\scriptsize, text=greenstate, below=1mm of arm]
+    {led\_color(0, 255, 0)};
+
+\end{tikzpicture}
+\end{document}

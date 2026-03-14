@@ -48,20 +48,18 @@
 | [architecture/stampfly-parameters.md](architecture/stampfly-parameters.md) | 物理パラメータリファレンス |
 | [architecture/genesis-integration.md](architecture/genesis-integration.md) | Genesis シミュレータ統合 |
 
-### ツール
+### ガイド・リファレンス (`guides/`)
 
 | ファイル | 説明 |
 |---------|------|
-| [tools/tools-guide.md](tools/tools-guide.md) | 開発ツール使用ガイド |
+| [guides/safety.md](guides/safety.md) | 安全ガイド |
+| [guides/troubleshooting.md](guides/troubleshooting.md) | トラブルシューティング |
+| [guides/glossary.md](guides/glossary.md) | 用語集 |
+| [guides/tools.md](guides/tools.md) | 開発ツール使用ガイド |
+| [guides/flight-log-viz.md](guides/flight-log-viz.md) | フライトログ可視化チュートリアル |
 | [setup/wifi-sta.md](setup/wifi-sta.md) | WiFi STA モードセットアップ |
 | [architecture/tello-api-reference.md](architecture/tello-api-reference.md) | Tello 互換 API リファレンス |
 | [architecture/ros2-udp-debug.md](architecture/ros2-udp-debug.md) | ROS2 UDP 制御デバッグガイド |
-
-### チュートリアル
-
-| ファイル | 説明 |
-|---------|------|
-| [tutorials/flight_log_visualization.md](tutorials/flight_log_visualization.md) | フライトログ可視化チュートリアル |
 
 ### 開発ガイドライン
 
@@ -78,16 +76,13 @@
 
 | ファイル | 説明 |
 |---------|------|
-| [education/glossary.md](education/glossary.md) | 用語集 |
-| [education/safety_guide.md](education/safety_guide.md) | 安全ガイド |
-| [education/setup_guide.md](education/setup_guide.md) | 教育向けセットアップガイド |
-| [education/troubleshooting.md](education/troubleshooting.md) | トラブルシューティング |
-| [education/university/syllabus.md](education/university/syllabus.md) | 大学講義シラバス |
-| [education/university/assessment_rubric.md](education/university/assessment_rubric.md) | 評価ルーブリック |
-| [education/workshop/workshop_guide.md](education/workshop/workshop_guide.md) | ワークショップガイド |
-| [education/workshop/workshop_schedule.md](education/workshop/workshop_schedule.md) | ワークショップスケジュール |
-| [education/workshop/competition_rules.md](education/workshop/competition_rules.md) | 競技ルール |
-| [education/workshop/slides/README.md](education/workshop/slides/README.md) | スライド資料ガイド |
+| [setup/education.md](setup/education.md) | 教育向けセットアップガイド |
+| [university/syllabus.md](university/syllabus.md) | 大学講義シラバス |
+| [university/assessment_rubric.md](university/assessment_rubric.md) | 評価ルーブリック |
+| [workshop/workshop_guide.md](workshop/workshop_guide.md) | ワークショップガイド |
+| [workshop/workshop_schedule.md](workshop/workshop_schedule.md) | ワークショップスケジュール |
+| [workshop/competition_rules.md](workshop/competition_rules.md) | 競技ルール |
+| [workshop/slides/README.md](workshop/slides/README.md) | スライド資料ガイド |
 
 ### 開発計画 (`plans/`)
 
@@ -255,20 +250,18 @@
 | [architecture/stampfly-parameters.md](architecture/stampfly-parameters.md) | Physical parameters reference |
 | [architecture/genesis-integration.md](architecture/genesis-integration.md) | Genesis simulator integration |
 
-### Tools
+### Guides & Reference (`guides/`)
 
 | File | Description |
 |------|-------------|
-| [tools/tools-guide.md](tools/tools-guide.md) | Development tools guide |
+| [guides/safety.md](guides/safety.md) | Safety guide |
+| [guides/troubleshooting.md](guides/troubleshooting.md) | Troubleshooting |
+| [guides/glossary.md](guides/glossary.md) | Glossary |
+| [guides/tools.md](guides/tools.md) | Development tools guide |
+| [guides/flight-log-viz.md](guides/flight-log-viz.md) | Flight log visualization tutorial |
 | [setup/wifi-sta.md](setup/wifi-sta.md) | WiFi STA mode setup |
 | [architecture/tello-api-reference.md](architecture/tello-api-reference.md) | Tello-compatible API reference |
 | [architecture/ros2-udp-debug.md](architecture/ros2-udp-debug.md) | ROS2 UDP control debug guide |
-
-### Tutorials
-
-| File | Description |
-|------|-------------|
-| [tutorials/flight_log_visualization.md](tutorials/flight_log_visualization.md) | Flight log visualization tutorial |
 
 ### Development Guidelines
 
@@ -285,16 +278,13 @@
 
 | File | Description |
 |------|-------------|
-| [education/glossary.md](education/glossary.md) | Glossary |
-| [education/safety_guide.md](education/safety_guide.md) | Safety guide |
-| [education/setup_guide.md](education/setup_guide.md) | Education-oriented setup guide |
-| [education/troubleshooting.md](education/troubleshooting.md) | Troubleshooting |
-| [education/university/syllabus.md](education/university/syllabus.md) | University course syllabus |
-| [education/university/assessment_rubric.md](education/university/assessment_rubric.md) | Assessment rubric |
-| [education/workshop/workshop_guide.md](education/workshop/workshop_guide.md) | Workshop guide |
-| [education/workshop/workshop_schedule.md](education/workshop/workshop_schedule.md) | Workshop schedule |
-| [education/workshop/competition_rules.md](education/workshop/competition_rules.md) | Competition rules |
-| [education/workshop/slides/README.md](education/workshop/slides/README.md) | Slide materials guide |
+| [setup/education.md](setup/education.md) | Education-oriented setup guide |
+| [university/syllabus.md](university/syllabus.md) | University course syllabus |
+| [university/assessment_rubric.md](university/assessment_rubric.md) | Assessment rubric |
+| [workshop/workshop_guide.md](workshop/workshop_guide.md) | Workshop guide |
+| [workshop/workshop_schedule.md](workshop/workshop_schedule.md) | Workshop schedule |
+| [workshop/competition_rules.md](workshop/competition_rules.md) | Competition rules |
+| [workshop/slides/README.md](workshop/slides/README.md) | Slide materials guide |
 
 ### Development Plans (`plans/`)
 

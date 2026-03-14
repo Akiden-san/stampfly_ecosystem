@@ -1,0 +1,110 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, fit, decorations.pathmorphing}
+
+\begin{document}
+
+\definecolor{ctrlcolor}{RGB}{0, 120, 200}
+\definecolor{espcolor}{RGB}{120, 80, 180}
+\definecolor{apicolor}{RGB}{50, 140, 50}
+\definecolor{gray1}{RGB}{120, 120, 120}
+\begin{tikzpicture}[
+    box/.style={
+      rectangle, rounded corners=4pt, draw=#1, line width=1.5pt,
+      fill=#1!8, minimum width=40mm, minimum height=18mm,
+      font=\large\bfseries, text=#1, align=center
+    },
+    smallbox/.style={
+      rectangle, rounded corners=2pt, draw=#1, line width=1pt,
+      fill=#1!6, minimum width=34mm, minimum height=14mm,
+      font=\bfseries, text=#1, align=center
+    },
+    arr/.style={-{Stealth[length=3mm]}, line width=1.5pt, #1},
+    lbl/.style={font=\small, text=gray1, align=center},
+  ]
+
+  % === Top row: Controller -> ESP-NOW -> StampFly ===
+  \node[box=ctrlcolor] (ctrl) at (0, 0) {Controller};
+  \node[box=espcolor, right=30mm of ctrl] (espnow) {ESP-NOW\\2.4\,GHz};
+  \node[box=apicolor, right=30mm of espnow] (stampfly) {StampFly};
+
+  \draw[arr=espcolor, decorate, decoration={snake, amplitude=1.5mm, segment length=6mm}]
+    (ctrl) -- node[above=3mm, font=\small\bfseries, text=espcolor] {Wireless} (espnow);
+  \draw[arr=apicolor] (espnow) -- (stampfly);
+
+  % === Controller side: 2 physical sticks (fork merge) ===
+  %
+  % Coordinates (positioning: below left=Ymm and Xmm is edge-to-edge):
+  %   ctrl: center (0,0), south=(0,-9)
+  %   lstick: top=-44, center_x = -(20+5+17) = -42.  lstick.north=(-42,-44)
+  %   rstick: top=-44, center_x = +(20+5+17) = +42.  rstick.north=(+42,-44)
+  %   fork_ctrl at yshift=-12mm from ctrl.south → (0,-21)
+  %     Trunk: (0,-21)→(0,-9) = 12mm (head=3mm, shaft=9mm) ✓
+  %     Bar: (-42,-21)—(+42,-21), above lstick/rstick top (-44) ✓
+  %     Rises: (-42,-44)→(-42,-21) = 23mm, (+42,-44)→(+42,-21) = 23mm ✓
+  %
+  \node[smallbox=ctrlcolor, below left=35mm and 5mm of ctrl]
+    (lstick) {Left Stick\\[-1pt]{\footnotesize\color{gray1} Throttle / Yaw}};
+  \node[smallbox=ctrlcolor, below right=35mm and 5mm of ctrl]
+    (rstick) {Right Stick\\[-1pt]{\footnotesize\color{gray1} Roll / Pitch}};
+
+  \coordinate (fork_ctrl) at ([yshift=-12mm]ctrl.south);
+  \draw[line width=1.5pt, ctrlcolor] (lstick.north) -- (lstick.north |- fork_ctrl);
+  \draw[line width=1.5pt, ctrlcolor] (rstick.north) -- (rstick.north |- fork_ctrl);
+  \draw[line width=1.5pt, ctrlcolor] (lstick.north |- fork_ctrl) -- (fork_ctrl);
+  \draw[line width=1.5pt, ctrlcolor] (rstick.north |- fork_ctrl) -- (fork_ctrl);
+  \draw[arr=ctrlcolor] (fork_ctrl) -- (ctrl.south);
+  \fill[ctrlcolor] (fork_ctrl) circle (2.5pt);
+
+  % === StampFly side: 4 API functions in 2x2 grid (fork distribute) ===
+  %
+  % Coordinates (positioning: below=Xmm is edge-to-edge gap):
+  %   stampfly: center (S,0), half-w=20, half-h=9 → south=(S,-9)
+  %   smallbox: half-w=17, half-h=7
+  %
+  %   api1/api2 (below=22mm): top=-31, center=-38, bottom=-45
+  %     api1 center_x=S-22, x=[S-39,S-5]
+  %     api2 center_x=S+22, x=[S+5,S+39]
+  %     Gap at x=S, width=10mm
+  %   api3/api4 (below=50mm): top=-59, center=-66, bottom=-73
+  %     Same x ranges as api1/api2
+  %
+  %   fork1 at yshift=-12mm → y=-21 (10mm above api1/api2 top=-31)
+  %     Bar: (S-22,-21)—(S+22,-21), above api1/api2 ✓
+  %     Drops: 10mm each (head=3mm, shaft=7mm) ✓
+  %   fork2 at yshift=-39mm → y=-48 (3mm below api1/api2 bottom=-45)
+  %     Trunk (S,-21)→(S,-48) through 10mm gap ✓
+  %     Bar: (S-22,-48)—(S+22,-48), below api1/api2 ✓
+  %     Drops to api3/api4: 11mm each (head=3mm, shaft=8mm) ✓
+  %
+  \node[smallbox=apicolor, below=22mm of stampfly, xshift=-22mm]
+    (api1) {rc\_throttle()\\[-1pt]{\footnotesize\color{gray1} 0.0\,--\,1.0}};
+  \node[smallbox=apicolor, below=22mm of stampfly, xshift=22mm]
+    (api2) {rc\_roll()\\[-1pt]{\footnotesize\color{gray1} $\pm$1.0}};
+  \node[smallbox=apicolor, below=50mm of stampfly, xshift=-22mm]
+    (api3) {rc\_pitch()\\[-1pt]{\footnotesize\color{gray1} $\pm$1.0}};
+  \node[smallbox=apicolor, below=50mm of stampfly, xshift=22mm]
+    (api4) {rc\_yaw()\\[-1pt]{\footnotesize\color{gray1} $\pm$1.0}};
+
+  % Fork 1: distribute to upper row (api1, api2)
+  \coordinate (fork1) at ([yshift=-12mm]stampfly.south);  % y=-21
+  \draw[line width=1.5pt, apicolor] (stampfly.south) -- (fork1);
+  \draw[line width=1.5pt, apicolor] (fork1) -- (fork1 -| api1.north);
+  \draw[line width=1.5pt, apicolor] (fork1) -- (fork1 -| api2.north);
+  \draw[arr=apicolor] (fork1 -| api1.north) -- (api1.north);
+  \draw[arr=apicolor] (fork1 -| api2.north) -- (api2.north);
+
+  % Fork 2: trunk continues through gap, distribute to lower row (api3, api4)
+  \coordinate (fork2) at ([yshift=-39mm]stampfly.south);  % y=-48
+  \draw[line width=1.5pt, apicolor] (fork1) -- (fork2);
+  \draw[line width=1.5pt, apicolor] (fork2) -- (fork2 -| api3.north);
+  \draw[line width=1.5pt, apicolor] (fork2) -- (fork2 -| api4.north);
+  \draw[arr=apicolor] (fork2 -| api3.north) -- (api3.north);
+  \draw[arr=apicolor] (fork2 -| api4.north) -- (api4.north);
+
+  % Junction dots
+  \fill[apicolor] (fork1) circle (2.5pt);
+  \fill[apicolor] (fork2) circle (2.5pt);
+
+\end{tikzpicture}
+\end{document}
