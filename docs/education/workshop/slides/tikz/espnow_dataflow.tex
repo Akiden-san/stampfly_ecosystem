@@ -42,38 +42,51 @@
   \draw[arr=ctrlcolor] (rstick) -- (ctrl);
 
   % === StampFly side: 4 API functions in 2x2 grid ===
-  % Upper row: below=22mm so top edge (y=-15mm) is below routing channel (y=-14mm)
+  %
+  % Coordinate calculation (positioning library: below=Xmm is EDGE-TO-EDGE gap):
+  %   stampfly: center (S,0), half-w=20, half-h=9 → south=(S,-9)
+  %   smallbox: half-w=17, half-h=7
+  %
+  % Upper row (below=22mm):
+  %   top = -9-22 = -31,  center_y = -38,  bottom = -45
+  %   api1: center (S-22, -38), x=[S-39, S-5], y=[-45, -31]
+  %   api2: center (S+22, -38), x=[S+5, S+39], y=[-45, -31]
+  %   Gap between api1 right (S-5) and api2 left (S+5): 10mm at x=S ✓
+  %
+  % Lower row (below=55mm):
+  %   top = -9-55 = -64,  center_y = -71,  bottom = -78
+  %   api3: center (S-22, -71), x=[S-39, S-5], y=[-78, -64]
+  %   api4: center (S+22, -71), x=[S+5, S+39], y=[-78, -64]
+  %
+  % Split (yshift=-38mm from stampfly.south):
+  %   split = (S, -9-38) = (S, -47), 2mm below api1/api2 bottom (-45) ✓
+  %
+  % Arrow verification:
+  %   Upper diag stampfly.south→api1.north: (S,-9)→(S-22,-31), no other nodes ✓
+  %   Upper diag stampfly.south→api2.north: (S,-9)→(S+22,-31), no other nodes ✓
+  %   Trunk (S,-9)→(S,-47): x=S in gap [S-5,S+5], never inside api1/api2 ✓
+  %   Split→api3: (S,-47)→(S-22,-64), at api1 right x=S-5: t=5/22,
+  %     y=-47-17(5/22)=-50.9, below api1 bottom(-45) ✓
+  %   Split→api4: (S,-47)→(S+22,-64), symmetric, below api2 bottom ✓
+  %
   \node[smallbox=apicolor, below=22mm of stampfly, xshift=-22mm]
     (api1) {rc\_throttle()\\[-1pt]{\footnotesize\color{gray1} 0.0\,--\,1.0}};
   \node[smallbox=apicolor, below=22mm of stampfly, xshift=22mm]
     (api2) {rc\_roll()\\[-1pt]{\footnotesize\color{gray1} $\pm$1.0}};
-  % Lower row
-  \node[smallbox=apicolor, below=46mm of stampfly, xshift=-22mm]
+  \node[smallbox=apicolor, below=55mm of stampfly, xshift=-22mm]
     (api3) {rc\_pitch()\\[-1pt]{\footnotesize\color{gray1} $\pm$1.0}};
-  \node[smallbox=apicolor, below=46mm of stampfly, xshift=22mm]
+  \node[smallbox=apicolor, below=55mm of stampfly, xshift=22mm]
     (api4) {rc\_yaw()\\[-1pt]{\footnotesize\color{gray1} $\pm$1.0}};
 
-  % Arrows from StampFly to each API (no chaining, no penetration, no edge overlap)
-  % Coordinate verification:
-  %   stampfly.south = (100, -9)
-  %   api1: center (78,-22), range x=[61,95], y=[-29,-15]
-  %   api2: center (122,-22), range x=[105,139], y=[-29,-15]
-  %   api3.north = (78, -39), api4.north = (122, -39)
-  %   split = (100, -34): above api3/api4 top edge (-39), below api1/api2 bottom (-29)
-  %   Vertical trunk x=100 in gap [95,105] between api1/api2 ✓
-  %   Split-to-api3: (100,-34)→(78,-39) diagonal, no node overlap ✓
-  %   Split-to-api4: (100,-34)→(122,-39) diagonal, no node overlap ✓
-  %
-  % Upper row: direct diagonal lines from stampfly.south
+  % Upper row: direct diagonal from stampfly.south
   \draw[arr=apicolor] (stampfly.south) -- (api1.north);
   \draw[arr=apicolor] (stampfly.south) -- (api2.north);
-  % Lower row: vertical trunk at x=100 (in 10mm gap between api1/api2),
-  % split 5mm above api3/api4 top edge, then diagonal to each
-  \coordinate (split) at ([yshift=-25mm]stampfly.south);  % 5mm above api3/api4 top edge
+  % Lower row: trunk through gap, split BELOW api1/api2 bottom, diagonal to api3/api4
+  \coordinate (split) at ([yshift=-38mm]stampfly.south);  % (S, -47): 2mm below api1/api2 bottom
   \draw[line width=1.5pt, apicolor] (stampfly.south) -- (split);
   \draw[arr=apicolor] (split) -- (api3.north);
   \draw[arr=apicolor] (split) -- (api4.north);
-  \fill[apicolor] (split) circle (2.5pt);  % junction dot at split point
+  \fill[apicolor] (split) circle (2.5pt);
 
 \end{tikzpicture}
 \end{document}
