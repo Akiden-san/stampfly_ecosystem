@@ -8,18 +8,19 @@
 // Goal: Understand motor IDs, PWM duty cycle, and motor layout.
 // 目標: モータ ID、PWM デューティ比、モータ配置を理解する
 //
-// Motor layout:
-// モータ配置:
-//        Front
-//   FL(M4)  FR(M1)
-//       \  ^  /
-//        \ | /
-//         \|/
-//          X
-//         /|\
-//        / | \
-//   RL(M3)  RR(M2)
-//        Rear
+/* Motor layout / モータ配置:
+
+          Front
+     FL(M4)  FR(M1)
+         \  ^  /
+          \ | /
+           \|/
+            X
+           /|\
+          / | \
+     RL(M3)  RR(M2)
+          Rear
+*/
 
 void setup()
 {
