@@ -1686,7 +1686,8 @@ def compile_tex_to_pdf(tex_path: Path, cwd: Path, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = ["lualatex", "-interaction=nonstopmode",
            f"-output-directory={out_dir.resolve()}", tex_path.name]
-    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+                             encoding="utf-8", errors="replace")
     pdf_path = out_dir / (tex_path.stem + ".pdf")
     if not pdf_path.exists():
         tail = "\n".join(result.stdout.splitlines()[-40:])
