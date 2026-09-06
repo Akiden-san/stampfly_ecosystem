@@ -28,28 +28,6 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{開発環境の導入 (1/2): PC 側}
-  \begin{block}{方法①: GUI インストーラ「StampFly Setup」}
-    \footnotesize ターミナル操作なしで導入できる。GitHub の Releases ページから OS 別の実行ファイルをダウンロードして起動し、ウィザードに従うだけで \code{sf} CLI 一式（ESP-IDF: Espressif の ESP32 向け開発基盤を含む）が入る\\
-    \url{https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest}
-  \end{block}
-
-  \vspace{0.15em}
-
-  \begin{exampleblock}{方法②: CLI インストーラ}
-    \begin{lstlisting}[style=sfbash, numbers=none]
-git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem
-cd stampfly_ecosystem
-./install.sh          # Windows は install.bat
-    \end{lstlisting}
-  \end{exampleblock}
-
-  \vspace{0.15em}
-
-  {\scriptsize いずれの方法で導入しても、この後の \code{source setup\_env.sh} $\to$ \code{sf doctor}（このあとの「実習 1」で）確認する}
-\end{frame}
-
-% ------------------------------------------------------------------
 \begin{frame}[fragile]{OS による違いはここだけ}
   \begin{table}
     \centering\small
@@ -79,7 +57,7 @@ cd stampfly_ecosystem
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{開発環境の導入 (2/2): 機体とペアリング}
+\begin{frame}{開発環境の導入: 機体とペアリング}
   \begin{block}{開発環境なしでも書き込みだけはできる}
     \small ブラウザ（Chrome/Edge）から Web Flasher を開き、公開済みの完成版ファームウェアを機体・コントローラへ直接書き込める。インストール不要\\
     \url{https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/}

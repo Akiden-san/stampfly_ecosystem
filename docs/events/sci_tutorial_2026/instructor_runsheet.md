@@ -12,7 +12,7 @@
 
 - スライド本文: `docs/events/sci_tutorial_2026/slides/sci_tutorial.tex` および `chapters/sci_intro.tex`、`sci_s1_overview.tex`〜`sci_s5_sim_analysis.tex`、`sci_appendix.tex`
 - 参加者向け・復習向け資料: `README.md`（タイムテーブル・事前準備）、`handson_guide.md`（帰宅後の復習手順）、`cheatsheet.md`（コマンド・API早見表）、`verification_checklist.md`（講師のリハーサル手順）、`fallback/README.md`（代替素材の索引）
-- ページ番号は `pdftotext -f N -l N sci_tutorial.pdf -` で1ページずつ本文を抽出し、各チャプターの `\begin{frame}` 数（intro 5 + S1 22 + S2 19 + S3 17 + S4 29 + S5 26 + 付録 8 = 126、セッション区切り6枚（Session 1〜5と付録）・表紙1枚を加えて133）が実ページ数133と一致することを確認したうえで、代表ページを個別に照合した
+- ページ番号は `pdftotext -f N -l N sci_tutorial.pdf -` で1ページずつ本文を抽出し、各チャプターの `\begin{frame}` 数（intro 6 + S1 22 + S2 18 + S3 17 + S4 29 + S5 26 + 付録 8 = 126、セッション区切り6枚（Session 1〜5と付録）・表紙1枚を加えて133）が実ページ数133と一致することを確認したうえで、代表ページを個別に照合した
 
 ### 使い方
 
@@ -40,18 +40,20 @@
 
 ## 3. Session 1: StampFly Ecosystem の全体像と設計思想（10:05–11:00）
 
-全22フレーム中、実演・期待結果の提示は4件。ページ番号は再構成の前後で変化なし（S1 は今回の改訂対象外）。
+全22フレーム中、実演・期待結果の提示は4件。S1 自体の内容・順序は今回の改訂対象外だが、オープニングに「開発環境の導入（先出し）」フレームが1枚増えた影響で、ページ番号は全体が1つ後ろにずれている（旧p.24→p.25 等）。
 
 | 種別 | ページ | 内容 | 使うコマンド | 期待する結果 | 所要目安 | 事前準備・注意 | 代替 |
 |------|--------|------|-------------|-------------|---------|---------------|------|
-| 実演（見るだけ） | p.24 | デモ①: シミュレータ操縦。`sf sim run vpython` でVPythonシミュレータを起動し、実機と同じ制御アルゴリズムをHIDジョイスティックで操縦する | `sf sim run vpython` | ブラウザに3D表示が立ち上がり、スティック操作に応じて機体が動く。実機がなくても制御コードの挙動を確認できる | 3〜4分（目安） | HIDジョイスティック（AtomS3 + Atom JoyStick）をUSB接続しておく。会場ネットワークに依存しないため失敗しにくい実演 | 特になし（fallback/にS1のシミュレータ操縦専用の素材はない。うまくいかない場合はスライドの図解のみで説明を続ける） |
-| 実演（見るだけ） | p.25 | デモ②: 実機POS_HOLD飛行。ホバー中の位置保持精度と、外乱を与えたときの復帰動作を見せる | （このページにコマンド文字列の明記なし。実機操作: ARM → POS_HOLDへモード切替 → 手で軽く押すなどの外乱を与える） | 水平ドリフトが小さく抑えられ、外乱後に元の位置へ戻る（実測 ±6–7cm、p.19「vehicleファーム構造」フレームの数値） | 3〜4分（目安） | verification_checklist §4「本番ファームでのデモ確認」でPOS_HOLDの安定動作を事前リハーサル必須。飛行エリアをネットで区画し、異常時は即 DISARM。不安定な場合はALT_HOLDまたはSTABILIZEへ切替（checklist §4の代替方針） | `S1_pos_hold_flight.mp4`（POS_HOLD飛行動画）。または次の2枚の期待結果スライド（p.26, p.27）をそのまま見せる |
-| 期待結果の提示 | p.26 | デモ②の期待結果: 位置保持（SILSでのシミュレーション結果を参考として提示） | なし（静止画） | `pos_roll.scn`（vehicle）: 離陸→ロール外乱→POS_HOLD係合→保持。係合後の水平ドリフト最大0.39m | 1〜2分（目安） | 画像は`fallback/S1_pos_hold_xy.png`（スライドに埋め込み済み） | 該当なし（本フレーム自体が代替素材） |
-| 期待結果の提示 | p.27 | デモ②の期待結果: 高度と姿勢 | なし（静止画） | 同じ飛行の高度・姿勢角の時系列。外乱直後の傾きが位置制御で戻る | 1〜2分（目安） | 画像は`fallback/S1_altitude_attitude.png` | 該当なし |
+| 実演（見るだけ） | p.25 | デモ①: シミュレータ操縦。`sf sim run vpython` でVPythonシミュレータを起動し、実機と同じ制御アルゴリズムをHIDジョイスティックで操縦する | `sf sim run vpython` | ブラウザに3D表示が立ち上がり、スティック操作に応じて機体が動く。実機がなくても制御コードの挙動を確認できる | 3〜4分（目安） | HIDジョイスティック（AtomS3 + Atom JoyStick）をUSB接続しておく。会場ネットワークに依存しないため失敗しにくい実演 | 特になし（fallback/にS1のシミュレータ操縦専用の素材はない。うまくいかない場合はスライドの図解のみで説明を続ける） |
+| 実演（見るだけ） | p.26 | デモ②: 実機POS_HOLD飛行。ホバー中の位置保持精度と、外乱を与えたときの復帰動作を見せる | （このページにコマンド文字列の明記なし。実機操作: ARM → POS_HOLDへモード切替 → 手で軽く押すなどの外乱を与える） | 水平ドリフトが小さく抑えられ、外乱後に元の位置へ戻る（実測 ±6–7cm、p.20「vehicleファーム構造」フレームの数値） | 3〜4分（目安） | verification_checklist §4「本番ファームでのデモ確認」でPOS_HOLDの安定動作を事前リハーサル必須。飛行エリアをネットで区画し、異常時は即 DISARM。不安定な場合はALT_HOLDまたはSTABILIZEへ切替（checklist §4の代替方針） | `S1_pos_hold_flight.mp4`（POS_HOLD飛行動画）。または次の2枚の期待結果スライド（p.27, p.28）をそのまま見せる |
+| 期待結果の提示 | p.27 | デモ②の期待結果: 位置保持（SILSでのシミュレーション結果を参考として提示） | なし（静止画） | `pos_roll.scn`（vehicle）: 離陸→ロール外乱→POS_HOLD係合→保持。係合後の水平ドリフト最大0.39m | 1〜2分（目安） | 画像は`fallback/S1_pos_hold_xy.png`（スライドに埋め込み済み） | 該当なし（本フレーム自体が代替素材） |
+| 期待結果の提示 | p.28 | デモ②の期待結果: 高度と姿勢 | なし（静止画） | 同じ飛行の高度・姿勢角の時系列。外乱直後の傾きが位置制御で戻る | 1〜2分（目安） | 画像は`fallback/S1_altitude_attitude.png` | 該当なし |
 
 ## 4. Session 2: 開発環境のセットアップとセンサデータの取得（11:00–12:00）
 
-全19フレーム中、実演・実習は3件（再構成で17→19フレームに増加。実習1・実習2それぞれに手順を明記した専用フレームが立った）。
+全18フレーム中、実演・実習は3件（再構成で17→19→18フレームに推移。実習1・実習2それぞれに手順を明記した専用フレームが立った後、「開発環境の導入 (1/2): PC側」がオープニング（先出し）へ移動し1枚減った）。
+
+未導入の参加者への案内は、このセッション冒頭ではなくオープニングの「開発環境の導入（先出し）: PC側」で行う（GUIインストーラ／CLIインストーラの手順）。当セッションは導入済み前提でOS差異の参照とペアリング・実習1の確認から始まる。
 
 新設の p.34「OSによる違いはここだけ」は macOS/Linux と Windows のコマンド差異（`./install.sh` 対 `install.bat`、`source setup_env.sh` 対 `setup_env.bat`、シリアルポート名）をまとめた参照フレームで、当日はデモしない。Windows参加者から質問が出た際の説明に使う。
 
@@ -250,7 +252,7 @@ Extracted from the 133-page slide deck for the SCI/SICE Tutorial 2026 (`docs/eve
 
 - Slide body: `docs/events/sci_tutorial_2026/slides/sci_tutorial.tex` and `chapters/sci_intro.tex`, `sci_s1_overview.tex` through `sci_s5_sim_analysis.tex`, `sci_appendix.tex`
 - Participant- and review-facing material: `README.md` (timetable, pre-workshop prep), `handson_guide.md` (post-event reproduction steps), `cheatsheet.md` (command/API reference), `verification_checklist.md` (instructor rehearsal procedure), `fallback/README.md` (index of fallback material)
-- Page numbers were derived by extracting each page's text with `pdftotext -f N -l N sci_tutorial.pdf -`, cross-checked against the frame count per chapter file (intro 5 + S1 22 + S2 19 + S3 17 + S4 29 + S5 26 + appendix 8 = 126, plus 6 session dividers (Sessions 1-5 and the appendix) and 1 title page = 133), matching the deck's actual 133 pages, then spot-verified on representative pages
+- Page numbers were derived by extracting each page's text with `pdftotext -f N -l N sci_tutorial.pdf -`, cross-checked against the frame count per chapter file (intro 6 + S1 22 + S2 18 + S3 17 + S4 29 + S5 26 + appendix 8 = 126, plus 6 session dividers (Sessions 1-5 and the appendix) and 1 title page = 133), matching the deck's actual 133 pages, then spot-verified on representative pages
 
 ### How to use this document
 
@@ -278,18 +280,20 @@ Complete `verification_checklist.md` §1-§4 (bench check, flight check, system-
 
 ## 3. Session 1: Overview and Design Philosophy of the StampFly Ecosystem (10:05-11:00)
 
-Of 22 frames, 4 are demonstration or expected-result frames. Page numbers are unchanged before/after the rebuild (S1 was not part of this revision).
+Of 22 frames, 4 are demonstration or expected-result frames. S1's own content and order are unchanged, but the new opening frame "Installing the Dev Environment (moved earlier)" pushed every page number after it back by one (e.g. old p.24 -> p.25).
 
 | Type | Page | Content | Command | Expected result | Rough time | Prep & pitfalls | Fallback |
 |------|------|---------|---------|------------------|-----------|------------------|----------|
-| Demo (watch only) | p.24 | Demo 1: Simulator Piloting. `sf sim run vpython` launches the VPython simulator, running the same control algorithm as the vehicle, flown with an HID joystick | `sf sim run vpython` | A 3D view opens in the browser and the vehicle responds to stick input. Confirms the control code's behavior without hardware | 3-4 min (rough) | Have the HID joystick (AtomS3 + Atom JoyStick) connected over USB beforehand. This demo does not depend on venue networking, so it is low-risk | None specific (fallback/ has no material for S1's simulator-piloting demo; if it fails, continue with the slide diagram alone) |
-| Demo (watch only) | p.25 | Demo 2: Real POS_HOLD Flight. Shows position-hold accuracy while hovering, and the recovery behavior after a disturbance | (No command string printed on this page. Hardware actions: ARM -> switch to POS_HOLD -> apply a light push as a disturbance) | Horizontal drift stays small and the vehicle returns to position after the disturbance (measured +/-6-7cm, the figure already shown on p.19 "vehicle Firmware Structure") | 3-4 min (rough) | Rehearse stable POS_HOLD beforehand per verification_checklist §4 ("Production-Firmware Demo Check"). Flight area netted off; DISARM immediately if anything looks wrong. If unstable, switch to ALT_HOLD or STABILIZE (checklist §4's fallback) | `S1_pos_hold_flight.mp4` (POS_HOLD flight video), or simply show the next two expected-result slides (pp.26-27) |
-| Expected-result presentation | p.26 | Demo 2 Expected Result: Position Hold (a SILS simulation result, shown as a reference for how the live demo should go) | None (static image) | `pos_roll.scn` (vehicle): takeoff -> roll disturbance -> POS_HOLD engages -> holds. Max horizontal drift after engage: 0.39 m | 1-2 min (rough) | Image is `fallback/S1_pos_hold_xy.png` (already embedded in the slide) | Not applicable (this frame is itself the fallback material) |
-| Expected-result presentation | p.27 | Demo 2 Expected Result: Altitude & Attitude | None (static image) | Altitude/attitude time series for the same flight. Tilt right after the disturbance returns to level under position control | 1-2 min (rough) | Image is `fallback/S1_altitude_attitude.png` | Not applicable |
+| Demo (watch only) | p.25 | Demo 1: Simulator Piloting. `sf sim run vpython` launches the VPython simulator, running the same control algorithm as the vehicle, flown with an HID joystick | `sf sim run vpython` | A 3D view opens in the browser and the vehicle responds to stick input. Confirms the control code's behavior without hardware | 3-4 min (rough) | Have the HID joystick (AtomS3 + Atom JoyStick) connected over USB beforehand. This demo does not depend on venue networking, so it is low-risk | None specific (fallback/ has no material for S1's simulator-piloting demo; if it fails, continue with the slide diagram alone) |
+| Demo (watch only) | p.26 | Demo 2: Real POS_HOLD Flight. Shows position-hold accuracy while hovering, and the recovery behavior after a disturbance | (No command string printed on this page. Hardware actions: ARM -> switch to POS_HOLD -> apply a light push as a disturbance) | Horizontal drift stays small and the vehicle returns to position after the disturbance (measured +/-6-7cm, the figure already shown on p.20 "vehicle Firmware Structure") | 3-4 min (rough) | Rehearse stable POS_HOLD beforehand per verification_checklist §4 ("Production-Firmware Demo Check"). Flight area netted off; DISARM immediately if anything looks wrong. If unstable, switch to ALT_HOLD or STABILIZE (checklist §4's fallback) | `S1_pos_hold_flight.mp4` (POS_HOLD flight video), or simply show the next two expected-result slides (pp.27-28) |
+| Expected-result presentation | p.27 | Demo 2 Expected Result: Position Hold (a SILS simulation result, shown as a reference for how the live demo should go) | None (static image) | `pos_roll.scn` (vehicle): takeoff -> roll disturbance -> POS_HOLD engages -> holds. Max horizontal drift after engage: 0.39 m | 1-2 min (rough) | Image is `fallback/S1_pos_hold_xy.png` (already embedded in the slide) | Not applicable (this frame is itself the fallback material) |
+| Expected-result presentation | p.28 | Demo 2 Expected Result: Altitude & Attitude | None (static image) | Altitude/attitude time series for the same flight. Tilt right after the disturbance returns to level under position control | 1-2 min (rough) | Image is `fallback/S1_altitude_attitude.png` | Not applicable |
 
 ## 4. Session 2: Environment Setup and Sensor Data Acquisition (11:00-12:00)
 
-Of 19 frames, 3 are demonstration/hands-on frames (the rebuild grew this session from 17 to 19 frames by giving Exercise 1 and Exercise 2 their own frames with explicit steps).
+Of 18 frames, 3 are demonstration/hands-on frames (this session went 17 -> 19 -> 18: Exercise 1 and Exercise 2 first got their own frames with explicit steps, then "Installing the Dev Environment (1/2): PC Side" moved to the opening, dropping the count by one).
+
+Guidance for attendees who haven't installed yet now lives in the opening frame "Installing the Dev Environment (moved earlier): PC Side" (GUI installer / CLI installer steps), not at the top of this session. This session now opens assuming the install is underway, starting from the OS-differences reference and pairing/Exercise-1 verification.
 
 The new p.34 "OS-Specific Differences" is a reference frame summarizing macOS/Linux vs. Windows command differences (`./install.sh` vs. `install.bat`, `source setup_env.sh` vs. `setup_env.bat`, serial port names). It is not demoed on the day; use it if a Windows attendee has trouble.
 
