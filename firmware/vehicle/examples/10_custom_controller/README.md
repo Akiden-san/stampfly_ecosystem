@@ -108,33 +108,41 @@ thrust=  4.90N  torque(RPY)=[+0.0000 +0.0041 +0.0000]Nm  angle_ref(RP)=[ +0.00  
 | ビルド時に `IController` の純粋仮想関数が未実装というエラー | `learner_controller.hpp` の12メソュード全てを `learner_controller.cpp` で実装しているか確認 |
 | `torque` が全て0のまま変化しない | `config::kSyntheticPitchAmplitudeRadians` が0になっていないか確認（§8「ここを変えてみよう」3番） |
 
-## 8. 実機で飛ばすレシピ（本サンプルはここまで行わない）
+## 8. 実機で飛ばすレシピ（本サンプルはここまで行わない・新方式）
 
 `LearnerController` を実際の StampFly 飛行制御パイプラインで使うには、
 **vehicle 本体を再ビルドする必要がある**（本サンプルは別プロジェクトのため
-不可）。手順:
+不可）。かつては新規コンポーネント化・`main/CMakeLists.txt` の `REQUIRES` 追加・
+`control_task.cpp` への include 追加・63行目の書き換えという手作業が必要だったが、
+現在は `sf app` コマンドが同じことを自動化する。
 
-1. `learner_controller.hpp` / `.cpp` を新しいコンポーネント
-   （例: `firmware/vehicle/components/sf_controller_learner/`）としてコピーし、
-   `CMakeLists.txt` に `REQUIRES sf_controller sf_controller_pid` を設定する。
-2. `firmware/vehicle/main/CMakeLists.txt` の `REQUIRES` に、新コンポーネント名を
-   追加する。
-3. `tasks/control_task.cpp:38-39`（`#include "controller.hpp"` /
-   `#include "pid_controller.hpp"`）の下に
-   `#include "learner_controller.hpp"` を追加する。
-4. `tasks/control_task.cpp:63` を以下のように変更する（**この1行だけ**が
-   コントローラ選択の全てである）:
+既定の複製元 `11_app_controller` は、本例題の `LearnerController` と同じ
+「`PidController` に委譲する薄いラッパー」パターンを `IController` の
+全12メソッドに拡張したもの（差し替え可能な1点は `app_controller.cpp` の
+`adjust()`）。以下のコマンドで同じことが行える。
 
-   ```diff
-   - static sf::PidController controller;
-   + static sf::LearnerController controller;
-   ```
+```bash
+sf app new my_ctrl
+```
 
-5. `sf build vehicle` で再ビルドし、`docs/development_roadmap.md` の
-   Phase 0〜6 合格基準（SILS → 実機）に従って検証する。実機投入前に
-   **必ず SILS（`sf sils` コマンド）で退行が無いことを確認すること**
-   （`docs/coding_and_education.md`「制御系パラメータ変更はシミュレーションで
-   裏付ける」方針）。
+```bash
+sf app sils my_ctrl
+```
+
+```bash
+sf app build my_ctrl
+```
+
+```bash
+sf app flash my_ctrl -m
+```
+
+`sf app sils` が SILS（Software In the Loop Simulation）での確認、
+`sf app build`/`sf app flash` が実機ビルド・書き込みで、どちらも
+`firmware/apps/my_ctrl/*.cpp` を vehicle 本体の main コンポーネントに
+組み込んで動かす（Code Identity: 実機と SILS で同じコードが動く）。詳細は
+[`examples/11_app_controller/README.md`](../11_app_controller/README.md) と
+[独自プログラム開発入門](../../../../docs/guides/custom_program.md) を参照。
 
 ## 9. 次のステップ
 
@@ -259,33 +267,43 @@ changing!" section for more exercises.
 | Build error about unimplemented pure virtual methods of `IController` | Check that all 12 methods declared in `learner_controller.hpp` are implemented in `learner_controller.cpp` |
 | `torque` stays at exactly 0 forever | Check `config::kSyntheticPitchAmplitudeRadians` is not 0 (see "Try changing!" #3) |
 
-## 8. Recipe to Actually Fly This (this example does not go this far)
+## 8. Recipe to Actually Fly This (this example does not go this far — new approach)
 
 Using `LearnerController` in the real StampFly flight pipeline requires
 **rebuilding the `vehicle` firmware itself** (not possible from this separate
-example project). Steps:
+example project). This used to require manual steps — turning the class into
+a new component, adding it to `main/CMakeLists.txt`'s `REQUIRES`, adding an
+include in `control_task.cpp`, and rewriting line 63 — but the `sf app`
+command now automates all of it.
 
-1. Copy `learner_controller.hpp`/`.cpp` into a new component (e.g.
-   `firmware/vehicle/components/sf_controller_learner/`) with
-   `REQUIRES sf_controller sf_controller_pid` in its `CMakeLists.txt`.
-2. Add the new component's name to `REQUIRES` in
-   `firmware/vehicle/main/CMakeLists.txt`.
-3. Add `#include "learner_controller.hpp"` below the existing includes at
-   `tasks/control_task.cpp:38-39` (`#include "controller.hpp"` /
-   `#include "pid_controller.hpp"`).
-4. Change `tasks/control_task.cpp:63` (**this one line is the entire
-   controller selection**):
+The default clone source, `11_app_controller`, extends this example's
+`LearnerController` idea (a thin wrapper delegating to `PidController`) to
+all 12 `IController` methods; the one swappable insertion point is
+`adjust()` in `app_controller.cpp`. The same result follows from these
+commands.
 
-   ```diff
-   - static sf::PidController controller;
-   + static sf::LearnerController controller;
-   ```
+```bash
+sf app new my_ctrl
+```
 
-5. Rebuild with `sf build vehicle` and verify against the Phase 0–6 pass
-   criteria in `docs/development_roadmap.md` (SILS -> hardware). **Always
-   confirm no regression with SILS (`sf sils` command) before hardware**
-   (per `docs/coding_and_education.md`'s "back control-parameter changes with
-   simulation" policy).
+```bash
+sf app sils my_ctrl
+```
+
+```bash
+sf app build my_ctrl
+```
+
+```bash
+sf app flash my_ctrl -m
+```
+
+`sf app sils` verifies it in SILS (Software In the Loop Simulation); `sf app
+build`/`sf app flash` build and flash real hardware. Both embed
+`firmware/apps/my_ctrl/*.cpp` into the vehicle firmware's main component
+(Code Identity: the same code runs on hardware and in SILS). See
+[`examples/11_app_controller/README.md`](../11_app_controller/README.md) and
+the [Custom Program Guide](../../../../docs/guides/custom_program.md) for details.
 
 ## 9. Next Steps
 

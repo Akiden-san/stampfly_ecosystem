@@ -189,6 +189,27 @@ jobs:
         # FAIL 時もどのシナリオが壊れたか表示される。
         run: sf sils regression --json-out simulator/sils/viz/sils_regression_results.json
 
+      - name: Verify the sf app L1 entry point (embedded template in SILS)
+        # `sf app new` clones the default embedded template
+        # (examples/11_app_controller) into firmware/apps/ci_app, and `sf app sils`
+        # compiles it INTO emu_vehicle via -DSF_APP_DIR (its own build dir under
+        # simulator/sils/build/apps/) and flies alt_flight.scn. This proves the
+        # sf app → SILS path end to end, and that the template's identity
+        # adjust() leaves the stock flight behavior intact. The second template
+        # (12_app_task_hello) covers sf::app::start() launching an extra task.
+        # `sf app new` は既定の組み込み型テンプレート（examples/11_app_controller）を
+        # firmware/apps/ci_app に複製し、`sf app sils` はそれを -DSF_APP_DIR で
+        # emu_vehicle に組み込んで（simulator/sils/build/apps/ 配下の専用ビルド
+        # ディレクトリ）alt_flight.scn を飛ばす。sf app → SILS の経路が通ること、
+        # テンプレートの恒等 adjust() が既定挙動を壊さないことの確認。2 つ目の
+        # テンプレート（12_app_task_hello）は sf::app::start() の追加タスク起動を
+        # 確認する。
+        run: |
+          sf app new ci_app
+          sf app sils ci_app
+          sf app new ci_hello --from 12_app_task_hello
+          sf app sils ci_hello
+
       - name: Write job summary
         if: always()
         # Renders simulator/sils/viz/sils_regression_results.json as a Markdown table

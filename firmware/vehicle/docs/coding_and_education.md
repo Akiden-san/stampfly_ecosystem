@@ -252,17 +252,30 @@ examples/01_blink_led/
 | `07_motor_spin` | L2 | LEDC PWM、モーター単体制御、安全停止 | ~40行 |
 | `08_battery_monitor` | L2 | INA3221、電圧/電流読み取り | ~40行 |
 
+### 実装済み: L1 組み込み型テンプレート（`sf app` 用）
+
+`sf app new` が複製する、vehicle 本体に組み込まれて実機・SILS の両方で動くテンプレート
+（設計は上記「設計原則」の例外事項、[`docs/plans/sf-app-sils-plan.md`](../../../docs/plans/sf-app-sils-plan.md) 参照）。
+以下の2つは番号（11・12）を含めて実在する。
+
+| Example | Tier | Type | 学べること | 行数目安 |
+|---------|-----|------|-----------|---------|
+| `11_app_controller` | L1 | embedded | `IController` 全12メソッドを `PidController` に委譲しつつ `adjust()` 1点だけ差し替え可能にする（`sf app new` の既定複製元） | ~260行 |
+| `12_app_task_hello` | L1 | embedded | `sf::app::start()` から Topic（`estimate_latest()`/`is_armed()`）を読む追加タスクを1つ起動する最小形 | ~120行 |
+
 ### Level 2: 通信と制御の基礎 — Tier L1/L2 混在
 
 Topic API を初めて使う段階。`sf::api::*` で Pub-Sub に触れつつ、必要に応じて HAL も触る。
+**以下は番号未確定の計画（`XX_` はまだ確定していない番号を表す。11・12 は上記の実装済み
+組み込み型テンプレートが使用中のため、計画時の仮番号から変更した）。**
 
 | Example | Tier | 学べること | 行数目安 |
 |---------|-----|-----------|---------|
 | `09_espnow_pair` | L2 | ESP-NOW通信、ペアリング、パケット送受信 | ~80行 |
 | `10_udp_telemetry` | L1 | Topic を subscribe して UDP 送信、PC で受信 | ~80行 |
-| `11_pid_single_axis` | L1 | Topic 経由で PID 制御の基本、1軸モーター制御 | ~100行 |
-| `12_complementary_filter` | L1 | `sensor_imu` を読み、相補フィルタで姿勢推定 | ~80行 |
-| `13_parameter_tuning` | L1 | パラメータシステム、WiFi 経由で PID ゲイン変更 | ~100行 |
+| `XX_pid_single_axis` | L1 | Topic 経由で PID 制御の基本、1軸モーター制御 | ~100行 |
+| `XX_complementary_filter` | L1 | `sensor_imu` を読み、相補フィルタで姿勢推定 | ~80行 |
+| `XX_parameter_tuning` | L1 | パラメータシステム、WiFi 経由で PID ゲイン変更 | ~100行 |
 
 > **`09_espnow_pair` の内容（教育例 — 本体ペアリング機能とは別物）:** PairingPacket（11B: channel +
 > 自 MAC 6B + 署名 `0xAA 0x55 0x16 0x88`）を broadcast 送出し、相手から ControlPacket を受けて
@@ -308,8 +321,8 @@ Workshop 向けの **Lesson 形式 Example** は別系統で、L0 Tier の `ws::
 | Lesson 2 (Controller) | L0 | `09_espnow_pair`（L2 で再学習）|
 | Lesson 3 (LED) | L0 | `01_blink_led`（L2 で再学習）|
 | Lesson 4 (IMU) | L0 | `04_read_imu`（L2 で再学習）|
-| Lesson 5-8 (PID) | L0 | `11_pid_single_axis`, `15_rate_control`（L1 で再学習）|
-| Lesson 9 (Estimation) | L0 | `12_complementary_filter`, `14_attitude_estimation`（L1 で再学習）|
+| Lesson 5-8 (PID) | L0 | `XX_pid_single_axis`, `15_rate_control`（L1 で再学習）|
+| Lesson 9 (Estimation) | L0 | `XX_complementary_filter`, `14_attitude_estimation`（L1 で再学習）|
 | Lesson 10 (API) | L0 | `20_pubsub_basics`（L1 で再学習）|
 
 **学習導線の意図**: Workshop で L0 を経験 → 興味のある層で L1〜L2 の Example を読み返して深める → L1 で自分の差し替え（21〜23）を作る、という階段。詳細は [`workshop_migration.md`](workshop_migration.md) を参照。
@@ -324,8 +337,8 @@ Workshop 向けの **Lesson 形式 Example** は別系統で、L0 Tier の `ws::
 | Ch.2 | センサを読んでみよう | 04-06, 08 | 45分 |
 | Ch.3 | モーターを回そう | 07 | 20分 |
 | Ch.4 | コントローラと通信しよう | 09-10 | 30分 |
-| Ch.5 | PID制御を理解しよう | 11 | 45分 |
-| Ch.6 | 姿勢を推定しよう | 12, 14 | 60分 |
+| Ch.5 | PID制御を理解しよう | XX_pid_single_axis | 45分 |
+| Ch.6 | 姿勢を推定しよう | XX_complementary_filter, 14 | 60分 |
 | Ch.7 | 初めてのフライト | 15-16 | 60分 |
 | Ch.8 | 高度を維持しよう | 17 | 45分 |
 | Ch.9 | 位置を保持しよう | 18 | 45分 |

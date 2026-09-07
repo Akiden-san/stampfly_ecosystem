@@ -24,6 +24,7 @@
 | 方針 | vehicle 本体に **アプリフック**（`sf::app::start()`、`sf::app::controller()`、`sf::app::estimator()`）を 1 組定義し、`firmware/apps/<name>` をその実装として **vehicle の main コンポーネントに直接コンパイルする**。実機ビルドも SILS の `emu_vehicle` も同じ変数 `SF_APP_DIR` でそのディレクトリを取り込む。L0（workshop）とは並列に共存する層であり、置き換えない |
 | 成果 | `sf app new my_ctrl` → `sf app build my_ctrl`（実機）／ `sf app sils my_ctrl`（SILS）が**同一ソース**を vehicle 本体に組み込んで動かす。Code Identity（実機と SILS で同じコードが動く）を自作プログラムに拡張する |
 | 見積り | Phase 0〜3 で 5〜7 日。Phase 4（書き込み系 API の拡張）は別途設計 |
+| 進捗（2026-09-08） | Phase 0〜3 完了。コミット: 2ebd9bf1（Phase 0〜1: アプリフック・CMake）、440d37b4（Phase 2 前半・ファーム側: stock フック・テンプレート 11/12）、c6ad829c（Phase 2 後半・sf CLI 側: `sf app new/list/build/flash/sils`）。本表以下の Phase 見出しに完了状況を付記 |
 
 ## 1. 何ができていないか（事実）
 
@@ -139,7 +140,7 @@ sf app sils my_ctrl
 
 ## 4. 実装計画
 
-### Phase 0: 仕様確定（0.5〜1 日）
+### Phase 0: 仕様確定（0.5〜1 日）（完了）
 
 | 作業 | 内容 |
 |------|------|
@@ -147,7 +148,7 @@ sf app sils my_ctrl
 | 設計文書の更新 | `architecture.md` §2.5 の L1 行に「入口は `sf app`、フックは `app_hooks.hpp`」を追記。`coding_and_education.md` §3 の「例題は単独ビルド可能」原則に「L1 組み込み型テンプレート（`sf app` 用）は vehicle 本体と一緒にビルドする」例外を明記。不変条件（INV）節との照合を記録 |
 | テンプレートの仕様 | `11_app_controller`（`PidController` に委譲しつつ 1 軸だけ自分の式に置き換えられる `IController`）と `12_app_task_hello`（`estimate_latest()` を読んで一定周期で記録するタスク）の 2 つ。既定の複製元は 11 |
 
-### Phase 1: vehicle 本体のフックと CMake（1.5〜2 日）
+### Phase 1: vehicle 本体のフックと CMake（1.5〜2 日）（完了）
 
 | 作業 | 対象 | 内容 |
 |------|------|------|
@@ -157,7 +158,7 @@ sf app sils my_ctrl
 | SILS ビルド | `simulator/sils/CMakeLists.txt` | `emu_vehicle` に同じ変数で同じ差し替え（`app_default.cpp` を `EXCLUDE REGEX`、`${SF_APP_DIR}/*.cpp` を追加）。`emu_workshop` は影響を受けないことを確認 |
 | 退行確認 | SILS 回帰全件 | app 無しで A/B 比較し退行ゼロ。`sf params check` も通す |
 
-### Phase 2: テンプレートと sf CLI（1.5〜2 日）
+### Phase 2: テンプレートと sf CLI（1.5〜2 日）（完了）
 
 | 作業 | 対象 | 内容 |
 |------|------|------|
@@ -169,7 +170,7 @@ sf app sils my_ctrl
 | `sf sils --target apps/<name>` | `sils.py` | `choices` を「3 ターゲット + `apps/<存在するディレクトリ>`」を返す関数に変更し、`build` / `scenario` の両方で受ける。実装は `sf app sils` と共有 |
 | 案内文 | 両ファイル | ベンチ型 app に `sf app sils` を打ったら「この app は単独ベンチの複製で vehicle 本体には組み込めません。`sf app new --from 11_app_controller` を使ってください」 |
 
-### Phase 3: テスト・CI・文書（1 日）
+### Phase 3: テスト・CI・文書（1 日）（完了）
 
 | 作業 | 対象 | 内容 |
 |------|------|------|
@@ -177,7 +178,7 @@ sf app sils my_ctrl
 | CLI テスト | `lib/sfcli/tests/` | `new → list → sils` の流れと、ベンチ型への案内文 |
 | 文書 | `docs/guides/custom_program.md`（独自プログラム開発入門）、`docs/commands/sf-app.md`、`firmware/apps/README.md`、`docs/next_step.md` §8、`examples/10_custom_controller/README.md` §8 | 新しい流れ（new → SILS → 実機）、テンプレートの区分、手作業レシピの置き換え。README「何ができるのか？」の SILS 行の表現を最終確認 |
 
-### Phase 4（別途設計）: 書き込み系 API
+### Phase 4（別途設計、未着手）: 書き込み系 API
 
 | 作業 | 内容 |
 |------|------|
@@ -191,7 +192,7 @@ sf app sils my_ctrl
 | ESP-IDF の `-D` と `-B` | `idf.py -B <dir> -D SF_APP_DIR=...` で sdkconfig の扱いが従来ビルドと変わらないか | Phase 1 で app 無し・有りのビルドを比較 |
 | 400 Hz の予算 | ユーザーの `IController::compute()` が 400 Hz の周期を超えると制御が崩れる | テンプレート README に計測方法（`sf log wifi` の周期統計）と目安を書く。SILS では実時間より速く回るため実機で確認する旨を明記 |
 | 推定器差し替えの影響 | 自作推定器が発散した場合の安全装置（現行の ESKF 発散検知は ESKF 専用か） | Phase 0 で `imu_task.cpp` の発散検知の対象を確認し、`IEstimator` 共通の監視に寄せるか判断 |
-| Windows のパス | CMake 変数に空白・バックスラッシュを含む絶対パスを渡す | 引用符付きで渡し、`windows-e2e.yml` に 1 ケース追加 |
+| Windows のパス | CMake 変数に空白・バックスラッシュを含む絶対パスを渡す | 実装は `Path.resolve()` で絶対パス化して `-D SF_APP_DIR=...` に渡す（`app.py`/`sils.py`）。**未検証（2026-09-08 時点）**: `windows-e2e.yml` への `sf app` ケース追加はまだ行っていない。Windows 実機・CI での確認が残作業 |
 | 例題の設計原則との整合 | 「単独ビルド可能」原則との例外を文書で明示しないと、後続の例題が再びベンチ路線に戻る | Phase 0 の設計文書更新を先に行う |
 | `firmware/my_drone` の遺物 | 現行構成でビルドできない可能性が高く、読者を混乱させる | 本計画とは別に、削除か `archive/` 移動を判断する |
 

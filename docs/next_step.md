@@ -314,7 +314,7 @@ python3 tools/stampfly_py/example_djitellopy.py
 
 ### 自分の制御則・推定器を書く
 
-自分の制御則や推定器を vehicle 本体に組み込み、SILS で確認して実機で飛ばすまでの流れは [独自プログラム開発入門](guides/custom_program.md) を参照してください。
+`sf app new my_ctrl` から始めて、自分の制御則や推定器を vehicle 本体に組み込み、SILS で確認して実機で飛ばすまでの流れは [独自プログラム開発入門](guides/custom_program.md) を参照してください。
 
 ## 9. さらに学ぶ
 
@@ -642,7 +642,7 @@ and safety notes. **Keep the paired RC transmitter ON with neutral sticks as a s
 
 ### Writing Your Own Controller or Estimator
 
-To build your own control law or estimator into the vehicle firmware, verify it in SILS and fly it on the real drone, see the [Custom Program Guide](guides/custom_program.md).
+Starting from `sf app new my_ctrl`, to build your own control law or estimator into the vehicle firmware, verify it in SILS, and fly it on the real drone, see the [Custom Program Guide](guides/custom_program.md).
 
 ## 9. Learn More
 
