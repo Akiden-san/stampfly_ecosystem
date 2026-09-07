@@ -16,7 +16,7 @@
 
 | ファイル | 説明 |
 |---------|------|
-| [getting-started.md](getting-started.md) | 環境構築〜初フライト（ステップバイステップ） |
+| [next_step.md](next_step.md) | 次のステップ（シミュレータの使い方・飛行方法・sf CLI・開発者向け機能） |
 | [overview.md](overview.md) | プロジェクト全体の俯瞰図 |
 | [setup/README.md](setup/README.md) | セットアップガイド（概要） |
 | [setup/macos.md](setup/macos.md) | macOS セットアップ手順 |
@@ -54,6 +54,7 @@
 | ファイル | 説明 |
 |---------|------|
 | [guides/safety.md](guides/safety.md) | 安全ガイド |
+| [guides/controller.md](guides/controller.md) | 送信機（コントローラ）操作ガイド |
 | [guides/troubleshooting.md](guides/troubleshooting.md) | トラブルシューティング |
 | [guides/glossary.md](guides/glossary.md) | 用語集 |
 | [guides/tools.md](guides/tools.md) | 開発ツール使用ガイド |
@@ -242,7 +243,7 @@ POS_HOLD 位置制御の実機検証を機に `firmware/vehicle_new` が `firmwa
 
 | File | Description |
 |------|-------------|
-| [getting-started.md](getting-started.md) | Environment setup to first flight (step-by-step) |
+| [next_step.md](next_step.md) | Next steps (using the simulator, how to fly, sf CLI, developer features) |
 | [overview.md](overview.md) | Project overview |
 | [setup/README.md](setup/README.md) | Setup guide (overview) |
 | [setup/macos.md](setup/macos.md) | macOS setup instructions |
@@ -280,6 +281,7 @@ POS_HOLD 位置制御の実機検証を機に `firmware/vehicle_new` が `firmwa
 | File | Description |
 |------|-------------|
 | [guides/safety.md](guides/safety.md) | Safety guide |
+| [guides/controller.md](guides/controller.md) | Controller (transmitter) operation guide |
 | [guides/troubleshooting.md](guides/troubleshooting.md) | Troubleshooting |
 | [guides/glossary.md](guides/glossary.md) | Glossary |
 | [guides/tools.md](guides/tools.md) | Development tools guide |

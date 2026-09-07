@@ -127,10 +127,7 @@ StampFly は2つの通信モードをサポートしています。
 
 ### スティックモード (Mode 2 / Mode 3)
 
-| 起動方法 | 選択されるモード |
-|---------|----------------|
-| 通常起動 | Mode 2 |
-| **左ボタンを押しながら起動** | **Mode 3（推奨）** |
+スティックモードは送信機のメニューで切り替えます（画面を押してメニューを開き、右スティックで `Stick: Mode 2` の行を選び、右ボタンで決定すると Mode 2 と Mode 3 が入れ替わります）。設定は保存され、次回以降も維持されます。既定は Mode 2、本書では Mode 3 を推奨します。詳細は [送信機の使い方](guides/controller.md) を参照してください。
 
 ## 5. 飛行方法
 
@@ -462,10 +459,7 @@ For solo flights or development/debugging. Simple setup.
 
 ### Stick Mode (Mode 2 / Mode 3)
 
-| Startup Method | Selected Mode |
-|----------------|---------------|
-| Normal startup | Mode 2 |
-| **Hold left button while starting** | **Mode 3 (recommended)** |
+The stick mode is switched from the controller menu: press the screen to open the menu, select the `Stick: Mode 2` row with the right stick, and press the right button to toggle between Mode 2 and Mode 3. The setting is saved and kept for later sessions. The default is Mode 2; this guide recommends Mode 3. See the [Controller Guide](guides/controller.md) for details.
 
 ## 5. How to Fly
 

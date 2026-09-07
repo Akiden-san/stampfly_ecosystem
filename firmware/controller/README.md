@@ -273,8 +273,9 @@ Atom JoyStick はI2C接続 (アドレス: 0x59) で、以下のデータを提�
 ### 切り替え方法
 
 1. 画面を押してメニューを開く
-2. 「USB Mode」を選択
-3. コントローラが再起動し、USB HIDゲームパッドとして認識される
+2. 右スティックの上下でメニューを移動し「Comm: ...」の行を選ぶ
+3. 右ボタン（決定）を押す（ESP-NOW → UDP → USB HID の順に切り替わる。USB HIDになるまで繰り返し押す）
+4. コントローラが再起動し、USB HIDゲームパッドとして認識される
 
 ### HIDレポート仕様
 
@@ -782,8 +783,9 @@ Connect the controller to a PC via USB to use it as a gamepad. Perfect for pract
 ### How to Switch
 
 1. Press the screen to open the menu
-2. Select "USB Mode"
-3. The controller restarts and is recognized as a USB HID gamepad
+2. Use the right stick up/down to move to the "Comm: ..." row
+3. Press the right button (select) to cycle ESP-NOW to UDP to USB HID (press repeatedly until it reaches USB HID)
+4. The controller restarts and is recognized as a USB HID gamepad
 
 ### HID Report Specification
 
