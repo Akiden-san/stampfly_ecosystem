@@ -82,16 +82,15 @@
 
   \begin{block}{手順}
     \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
-      \item \code{source setup\_env.sh}（Windows は \code{setup\_env.bat}）
+      \item \code{setup\_env.bat}（macOS / Linux は \code{source setup\_env.sh}）
       \item \code{sf doctor}（ESP-IDF・Python・USBドライバ・sf CLI 自体を診断）
-      \item \code{sf lesson switch sci2026:1}
-      \item \code{sf lesson build}
-      \item \code{sf lesson flash}
+      \item \code{sf build vehicle}（機体ファームをビルド。初回は数分かかる）
+      \item \code{sf flash vehicle -m}（USB で書き込み、続けてモニタを開く。終了は \code{Ctrl+]}）
     \end{enumerate}
   \end{block}
 
   \begin{exampleblock}{確認すること}
-    \footnotesize 書き込み直後の起動音と、機体上の LED が点灯・点滅すること
+    \footnotesize 書き込み直後に起動音が鳴り、LED が白（初期化中・静置）$\to$ 緑常灯（準備完了）になる。モニタに起動ログが流れる
   \end{exampleblock}
 
   {\footnotesize \code{sf doctor} が全て OK にならなくても心配は不要。このあとは「見るだけ」で参加し、復習パス（本セッション末尾）に沿って会場外で環境を整えてほしい}
@@ -121,7 +120,7 @@
 
   \vspace{0.5em}
 
-  {\small \code{target} には \code{vehicle} / \code{controller} / \code{workshop} を指定する}
+  {\small \code{target} には \code{vehicle}（機体）/ \code{controller}（送信機）を指定する。実習 1 で打った 4 コマンドがこの表の全てである}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -302,7 +301,7 @@ sf log viz flight.csv
 
   \vspace{0.5em}
 
-  {\footnotesize 各ディレクトリで単独ビルド可能: \code{idf.py set-target esp32s3 \&\& idf.py build}}
+  {\footnotesize 実習 1 と同じ sf CLI で単独ビルド・書き込みできる: \code{sf build vehicle/examples/05\_read\_tof} $\to$ \code{sf flash vehicle/examples/05\_read\_tof -m}}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -336,7 +335,7 @@ sf log viz flight.csv
     \hline
     \textbf{コマンド} & \textbf{実習} & \textbf{文書} \\
     \hline
-    \code{sf lesson switch sci2026:1} & 実習1（環境セットアップ） & \code{docs/guides/troubleshooting.md} \\
+    \code{sf doctor} / \code{sf build vehicle} / \code{sf flash vehicle -m} & 実習1（環境確認とビルド） & \code{docs/guides/troubleshooting.md} \\
     \code{sf lesson switch sci2026:2} & 実習2（IMU） & \code{firmware/vehicle/docs/architecture.md \S2} \\
     \code{sf log wifi} / \code{sf log viz} & --- & \code{docs/guides/flight-log-viz.md} \\
     \hline

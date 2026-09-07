@@ -303,21 +303,65 @@
 \end{frame}
 
 % ------------------------------------------------------------------
+% sf sils gui is listed in this session's review path, so show it once here
+% (what the screen looks like). How to use it and the hands-on are in S5.
+% 復習パスに sf sils gui が載るので、ここで 1 枚だけ画面を見せる。
+% 使い方と実習は S5 で扱う。
+\begin{frame}[fragile]{層 3 を画面で触る: sf sils gui}
+  \vspace{0.15em}
+
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+      \centering
+      % Screenshot: pos_roll scenario just after a run (headless Chromium capture)
+      % 画面写真: pos_roll シナリオ実行直後（ヘッドレス Chromium で撮影）
+      \includegraphics[width=\columnwidth]{sils_gui.png}\\[0.2em]
+      {\scriptsize \code{pos\_roll} シナリオ実行直後。左: イベント列、右上: 3D 再生、右下: グラフ（時刻カーソルが 3D と同期）、右上端: 合否 12/12 PASS}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{itemize}\footnotesize\setlength{\itemsep}{1pt}
+        \item ブラウザだけで完結: シナリオ作成（外乱・故障などのイベントを表で組む）$\to$ 実行 $\to$ グラフ $\to$ 合否判定
+        \item PID ゲイン等 54 項目を画面で編集。再ビルド不要（Parameter Identity）
+        \item 使い方と実習は S5。今日は画面を覚えるだけでよい
+      \end{itemize}
+
+      \vspace{0.2em}
+
+      \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{起動}
+sf sils build
+sf sils gui
+      \end{sflisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}[fragile]{デモ①: シミュレータ操縦}
   \vspace{0.15em}
 
   {\small \textcolor{sfblue}{\textbf{見るだけ}} ｜ 一緒に打つ ｜ 帰宅後に再現}
 
-  \vspace{0.5em}
+  \vspace{0.2em}
 
-  \begin{block}{何を見るか}
-    \begin{itemize}\small
-      \item \code{sf sim run vpython} を手元でも起動
-      \item VPythonシミュレータが起動し、実機と同じ制御アルゴリズムが動く
-      \item HIDジョイスティック（Atom JoyStick）でそのまま操縦できる
-      \item 実機がなくても制御コードの挙動を3Dで確認できる
-    \end{itemize}
-  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \begin{block}{何を見るか}
+        \begin{itemize}\footnotesize\setlength{\itemsep}{0pt}
+          \item \code{sf sim run vpython} を手元でも起動
+          \item VPythonシミュレータが起動し、実機と同じ制御アルゴリズムが動く
+          \item HIDジョイスティック（Atom JoyStick）でそのまま操縦できる
+          \item 実機がなくても制御コードの挙動を3Dで確認できる
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      % VPython simulator screenshot (VOXEL terrain, in flight); shared with the DXH deck
+      % VPython シミュレータの画面（ボクセル地形・飛行中）。DXH 資料と共用
+      \includegraphics[width=\columnwidth]{simulator_demo.png}\\[0.2em]
+      {\scriptsize VPython シミュレータの画面（ボクセル地形を飛行中）}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % ------------------------------------------------------------------

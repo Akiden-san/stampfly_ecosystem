@@ -399,8 +399,7 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
        rpy.x*180/M_PI, rpy.y*180/M_PI, rpy.z*180/M_PI);
   \end{sflisting}
 
-  {\scriptsize ビルド: \code{idf.py set-target esp32s3 \&\& idf.py build} $\to$
-  \code{idf.py -p <port> flash monitor}\\[2pt]
+  {\scriptsize ビルド・書き込み: \code{sf build vehicle/examples/09\_topic\_api\_hello} $\to$ \code{sf flash vehicle/examples/09\_topic\_api\_hello -m}\\[0pt]
   \warn{帰宅後に再現:} \code{examples/09\_topic\_api\_hello}（\code{04\_read\_imu} 等と
   同じく単独ビルド可能）を手元で試す}
 \end{frame}
