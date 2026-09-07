@@ -128,6 +128,7 @@ sf build vehicle && sf flash vehicle -m
 | `sf log wifi` | WiFiテレメトリをキャプチャ |
 | `sf cal gyro` | ジャイロキャリブレーション |
 | `sf sim run vpython` | シミュレータを起動 |
+| `sf app new my_ctrl` | 自分の制御則プロジェクトを作成（研究・実験用） |
 
 **→ [コマンドリファレンス](docs/commands/README.md)** | **[セットアップガイド](docs/setup/README.md)**
 
@@ -361,6 +362,7 @@ sf build vehicle && sf flash vehicle -m
 | `sf log wifi` | Capture WiFi telemetry |
 | `sf cal gyro` | Gyro calibration |
 | `sf sim run vpython` | Run simulator |
+| `sf app new my_ctrl` | Create your own control-law project (research/experiments) |
 
 **→ [Command Reference](docs/commands/README.md)** | **[Setup Guide](docs/setup/README.md)**
 

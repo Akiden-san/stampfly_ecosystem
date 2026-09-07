@@ -30,6 +30,7 @@ sf <command> [subcommand] [options]
 | `sf upgrade` | 最新版への更新（依存同期・sdkconfig退避を含む） | [sf-upgrade.md](sf-upgrade.md) |
 | `sf build` | ファームウェアビルド | [sf-build.md](sf-build.md) |
 | `sf flash` | ファームウェア書き込み | [sf-flash.md](sf-flash.md) |
+| `sf app` | 自分のプロジェクトを作成・編集・ビルド・書き込み | [sf-app.md](sf-app.md) |
 | `sf flasher` | GUIフラッシャのネイティブアプリ導入 | [sf-flasher.md](sf-flasher.md) |
 | `sf monitor` | シリアルモニタ | [sf-monitor.md](sf-monitor.md) |
 | `sf log` | ログキャプチャ・解析 | [sf-log.md](sf-log.md) |

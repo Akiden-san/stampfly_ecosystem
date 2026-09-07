@@ -15,14 +15,12 @@ Subcommands:
 """
 
 import argparse
-import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..utils import console, paths
+from ..utils import console, editor, paths
 
 COMMAND_NAME = "lesson"
 COMMAND_HELP = "Workshop lesson management"
@@ -925,123 +923,12 @@ def run_info(args: argparse.Namespace) -> int:
     return 0
 
 
-def _vscode_app_candidates() -> List[Tuple[str, List[str]]]:
-    """Platform-specific VSCode install locations not on PATH.
-
-    Returns list of (display_name, launch_command) for VSCode installations
-    that exist on disk but whose CLI may not be on PATH. The launch_command
-    must accept VSCode CLI flags (e.g., -n) directly.
-    PATH 上に CLI がない VSCode インストールの (表示名, 起動コマンド) リスト。
-    起動コマンドは VSCode CLI のフラグ（例: -n）を直接受け取れる形式であること。
-    """
-    candidates: List[Tuple[str, List[str]]] = []
-
-    if sys.platform == "darwin":
-        # macOS: prefer the `code` script inside the app bundle so VSCode CLI
-        # flags (e.g. -n) can be passed directly. This avoids the awkward
-        # `open -a "..." --args` invocation.
-        # macOS: app バンドル内の `code` スクリプトを優先（-n 等のフラグを直接渡せる）
-        bundled_code = Path("/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")
-        if bundled_code.exists():
-            candidates.append(("VSCode", [str(bundled_code)]))
-
-    elif sys.platform == "win32":
-        # Windows: per-user and system-wide install locations
-        # Windows: ユーザー単位とシステム全体のインストール先
-        local_appdata = os.environ.get("LOCALAPPDATA", "")
-        program_files = os.environ.get("ProgramFiles", "")
-        program_files_x86 = os.environ.get("ProgramFiles(x86)", "")
-        for base in (local_appdata, program_files, program_files_x86):
-            if not base:
-                continue
-            cmd = Path(base) / "Programs" / "Microsoft VS Code" / "bin" / "code.cmd"
-            if cmd.exists():
-                candidates.append(("VSCode", [str(cmd)]))
-                break
-            cmd = Path(base) / "Microsoft VS Code" / "bin" / "code.cmd"
-            if cmd.exists():
-                candidates.append(("VSCode", [str(cmd)]))
-                break
-
-    elif sys.platform.startswith("linux"):
-        # Linux: Snap and Flatpak installations may not put `code` on PATH
-        # Linux: Snap や Flatpak は `code` を PATH に置かないことがある
-        for path in ("/snap/bin/code", "/var/lib/flatpak/exports/bin/com.visualstudio.code"):
-            if Path(path).exists():
-                candidates.append(("VSCode", [path]))
-                break
-
-    return candidates
-
-
-def _find_editor(preferred: Optional[str] = None) -> Optional[Tuple[str, List[str]]]:
-    """Find available editor.
-
-    Search order: explicit preferred -> VSCode (code on PATH) -> platform VSCode app
-    -> vi -> vim -> Windows Notepad.
-    検索順: 明示指定 -> VSCode (PATH 上) -> プラットフォーム別 VSCode -> vi -> vim -> Notepad (Windows)
-
-    Returns:
-        (display_name, command_list) tuple, or None if no editor found.
-    """
-    if preferred:
-        path = shutil.which(preferred)
-        if path:
-            return (preferred, [path])
-        return None
-
-    # VSCode CLI on PATH (handles `code`/`code.cmd` via PATHEXT on Windows)
-    # PATH 上の VSCode CLI（Windows では PATHEXT 経由で `code.cmd` も検出）
-    code_path = shutil.which("code")
-    if code_path:
-        return ("VSCode", [code_path])
-
-    # Platform-specific VSCode locations
-    # プラットフォーム別の VSCode インストール先
-    for candidate in _vscode_app_candidates():
-        return candidate
-
-    # vi / vim fallback (POSIX, also if installed via Git for Windows)
-    # vi / vim フォールバック（POSIX、Git for Windows 経由のインストールも検出）
-    for editor in ("vi", "vim"):
-        path = shutil.which(editor)
-        if path:
-            return (editor, [path])
-
-    # Windows last resort: Notepad
-    # Windows 最後の手段: Notepad
-    if sys.platform == "win32":
-        notepad = shutil.which("notepad")
-        if notepad:
-            return ("Notepad", [notepad])
-
-    return None
-
-
-def _editor_install_hint() -> List[str]:
-    """Platform-specific install instructions for editors.
-    プラットフォーム別のエディタインストール手順
-    """
-    lines = [
-        "  Install one of the following:",
-        "    VSCode:  https://code.visualstudio.com/",
-    ]
-    if sys.platform == "darwin":
-        lines.append("             After install, run from VSCode command palette:")
-        lines.append("             'Shell Command: Install \"code\" command in PATH'")
-        lines.append("    vim:     brew install vim")
-    elif sys.platform == "win32":
-        lines.append("             Or:  winget install Microsoft.VisualStudioCode")
-        lines.append("             During install, check 'Add to PATH'")
-        lines.append("    vim:     winget install vim.vim")
-    elif sys.platform.startswith("linux"):
-        lines.append("             Or via package manager (snap install code --classic etc.)")
-        lines.append("    vim:     sudo apt install vim   /   sudo dnf install vim")
-    else:
-        lines.append("    vim:     install via your platform package manager")
-    lines.append("")
-    lines.append("  Or specify explicitly:  sf lesson edit --editor <command>")
-    return lines
+# Editor detection (find_editor, install_hint, ...) lives in
+# ../utils/editor.py, shared with `sf app edit`. It originated here; see
+# that module's docstring for why it moved.
+# エディタ検出（find_editor, install_hint 等）は `sf app edit` と共有する
+# ../utils/editor.py にある。元々はここにあった — 移動の理由はそのモジュールの
+# docstring を参照。
 
 
 def run_edit(args: argparse.Namespace) -> int:
@@ -1059,7 +946,7 @@ def run_edit(args: argparse.Namespace) -> int:
     user_code = _get_user_code_path()
 
     preferred = getattr(args, "editor", None)
-    found = _find_editor(preferred)
+    found = editor.find_editor(preferred)
 
     if found is None:
         if preferred:
@@ -1067,7 +954,7 @@ def run_edit(args: argparse.Namespace) -> int:
         else:
             console.error("No editor found (tried: code, vi, vim)")
         console.print()
-        for line in _editor_install_hint():
+        for line in editor.install_hint("sf lesson edit --editor <command>"):
             console.print(line)
         return 1
 

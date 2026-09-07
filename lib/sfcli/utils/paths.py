@@ -125,6 +125,13 @@ class Paths:
         """Get firmware/workshop/ directory"""
         return self.firmware() / "workshop"
 
+    def apps(self) -> Path:
+        """Get firmware/apps/ directory (user-created projects, cloned from
+        firmware/vehicle/examples/ via `sf app new`).
+        firmware/apps/ ディレクトリ（`sf app new` で
+        firmware/vehicle/examples/ から複製したユーザー自作プロジェクト）"""
+        return self.firmware() / "apps"
+
     def simulator(self) -> Path:
         """Get simulator/ directory"""
         return self.root() / "simulator"
