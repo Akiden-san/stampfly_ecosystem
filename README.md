@@ -15,18 +15,6 @@
 
 ---
 
-## 🔗 すぐに使えるリソース
-
-| リソース | 説明 |
-|---------|------|
-| [🌐 プロジェクト紹介](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | 実機3Dモデル付きランディングページ |
-| [📚 ドキュメント](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | 全ドキュメントを検索・閲覧 |
-| [🔌 Web書き込み](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | ビルド不要、ブラウザから実機に書き込み |
-| [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | デスクトップ書き込みアプリ（Windows/macOS・Python不要） |
-| [📦 ビルド済みファームウェア](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases（vehicle / controller） |
-
----
-
 ## 何ができるのか？
 
 | できること | 内容 |
@@ -100,6 +88,18 @@ sf sim run genesis
 > **注:** HILS（Hardware In the Loop Simulation）は `simulator/vpython/interfaces/` にPython側インターフェースのみ実装済みで、ファームウェア側（実機と接続する受信処理）は未実装のため現状は接続できません。詳細は [`simulator/README.md`](simulator/README.md) を参照。
 
 **→ [シミュレータで遊ぶ（詳細手順）](docs/getting-started.md#0-まずはシミュレータで遊んでみよう)**
+
+---
+
+## 🔗 すぐに使えるリソース
+
+| リソース | 説明 |
+|---------|------|
+| [🌐 プロジェクト紹介](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | 実機3Dモデル付きランディングページ |
+| [📚 ドキュメント](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | 全ドキュメントを検索・閲覧 |
+| [🔌 Web書き込み](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | ビルド不要、ブラウザから実機に書き込み |
+| [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | デスクトップ書き込みアプリ（Windows/macOS・Python不要） |
+| [📦 ビルド済みファームウェア](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases（vehicle / controller） |
 
 ---
 
@@ -249,18 +249,6 @@ This ecosystem exists for you.
 
 ---
 
-## 🔗 Quick Links
-
-| Resource | Description |
-|----------|-------------|
-| [🌐 Project Overview](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | Landing page with interactive 3D drone model |
-| [📚 Documentation](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | Browse and search all documentation |
-| [🔌 Web Flasher](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | Flash real hardware from the browser, no build required |
-| [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | Desktop flashing app (Windows/macOS, no Python required) |
-| [📦 Pre-built Firmware](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases (vehicle / controller binaries) |
-
----
-
 ## What can you do?
 
 | Capability | Description |
@@ -334,6 +322,18 @@ You can fly a drone freely in the 3D view.
 > **Note:** HILS (Hardware In the Loop Simulation) has a Python-side interface only, in `simulator/vpython/interfaces/`. The firmware-side receiver is not implemented, so it cannot currently be connected. See [`simulator/README.md`](simulator/README.md) for details.
 
 **→ [Play with the Simulator (Detailed Steps)](docs/getting-started.md#0-try-the-simulator-first)**
+
+---
+
+## 🔗 Quick Links
+
+| Resource | Description |
+|----------|-------------|
+| [🌐 Project Overview](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | Landing page with interactive 3D drone model |
+| [📚 Documentation](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | Browse and search all documentation |
+| [🔌 Web Flasher](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | Flash real hardware from the browser, no build required |
+| [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | Desktop flashing app (Windows/macOS, no Python required) |
+| [📦 Pre-built Firmware](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases (vehicle / controller binaries) |
 
 ---
 
