@@ -196,14 +196,21 @@ sf sim run genesis
 
 **sf CLI** は、ビルド、書き込み、モニタ、ログ取得などをシンプルに実行できる統合コマンドラインツールです。
 
+環境を有効化します（新しい端末を開くたびに実行。Windows は `setup_env.bat`）。
+
 ```bash
-# 環境をアクティブ化
 source setup_env.sh
+```
 
-# 環境診断
+環境を診断します。
+
+```bash
 sf doctor
+```
 
-# ビルド → 書き込み → モニタ
+機体ファームウェアをビルドし、書き込み、モニタを開きます。
+
+```bash
 sf build vehicle && sf flash vehicle -m
 ```
 
@@ -228,11 +235,15 @@ sf build vehicle && sf flash vehicle -m
 ワークショップやカスタムファームウェアの書き込みにより、機体・送信機のファームウェアは上書きされます。
 工場出荷状態に戻したい場合は、以下のコマンドを実行してください：
 
-```bash
-# 機体を工場出荷状態に戻す
-sf flash vehicle --legacy
+機体を工場出荷状態に戻す:
 
-# 送信機を工場出荷状態に戻す
+```bash
+sf flash vehicle --legacy
+```
+
+送信機を工場出荷状態に戻す:
+
+```bash
 sf flash controller --legacy
 ```
 
@@ -519,14 +530,21 @@ You can fly a drone freely in the 3D view.
 
 **sf CLI** is an integrated command-line tool for build, flash, monitor, log capture, and more.
 
+Activate the environment (run in every new terminal; on Windows use `setup_env.bat`).
+
 ```bash
-# Activate environment
 source setup_env.sh
+```
 
-# Run diagnostics
+Run the diagnostics.
+
+```bash
 sf doctor
+```
 
-# Build → Flash → Monitor
+Build the vehicle firmware, flash it, and open the monitor.
+
+```bash
 sf build vehicle && sf flash vehicle -m
 ```
 
@@ -551,11 +569,15 @@ sf build vehicle && sf flash vehicle -m
 Workshop lessons and custom firmware will overwrite the factory firmware on your vehicle and controller.
 To restore the factory state, run:
 
-```bash
-# Restore vehicle to factory firmware
-sf flash vehicle --legacy
+Restore the vehicle to factory firmware:
 
-# Restore controller to factory firmware
+```bash
+sf flash vehicle --legacy
+```
+
+Restore the controller to factory firmware:
+
+```bash
 sf flash controller --legacy
 ```
 
