@@ -1,0 +1,4 @@
+type: embedded
+from: 12_app_task_hello
+sils: true
+description: 推定状態を 1 秒ごとに読んで記録する追加タスク

@@ -1,0 +1,4 @@
+type: embedded
+from: 11_app_controller
+sils: true
+description: PidController に委譲しつつ 1 軸だけ自分の式に置き換えられる IController
