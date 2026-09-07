@@ -149,7 +149,7 @@ simulator/
 
 1. AtomS3 + Atom JoyStickにファームウェアを書き込む（[controller/README.md](../firmware/controller/README.md)参照）
 2. コントローラの電源を入れる
-3. 画面を押す → 「**USB Mode**」を選択
+3. 画面（ボタン）を押してメニューを開き、右スティックで「**Comm: ESP-NOW**」の行を選ぶ → 右ボタンを 2 回押して「**Comm: USB HID**」にする（自動で再起動）
 4. PCにUSB接続（ゲームパッドとして認識される）
 
 #### Step 2: シミュレータの起動
@@ -663,7 +663,7 @@ If you have a controller, you can experience drone piloting right away!
 
 1. Flash firmware to AtomS3 + Atom JoyStick (see [controller/README.md](../firmware/controller/README.md))
 2. Power on the controller
-3. Press the screen → Select "**USB Mode**"
+3. Press the screen (button) to open the menu, select the "**Comm: ESP-NOW**" row with the right stick → press the right button twice to reach "**Comm: USB HID**" (restarts automatically)
 4. Connect to PC via USB (recognized as a gamepad)
 
 #### Step 2: Launch the Simulator

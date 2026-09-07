@@ -44,9 +44,10 @@ sf flash controller
 #### Step 3: コントローラをUSB HIDモードに切り替え
 
 1. コントローラの電源を入れる
-2. **画面を押して**メニューを開く
-3. 「**USB Mode**」を選択
-4. コントローラが再起動し、USB HIDゲームパッドとして認識される
+2. **画面（ボタン）を押して**メニューを開く
+3. 右スティックの上下で「**Comm: ESP-NOW**」の行を選ぶ
+4. 右ボタン（モードボタン）を押すと「Comm: UDP」に変わる。もう一度押すと「**Comm: USB HID**」になる
+5. コントローラが自動で再起動し、画面に「= USB HID MODE =」と表示される。PC にゲームパッドとして認識される
 
 > **Tips**: USB HIDモードでは、コントローラがPCに直接ゲームパッドとして認識されます。ESP-NOWモードに戻すには、再度メニューから切り替えてください。
 
@@ -263,7 +264,7 @@ StampFlyは2つの通信モードをサポートしています。
 **ペアリング手順:**
 1. **コントローラ**: M5ボタン（LCDパネルボタン）を押しながら電源を入れる
 2. LCD に "Pairing mode..." と表示され、ビープ音が鳴り始める
-3. **StampFly**: ボタンを長押し（約2秒）してペアリングモードに入る
+3. **StampFly**: ボタンを長押し（約3秒）してペアリングモードに入る（LED が青の速い点滅になる）
 4. 両方からビープ音が鳴ればペアリング完了
 5. ペアリング情報は自動保存され、次回以降は自動接続
 
@@ -497,9 +498,10 @@ sf flash controller
 #### Step 3: Switch Controller to USB HID Mode
 
 1. Power on the controller
-2. **Press the screen** to open menu
-3. Select "**USB Mode**"
-4. Controller restarts as USB HID gamepad
+2. **Press the screen (button)** to open the menu
+3. Move the right stick up/down to select the "**Comm: ESP-NOW**" row
+4. Press the right button (mode button): the row changes to "Comm: UDP". Press again: it changes to "**Comm: USB HID**"
+5. The controller restarts automatically and shows "= USB HID MODE =". The PC recognizes it as a gamepad
 
 #### Step 4: Launch Simulator
 
@@ -691,7 +693,7 @@ For multi-vehicle formation or TDMA synchronization.
 **Pairing:**
 1. **Controller**: Hold M5 button (under screen) while powering on
 2. LCD shows "Pairing mode..." and beeping starts
-3. **StampFly**: Long-press button (~2 sec) to enter pairing mode
+3. **StampFly**: Long-press the button (about 3 s) to enter pairing mode (LED blinks blue rapidly)
 4. Both beep when pairing completes
 5. Pairing info is saved automatically and auto-connects next time
 

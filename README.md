@@ -152,31 +152,69 @@ sudo usermod -a -G dialout $USER
 
 ## 🎮 まずはシミュレータで飛ばしてみよう！
 
-**実機がなくても大丈夫。** コントローラとPCがあれば、今すぐドローン操縦を体験できます。
+**実機がなくても大丈夫。** 送信機（M5Stack AtomS3 + Atom JoyStick）と PC があれば、PC 上の 3D シミュレータでドローン操縦を体験できます。
+シミュレータでは送信機を USB ゲームパッドとして使うので、先にファームウェアを書き込み、通信モードを USB HID に切り替えます。
 
-### VPython版（軽量・ブラウザ表示）
+**① 送信機にファームウェアを書き込む**（初回のみ）。送信機を USB ケーブルで PC につなぎ、開発環境を有効化した端末で実行します。
+
+```bash
+sf build controller
+sf flash controller
+```
+
+**② 送信機を USB HID モードに切り替える**。送信機の画面での操作です。
+
+| 手順 | 操作 |
+|------|------|
+| 1 | 画面（ボタン）を押してメニューを開く |
+| 2 | 右スティックの上下で `Comm: ESP-NOW` の行を選ぶ |
+| 3 | 右ボタン（モードボタン）を押すと `Comm: UDP` に変わる。もう一度押すと `Comm: USB HID` になり、送信機が自動で再起動する |
+| 4 | 再起動後、画面に `= USB HID MODE =` と表示されれば切替完了。PC にゲームパッドとして認識される |
+
+**③ シミュレータを起動する**。ブラウザが自動で開き、3D ビューが表示されます。スロットルをゆっくり上げると機体が浮き上がります。
 
 ```bash
 sf sim run vpython
 ```
 
-### Genesis版（高精度物理エンジン）
+スティックの割り当て、地形の切替、うまく動かないときの対処は、シミュレータの使い方ページを参照してください。
+
+**→ [シミュレータの使い方](docs/getting-started.md#0-まずはシミュレータで遊んでみよう)**
+
+---
+
+## 🛸 実際に飛ばしてみよう
+
+シミュレータで操縦に慣れたら、実機を飛ばします。機体（StampFly）へのファームウェア書き込み、送信機を実機操縦用の通信モードに戻す設定、機体と送信機のペアリングまでを行います。
+
+**① 機体にファームウェアを書き込む**。機体を USB ケーブルで PC につなぎ、開発環境を有効化した端末で実行します。
 
 ```bash
-sf sim run genesis
+sf build vehicle
+sf flash vehicle
 ```
 
-コントローラをUSB HIDモードに切り替えてPCに接続すれば、
-3Dビューでドローンを自由に飛ばせます。
+**② 送信機を ESP-NOW モードに戻す**。シミュレータ用に USB HID にした通信モードを、実機と通信する ESP-NOW に戻します。
 
-| シミュレータ | 特徴 |
-|-------------|------|
-| VPython版 | 軽量、センサモデル充実、SILS/HILS対応 |
-| Genesis版 | 2000Hz物理演算、物理量ベース制御 |
+| 手順 | 操作 |
+|------|------|
+| 1 | 画面（ボタン）を押してメニューを開く |
+| 2 | 右スティックの上下で `Comm: USB HID` の行を選ぶ |
+| 3 | 右ボタン（モードボタン）を 1 回押すと `Comm: ESP-NOW` に変わり、送信機が自動で再起動する |
 
-> **注:** HILS（Hardware In the Loop Simulation）は `simulator/vpython/interfaces/` にPython側インターフェースのみ実装済みで、ファームウェア側（実機と接続する受信処理）は未実装のため現状は接続できません。詳細は [`simulator/README.md`](simulator/README.md) を参照。
+**③ 機体と送信機をペアリングする**（初回のみ。以後は電源を入れるだけで自動接続します）。
 
-**→ [シミュレータで遊ぶ（詳細手順）](docs/getting-started.md#0-まずはシミュレータで遊んでみよう)**
+| 手順 | 操作 |
+|------|------|
+| 1 | 送信機の電源を切り、画面（ボタン）を押したまま電源を入れる。画面に `Pairing mode...` と表示され、ビープ音が繰り返し鳴る |
+| 2 | 機体の電源を入れ、機体のボタンを約 3 秒長押しする。LED が青の速い点滅になり、送信機を探し始める |
+| 3 | 送信機のビープ音が止まって飛行画面に切り替わり、機体の青い点滅が止まればペアリング完了 |
+
+ペアリング情報を持たない機体は、電源を入れるだけで自動的に探索を始めます。手順 2 の長押しは、以前の情報を消して確実に探索を始めさせるための操作で、別の送信機と組み替えるときにも使います。
+
+飛行前の確認とスティック操作（アーム・離陸・着陸・飛行モードの切替）は、操縦方法のページを参照してください。
+
+**→ [操縦方法](docs/getting-started.md#7-飛行方法)**
 
 ---
 
@@ -486,31 +524,69 @@ To update later, run `sf upgrade` (**→ [Upgrading Guide](docs/guides/upgrading
 
 ## 🎮 Try the Simulator First!
 
-**No drone needed.** With just a controller and PC, you can experience drone piloting right now.
+**No real drone needed.** With the transmitter (M5Stack AtomS3 + Atom JoyStick) and a PC, you can fly a 3D simulator on your PC.
+The simulator uses the transmitter as a USB gamepad, so first flash its firmware and switch its communication mode to USB HID.
 
-### VPython Version (Lightweight, Browser)
+**1. Flash the transmitter firmware** (first time only). Connect the transmitter to the PC with a USB cable and run this in a terminal with the environment activated.
+
+```bash
+sf build controller
+sf flash controller
+```
+
+**2. Switch the transmitter to USB HID mode.** These steps are done on the transmitter's screen.
+
+| Step | Action |
+|------|--------|
+| 1 | Press the screen (button) to open the menu |
+| 2 | Move the right stick up/down to select the `Comm: ESP-NOW` row |
+| 3 | Press the right button (mode button): the row changes to `Comm: UDP`. Press again: it changes to `Comm: USB HID` and the transmitter restarts automatically |
+| 4 | After the restart, the screen shows `= USB HID MODE =`. The PC now recognizes it as a gamepad |
+
+**3. Launch the simulator.** A browser opens automatically with the 3D view. Raise the throttle slowly and the drone lifts off.
 
 ```bash
 sf sim run vpython
 ```
 
-### Genesis Version (High-Precision Physics)
+For the stick assignment, world options, and troubleshooting, see the simulator guide.
+
+**→ [Simulator Guide](docs/getting-started.md#0-try-the-simulator-first)**
+
+---
+
+## 🛸 Fly the Real Drone
+
+Once you are comfortable in the simulator, fly the real drone. This covers flashing the vehicle firmware, switching the transmitter back to the mode for real flight, and pairing the vehicle with the transmitter.
+
+**1. Flash the vehicle firmware.** Connect the StampFly to the PC with a USB cable and run this in a terminal with the environment activated.
 
 ```bash
-sf sim run genesis
+sf build vehicle
+sf flash vehicle
 ```
 
-Switch the controller to USB HID mode and connect to your PC.
-You can fly a drone freely in the 3D view.
+**2. Switch the transmitter back to ESP-NOW mode.** This returns the communication mode from USB HID (simulator) to ESP-NOW, which talks to the real drone.
 
-| Simulator | Features |
-|-----------|----------|
-| VPython | Lightweight, rich sensor models, SILS/HILS |
-| Genesis | 2000Hz physics, physical-unit control |
+| Step | Action |
+|------|--------|
+| 1 | Press the screen (button) to open the menu |
+| 2 | Move the right stick up/down to select the `Comm: USB HID` row |
+| 3 | Press the right button (mode button) once: the row changes to `Comm: ESP-NOW` and the transmitter restarts automatically |
 
-> **Note:** HILS (Hardware In the Loop Simulation) has a Python-side interface only, in `simulator/vpython/interfaces/`. The firmware-side receiver is not implemented, so it cannot currently be connected. See [`simulator/README.md`](simulator/README.md) for details.
+**3. Pair the vehicle with the transmitter** (first time only; afterwards they connect automatically at power-on).
 
-**→ [Play with the Simulator (Detailed Steps)](docs/getting-started.md#0-try-the-simulator-first)**
+| Step | Action |
+|------|--------|
+| 1 | Power off the transmitter, then power it on while holding the screen (button). The screen shows `Pairing mode...` and it beeps repeatedly |
+| 2 | Power on the vehicle and hold its button for about 3 seconds. The LED blinks blue rapidly while it searches for a transmitter |
+| 3 | Pairing is complete when the transmitter stops beeping and shows the flight screen, and the vehicle's blue blinking stops |
+
+A vehicle with no pairing information starts searching as soon as it is powered on. The long press in step 2 clears any previous pairing so the search starts for certain, and is also how you re-pair with a different transmitter.
+
+For the pre-flight checklist and stick operation (arm, take-off, landing, flight-mode switching), see the flying guide.
+
+**→ [How to Fly](docs/getting-started.md#7-how-to-fly)**
 
 ---
 
