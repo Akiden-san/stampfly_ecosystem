@@ -1,0 +1,108 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+
+\definecolor{measuredcolor}{RGB}{0, 120, 200}   % Blue - measured ETFE points
+\definecolor{fitcolor}{RGB}{220, 50, 30}        % Red - parametric fit
+\definecolor{chirpcolor}{RGB}{40, 160, 40}      % Green - excitation signal
+\definecolor{gridcolor}{RGB}{220, 220, 220}
+\definecolor{labelcolor}{RGB}{80, 80, 80}
+\definecolor{refcolor}{RGB}{150, 150, 150}
+
+\begin{tikzpicture}
+
+% ---------- Top panel: chirp excitation u(t), time domain ----------
+\begin{axis}[
+    name=chirpax,
+    width=12.4cm, height=3.6cm,
+    xmin=0, xmax=6, ymin=-0.55, ymax=0.55,
+    xtick={0,1,2,3,4,5,6},
+    ytick={-0.4, 0, 0.4},
+    xlabel={$t$ \; [s]},
+    ylabel={$u(t)$},
+    grid=both,
+    grid style={gridcolor, thin},
+    tick label style={font=\small, labelcolor},
+    label style={font=\small\bfseries, labelcolor},
+    title={\small\bfseries 励振信号（対数チャープ 1$\to$25\,Hz，6\,s）},
+    title style={labelcolor, yshift=-1mm},
+  ]
+  % log chirp: instantaneous frequency f(t) = k^t [Hz], k = 25^(1/6)
+  % phase_deg(t) = (360/ln k) * (k^t - 1),  amplitude 0.4 (matches rate_sysid.py)
+  \addplot[chirpcolor, line width=1pt, samples=800, smooth, domain=0:6]
+    {0.4*sin(671.05*(exp(0.53648*x)-1))};
+\end{axis}
+
+% ---------- Bottom panel: ETFE magnitude vs. parametric fit, log frequency ----------
+\begin{axis}[
+    at={(chirpax.south west)}, anchor=north west, yshift=-22mm,
+    width=12.4cm, height=5.6cm,
+    xmode=log,
+    xmin=5, xmax=200,
+    ymin=-30, ymax=25,
+    ytick={-30,-20,-10,0,10,20},
+    xlabel={$\omega$ \; [rad/s]},
+    ylabel={$|\hat G(j\omega)|$ \; [dB]},
+    grid=both,
+    grid style={gridcolor, thin},
+    tick label style={font=\small, labelcolor},
+    label style={font=\small\bfseries, labelcolor},
+    title={\small\bfseries ETFE（実測点）と一次遅れ・むだ時間モデルの当てはめ},
+    title style={labelcolor, yshift=-1mm},
+  ]
+  % 0 dB reference
+  \addplot[refcolor, dashed, line width=0.8pt] coordinates {(5,0) (200,0)};
+
+  % Parametric fit curve: |b/(jw(jwT+1))| in dB, illustrative b, T (same
+  % shape family as bode_loop_shaping.tex's Kp=0.5 curve, for visual
+  % continuity across the deck's Bode figures)
+  \addplot[fitcolor, line width=1.6pt, samples=200, smooth, domain=5:200]
+    {8.685890*ln(51/(x*sqrt(1+0.0004*x*x)))};
+
+  % Measured ETFE points: fit curve value + small hand-set jitter,
+  % jitter growing with frequency (illustrates falling coherence there)
+  \addplot[measuredcolor, only marks, mark=*, mark size=1.6pt]
+    coordinates {
+      (6, 18.83) (8, 15.78) (10, 14.38) (15, 9.96) (20, 7.99)
+      (25, 4.82) (30, 3.87) (40, -0.54) (55, -3.40) (70, -8.26)
+      (90, -10.20) (120, -16.83) (150, -18.07) (180, -23.80)
+    };
+
+  % Legend: a SINGLE two-line node (not two independent nodes) so the line
+  % spacing scales consistently with whatever font size this figure is
+  % embedded at, and placed high (near ymax) so it cannot be pushed down
+  % into the coherence caveat below even if the embedding context renders
+  % this text larger than expected (e.g. a 14pt-based outer document makes
+  % \small noticeably bigger than in a 10pt standalone test build).
+  % 凡例: 独立した2つのノードではなく単一の2行ノードにし，埋め込み先の
+  % フォントサイズが変わっても行間が連動して伸びるようにする。ymax付近の
+  % 高い位置に置き，外側の文書が \small を大きく解決する場合（例: 14pt
+  % ベースのビーマー文書では10ptの単体テストより \small が明確に大きい）
+  % でも下の注記と衝突しないようにする。
+  \node[font=\small\bfseries, fitcolor, align=left, anchor=north east,
+        inner sep=1pt] at (axis cs:200, 25) {%
+    fit: $\hat G(j\omega)=\hat b\,e^{-j\omega \hat L}/(j\omega(j\omega \hat T+1))$\\
+    \textcolor{measuredcolor}{measured (ETFE): $S_{uy}/S_{uu}$}%
+  };
+
+  % Coherence caveat, placed well clear of the legend above (large fixed
+  % gap in axis units) and above the high-frequency curve/points below.
+  % 注記は上の凡例から十分な間隔（軸座標で固定）を空け，下側の曲線・
+  % 実測点からも十分離す。
+  % Bottom-left corner is empty (the low-frequency points sit at +8..+19 dB),
+  % so the caveat lives there instead of over the high-frequency points.
+  % 左下は空いている（低周波の実測点は +8〜+19 dB にある）ので注記はそこに置き，
+  % 高周波側の実測点に重ねない。
+  \node[font=\scriptsize, labelcolor, align=left, anchor=south west,
+        inner sep=1pt]
+    at (axis cs:5.5, -29)
+    {高域はコヒーレンス低下\\(外乱の影響が相対的に増える)};
+\end{axis}
+
+\end{tikzpicture}
+\end{document}
