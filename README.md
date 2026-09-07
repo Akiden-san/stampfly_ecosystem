@@ -34,7 +34,8 @@
 まだ動作の安定性を確認できていないため、以下の CLI 手順で進めてください。
 GUI 版の説明は **[GUI インストーラガイド](docs/guides/gui-installer.md)** にあります。
 
-手順はどの OS でも同じ 3 段階です。
+手順はどの OS でも同じ 3 段階です。コードブロックは 1 つずつコピーして端末に貼り付け、
+実行が終わるのを待ってから次のブロックに進んでください。
 
 | 段階 | 内容 |
 |------|------|
@@ -42,24 +43,32 @@ GUI 版の説明は **[GUI インストーラガイド](docs/guides/gui-installe
 | ② 取得と導入 | リポジトリを取得し、インストーラを実行する（ESP-IDF v5.5.2 も導入される） |
 | ③ 有効化と診断 | 開発環境を有効化し、`sf doctor` で確認する |
 
-インストーラの途中で ESP-IDF の導入を尋ねられたら **1（Install ESP-IDF v5.5.2）** を選びます。
+インストーラ（②）の途中で ESP-IDF の導入を尋ねられたら **1（Install ESP-IDF v5.5.2）** を選びます。
 ESP-IDF のダウンロードを含むため、時間に余裕のあるときに実行してください。
 
 ### Windows
 
 コマンドプロンプト（CMD）で実行します。WSL は不要です。
 
-```cmd
-:: ① Git と Python 3.12（すでにあれば省略）。導入後は CMD を一度閉じて開き直す
-winget install Git.Git
-winget install Python.Python.3.12
+**① Git と Python 3.12 を導入**（すでにあれば省略）。末尾の 2 つのオプションは、初回に出る利用規約への同意の質問を省くためのものです。
+終わったら CMD を一度閉じて開き直します。
 
-:: ② リポジトリの取得とインストーラ実行
+```cmd
+winget install Git.Git --accept-source-agreements --accept-package-agreements
+winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements
+```
+
+**② リポジトリを取得し、インストーラを実行**。途中の質問には画面の指示に従って答えます。
+
+```cmd
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
 install.bat
+```
 
-:: ③ 開発環境の有効化と診断（新しい CMD を開くたびに setup_env.bat を実行）
+**③ 開発環境を有効化して診断**。新しい CMD を開くたびに `setup_env.bat` を実行します。
+
+```cmd
 setup_env.bat
 sf doctor
 ```
@@ -68,20 +77,33 @@ sf doctor
 
 ### macOS
 
-ターミナルで実行します。Git は Xcode Command Line Tools に含まれます。
+ターミナルで実行します。
+
+**① Homebrew を導入**（すでにあれば省略）。Enter を押し、Mac のログインパスワードを入力します。
+Xcode Command Line Tools が無い場合はここで一緒に導入されます。
+終了時に「Next steps」として表示される、brew を PATH に追加するコマンドをそのままコピーして実行してください。
 
 ```bash
-# ① Xcode Command Line Tools・Homebrew・ビルドツール（すでにあれば省略）
-xcode-select --install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install cmake ninja dfu-util ccache python@3.12
+```
 
-# ② リポジトリの取得とインストーラ実行
+続けて、ビルドに必要なツールと Python 3.12 を入れます。
+
+```bash
+brew install cmake ninja dfu-util ccache python@3.12
+```
+
+**② リポジトリを取得し、インストーラを実行**。途中の質問には画面の指示に従って答えます。
+
+```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
 ./install.sh
+```
 
-# ③ 開発環境の有効化と診断（新しいターミナルを開くたびに source setup_env.sh を実行）
+**③ 開発環境を有効化して診断**。新しいターミナルを開くたびに `source setup_env.sh` を実行します。
+
+```bash
 source setup_env.sh
 sf doctor
 ```
@@ -92,26 +114,33 @@ sf doctor
 
 ターミナルで実行します（Ubuntu 22.04 LTS 以降）。
 
+**① Git・Python・ビルドツールを導入**。パスワードを求められたら入力します。
+
 ```bash
-# ① Git・Python・ビルドツール
 sudo apt update
 sudo apt install -y git wget flex bison gperf python3 python3-pip python3-venv \
     cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+```
 
-# ② リポジトリの取得とインストーラ実行
+**② リポジトリを取得し、インストーラを実行**。途中の質問には画面の指示に従って答えます。
+
+```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
 ./install.sh
+```
 
-# ③ 開発環境の有効化と診断（新しいターミナルを開くたびに source setup_env.sh を実行）
+**③ 開発環境を有効化して診断**。新しいターミナルを開くたびに `source setup_env.sh` を実行します。
+
+```bash
 source setup_env.sh
 sf doctor
 ```
 
-実機や送信機を USB で使うときは、シリアルポートの権限を一度だけ設定します。
+実機や送信機を USB で使うときは、シリアルポートの権限を一度だけ設定します（反映には再ログインが必要）。
 
 ```bash
-sudo usermod -a -G dialout $USER   # 反映には再ログインが必要
+sudo usermod -a -G dialout $USER
 ```
 
 **→ [Linux セットアップ（詳細・トラブル対応）](docs/setup/linux.md)**
@@ -328,7 +357,8 @@ This ecosystem exists for you.
 but its stability is not yet confirmed, so please follow the CLI steps below.
 The GUI installer is described in the **[GUI Installer Guide](docs/guides/gui-installer.md)**.
 
-The procedure is the same three stages on every OS.
+The procedure is the same three stages on every OS. Copy one code block at a time into
+your terminal, wait for it to finish, then move on to the next block.
 
 | Stage | What you do |
 |-------|-------------|
@@ -336,24 +366,32 @@ The procedure is the same three stages on every OS.
 | 2. Get and install | Clone the repository and run the installer (it also installs ESP-IDF v5.5.2) |
 | 3. Activate and check | Activate the development environment and run `sf doctor` |
 
-When the installer asks about ESP-IDF, choose **1 (Install ESP-IDF v5.5.2)**.
+When the installer (stage 2) asks about ESP-IDF, choose **1 (Install ESP-IDF v5.5.2)**.
 It downloads ESP-IDF, so run it when you have some time.
 
 ### Windows
 
 Run in Command Prompt (CMD). WSL is not required.
 
-```cmd
-:: 1. Git and Python 3.12 (skip if already installed). Close and reopen CMD afterwards
-winget install Git.Git
-winget install Python.Python.3.12
+**1. Install Git and Python 3.12** (skip if already installed). The two trailing options skip the
+license-agreement questions that appear on first use. Close and reopen CMD when done.
 
-:: 2. Clone the repository and run the installer
+```cmd
+winget install Git.Git --accept-source-agreements --accept-package-agreements
+winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements
+```
+
+**2. Clone the repository and run the installer.** Answer its questions as prompted on screen.
+
+```cmd
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
 install.bat
+```
 
-:: 3. Activate the environment and check (run setup_env.bat in every new CMD window)
+**3. Activate the environment and check.** Run `setup_env.bat` in every new CMD window.
+
+```cmd
 setup_env.bat
 sf doctor
 ```
@@ -362,20 +400,33 @@ sf doctor
 
 ### macOS
 
-Run in Terminal. Git is included in the Xcode Command Line Tools.
+Run in Terminal.
+
+**1. Install Homebrew** (skip if already installed). Press Enter and type your Mac login password.
+If the Xcode Command Line Tools are missing, they are installed here as well.
+When it finishes, copy and run the commands shown under "Next steps" to add brew to your PATH.
 
 ```bash
-# 1. Xcode Command Line Tools, Homebrew and build tools (skip if already installed)
-xcode-select --install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install cmake ninja dfu-util ccache python@3.12
+```
 
-# 2. Clone the repository and run the installer
+Then install the build tools and Python 3.12.
+
+```bash
+brew install cmake ninja dfu-util ccache python@3.12
+```
+
+**2. Clone the repository and run the installer.** Answer its questions as prompted on screen.
+
+```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
 ./install.sh
+```
 
-# 3. Activate the environment and check (run source setup_env.sh in every new terminal)
+**3. Activate the environment and check.** Run `source setup_env.sh` in every new terminal.
+
+```bash
 source setup_env.sh
 sf doctor
 ```
@@ -386,26 +437,33 @@ sf doctor
 
 Run in a terminal (Ubuntu 22.04 LTS or later).
 
+**1. Install Git, Python and the build tools.** Type your password when asked.
+
 ```bash
-# 1. Git, Python and build tools
 sudo apt update
 sudo apt install -y git wget flex bison gperf python3 python3-pip python3-venv \
     cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+```
 
-# 2. Clone the repository and run the installer
+**2. Clone the repository and run the installer.** Answer its questions as prompted on screen.
+
+```bash
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
 ./install.sh
+```
 
-# 3. Activate the environment and check (run source setup_env.sh in every new terminal)
+**3. Activate the environment and check.** Run `source setup_env.sh` in every new terminal.
+
+```bash
 source setup_env.sh
 sf doctor
 ```
 
-To use the drone or transmitter over USB, grant serial-port permission once.
+To use the drone or transmitter over USB, grant serial-port permission once (log out and back in to apply).
 
 ```bash
-sudo usermod -a -G dialout $USER   # log out and back in to apply
+sudo usermod -a -G dialout $USER
 ```
 
 **→ [Linux Setup (details and troubleshooting)](docs/setup/linux.md)**
