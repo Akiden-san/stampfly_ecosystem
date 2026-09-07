@@ -1,126 +1,9 @@
-# はじめに
+# 次のステップ
 
 > **Note:** [English version follows after the Japanese section.](#english) / 日本語の後に英語版があります。
 
-このドキュメントでは、StampFly エコシステムの環境構築から初飛行までの手順を解説します。
-
----
-
-## 0. まずはシミュレータで遊んでみよう！
-
-実機がなくても、コントローラとPCがあればシミュレータでドローン操縦を体験できます。**実機を飛ばす前の練習にも最適です！**
-
-### 必要なもの
-
-| 項目 | 説明 |
-|-----|------|
-| M5Stack AtomS3 + Atom JoyStick | コントローラ（USB HIDモードで使用） |
-| PC | macOS / Windows / Linux |
-| USB-Cケーブル | コントローラ接続用 |
-
-### クイックスタート（5分で飛行開始！）
-
-#### Step 1: エコシステムのインストール
-
-```bash
-git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly_ecosystem
-./install.sh
-```
-
-インストーラがESP-IDFの検出・インストールも案内します。
-
-#### Step 2: コントローラのファームウェア書き込み（初回のみ）
-
-```bash
-# 開発環境のセットアップ
-source setup_env.sh
-
-# コントローラファームウェアをビルド・書き込み
-sf build controller
-sf flash controller
-```
-
-#### Step 3: コントローラをUSB HIDモードに切り替え
-
-1. コントローラの電源を入れる
-2. **画面（ボタン）を押して**メニューを開く
-3. 右スティックの上下で「**Comm: ESP-NOW**」の行を選ぶ
-4. 右ボタン（モードボタン）を押すと「Comm: UDP」に変わる。もう一度押すと「**Comm: USB HID**」になる
-5. コントローラが自動で再起動し、画面に「= USB HID MODE =」と表示される。PC にゲームパッドとして認識される
-
-> **Tips**: USB HIDモードでは、コントローラがPCに直接ゲームパッドとして認識されます。ESP-NOWモードに戻すには、再度メニューから切り替えてください。
-
-#### Step 4: シミュレータの起動
-
-```bash
-sf sim run vpython
-```
-
-ブラウザが自動で開き、3Dビューが表示されます。
-
-#### Step 5: 飛ばしてみよう！
-
-| 操作 | Mode 2（デフォルト） | Mode 3 |
-|-----|---------------------|--------|
-| スロットル（上昇/下降） | 左スティック上下 | 右スティック上下 |
-| ロール（左右移動） | 右スティック左右 | 左スティック左右 |
-| ピッチ（前後移動） | 右スティック上下 | 左スティック上下 |
-| ヨー（旋回） | 左スティック左右 | 右スティック左右 |
-
-1. **スロットルをゆっくり上げる** → ドローンが浮上
-2. **スティックで姿勢を調整** → 好きな方向に飛行
-3. **スロットルを下げる** → 着陸
-
-### シミュレータのオプション
-
-```bash
-# VPythonシミュレータ（デフォルト）
-sf sim run vpython
-
-# Genesisシミュレータ（高精度物理、要別途インストール）
-sf setup genesis
-sf sim run genesis
-
-# ワールドオプション
-sf sim run vpython --world ringworld  # リングワールド
-sf sim run vpython --seed 12345       # シード指定
-```
-
-### トラブルシューティング
-
-| 症状 | 対処 |
-|-----|------|
-| コントローラが認識されない | USB HIDモードに切り替えたか確認。PCを再起動 |
-| スティックがドリフトする | メニューから「Calibration」を実行 |
-| vpythonが見つからない | `sf setup sim` を実行 |
-
-シミュレータに慣れたら、実機での飛行に挑戦しましょう！
-
-### ビルド不要で試す（Web Flasher）
-
-開発環境を構築しなくても、ブラウザから実機にファームウェアを書き込めます。
-
-| 項目 | 内容 |
-|-----|------|
-| URL | https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/ |
-| 必要環境 | Chrome または Edge（Web Serial対応）＋ USB-Cケーブル（データ通信対応） |
-| できること | 最新の GitHub Release のフルイメージをブラウザから直接書き込み |
-
-#### デスクトップ版（StampFly Flasher）
-
-ブラウザ書き込み（Web Serial）は macOS の Chrome でクラッシュする既知の不具合があるほか、
-ブラウザなしでオフライン書き込みしたい教室にも便利なため、デスクトップ GUI アプリも用意されています。
-
-| 項目 | 内容 |
-|-----|------|
-| 入手先 | [リリースページ](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest)（v2026.07.1 以降のリリースに添付。Linux版は v2026.07.2 以降） |
-| 対応 | Windows / macOS（Apple Silicon・Intel）/ Linux（x64） |
-| 使い方 | ダウンロード → 起動 → 対象を選んで書き込み（macOS初回は右クリック→開く） |
-| ソースから | `python3 tools/flasher_gui/stampfly_flasher.py`（要 `pip install esptool`）または `sf flash --gui` |
-| `sf` 導入済みなら | `sf flasher install` でダウンロード〜SHA256検証〜ネイティブアプリ導入を自動化（詳細: [sf flasher](commands/sf-flasher.md)） |
-
-ソースからビルドしたい場合は、このまま以降の手順（ESP-IDF環境構築）に進んでください。
+README の手順でシミュレータと実機の飛行までできたら、この文書で操縦と開発の詳細に進みます。
+シミュレータの使い方、通信モードの選択、飛行前の確認、飛行方法、ビルドせずに書き込む方法、sf CLI の基本操作、開発者向け機能をまとめています。
 
 ---
 
@@ -143,134 +26,74 @@ sf sim run vpython --seed 12345       # シード指定
 | Git | 最新版 | - |
 | Python | 3.10〜3.12（推奨3.12） | - |
 
-## 2. インストール
+## 2. シミュレータの使い方
 
-> **ターミナルを使わずに導入したい場合**: GUI インストーラ「StampFly Setup」を使うと、
-> ダウンロードして起動するだけで以下の手順を自動化できます。詳細は
-> [GUI インストーラガイド](guides/gui-installer.md)を参照してください。以下は
-> ターミナル（CLI）での手順です。
+送信機の書き込みと USB HID（USB のゲームパッド等の標準規格）モードへの切替は README の「まずはシミュレータで飛ばしてみよう！」を、送信機の操作全般は [送信機の使い方](guides/controller.md) を参照してください。
 
-### Step 1: リポジトリをクローン
+### 起動
 
 ```bash
-git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly_ecosystem
+sf sim run vpython
 ```
 
-### Step 2: インストーラを実行
+ブラウザが自動で開き、3D ビューが表示されます。
+
+### スティック操作
+
+| 操作 | Mode 2（既定） | Mode 3 |
+|-----|---------------|--------|
+| スロットル（上昇/下降） | 左スティック上下 | 右スティック上下 |
+| ロール（左右移動） | 右スティック左右 | 左スティック左右 |
+| ピッチ（前後移動） | 右スティック上下 | 左スティック上下 |
+| ヨー（旋回） | 左スティック左右 | 右スティック左右 |
+
+### 飛ばし方
+
+1. **スロットルをゆっくり上げる** → ドローンが浮上
+2. **スティックで姿勢を調整** → 好きな方向に飛行
+3. **スロットルを下げる** → 着陸
+
+### ワールドオプション
+
+| オプション | コマンド | 説明 |
+|-----------|---------|------|
+| 既定 | `sf sim run vpython` | 標準のワールド |
+| リングワールド | `sf sim run vpython --world ringworld` | リング状の地形 |
+| シード指定 | `sf sim run vpython --seed 12345` | 地形などの乱数シードを固定 |
+
+### Genesis シミュレータ（任意・高精度物理）
+
+VPython より高精度な物理演算を行うシミュレータです。別途インストールが必要です。
 
 ```bash
-./install.sh
+sf setup genesis
+sf sim run genesis
 ```
 
-インストーラが以下を行います:
-- ESP-IDFの検出（未インストールの場合はインストール案内）
-- sf CLI のインストール
-- シミュレータ依存（vpython, pygame等）のインストール
+### トラブルシューティング
 
-### Step 3: 環境をアクティブ化
+| 症状 | 対処 |
+|-----|------|
+| コントローラが認識されない | USB HIDモードに切り替えたか確認。PCを再起動 |
+| スティックがドリフトする | メニューから「Calibration」を実行 |
+| vpythonが見つからない | `sf setup sim` を実行 |
 
-```bash
-source setup_env.sh
-```
+## 3. 通信モードの選択
 
-### Step 4: インストール確認
-
-```bash
-sf doctor
-```
-
-すべて `[OK]` と表示されれば成功です。
-
-### Step 5: 最新版に更新したいとき
-
-インストール後、新しい機能や修正を取り込みたくなったら `sf upgrade` を実行してください。編集中のファイルは自動的に保護されます。
-
-```bash
-sf upgrade
-```
-
-詳しい仕組みや、うまくいかない場合のトラブルシューティングは **[アップグレードガイド](guides/upgrading.md)** を参照してください。
-
-## 3. 機体ファームウェアのビルドと書き込み
-
-### ビルド
-
-```bash
-sf build vehicle
-```
-
-初回ビルドには数分かかります。
-
-### 書き込み
-
-StampFly 機体をUSBで接続し、以下を実行:
-
-```bash
-sf flash vehicle
-```
-
-ポートは自動検出されます。手動指定する場合:
-
-```bash
-sf flash vehicle -p /dev/ttyACM0    # Linux
-sf flash vehicle -p /dev/cu.usbmodem*  # macOS
-sf flash vehicle -p COM3            # Windows
-```
-
-### シリアルモニタ
-
-```bash
-sf monitor
-```
-
-終了は `Ctrl + ]` です。
-
-### ビルド→書き込み→モニタを一括実行
-
-```bash
-sf build vehicle && sf flash vehicle -m
-```
-
-## 4. コントローラファームウェアのビルドと書き込み
-
-### ビルド
-
-```bash
-sf build controller
-```
-
-### 書き込み
-
-AtomS3 をUSBで接続し、以下を実行:
-
-```bash
-sf flash controller
-```
-
-## 5. 通信モードの選択
-
-StampFlyは2つの通信モードをサポートしています。
+StampFly は2つの通信モードをサポートしています。
 
 | モード | 特徴 | 用途 |
 |-------|------|------|
-| ESP-NOW | 低遅延、TDMA同期、最大10台同時 | 複数機編隊飛行、レース |
+| ESP-NOW（Espressif 社の無線直接通信方式） | 低遅延、TDMA（時分割多元接続）同期、最大10台同時 | 複数機編隊飛行、レース |
 | UDP | シンプル、WiFi AP経由、単機運用 | 開発・デバッグ、単機飛行 |
 
-### ESP-NOWモード（デフォルト）
+### ESP-NOWモード（既定）
 
-複数機の編隊飛行やTDMA同期が必要な場合に使用。
-
-**ペアリング手順:**
-1. **コントローラ**: M5ボタン（LCDパネルボタン）を押しながら電源を入れる
-2. LCD に "Pairing mode..." と表示され、ビープ音が鳴り始める
-3. **StampFly**: ボタンを長押し（約3秒）してペアリングモードに入る（LED が青の速い点滅になる）
-4. 両方からビープ音が鳴ればペアリング完了
-5. ペアリング情報は自動保存され、次回以降は自動接続
+複数機の編隊飛行や TDMA 同期が必要な場合に使用します。ペアリング手順は [送信機の使い方](guides/controller.md) を参照してください。
 
 ### UDPモード（推奨：単機運用時）
 
-単機での飛行や開発・デバッグ時に使用。設定が簡単です。
+単機での飛行や開発・デバッグ時に使用します。設定が簡単です。
 
 **設定手順:**
 
@@ -278,12 +101,10 @@ StampFlyは2つの通信モードをサポートしています。
    ```
    comm udp
    ```
-   この設定はNVSに保存され、次回起動時も維持されます。
+   この設定は NVS（電源を切っても消えない設定保存領域）に保存され、次回起動時も維持されます。
 
 2. **Controller側:**
-   - 画面を押してメニューを開く
-   - 「UDP Mode」を選択
-   - コントローラが再起動し、VehicleのWiFi APに接続
+   画面（ボタン）を押してメニューを開き、右スティックで `Comm: ESP-NOW` の行を選び、右ボタン（モードボタン）を1回押して `Comm: UDP` にします（ESP-NOW → UDP → USB HID の順で切り替わります）。UDP への切替では再起動しません。
 
 **通信の仕組み:**
 ```
@@ -295,7 +116,7 @@ StampFlyは2つの通信モードをサポートしています。
 
 **注意:** UDPモードではペアリングは不要です。VehicleのWiFi APに自動接続します。
 
-## 6. 飛行前の確認
+## 4. 飛行前の確認
 
 ### チェックリスト
 
@@ -311,7 +132,9 @@ StampFlyは2つの通信モードをサポートしています。
 | 通常起動 | Mode 2 |
 | **左ボタンを押しながら起動** | **Mode 3（推奨）** |
 
-## 7. 飛行方法
+## 5. 飛行方法
+
+機体への書き込みは README の「実際に飛ばしてみよう」を参照してください。
 
 ### スティック配置
 
@@ -372,6 +195,67 @@ StampFlyは2つの通信モードをサポートしています。
 > 必要なセンサが無効（config.hpp で OFF）の場合、自動的に STABILIZE に降格します。
 > POSITION_HOLD（POS_HOLD）は実機飛行での位置保持動作まで確認済みです。
 
+## 6. ビルドせずに書き込む
+
+開発環境を構築しなくても、ブラウザから実機にファームウェアを書き込めます。
+
+### Web Flasher
+
+| 項目 | 内容 |
+|-----|------|
+| URL | https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/ |
+| 必要環境 | Chrome または Edge（Web Serial対応）＋ USB-Cケーブル（データ通信対応） |
+| できること | 最新の GitHub Release のフルイメージをブラウザから直接書き込み |
+
+### デスクトップ版（StampFly Flasher）
+
+ブラウザ書き込み（Web Serial）は macOS の Chrome でクラッシュする既知の不具合があるほか、
+ブラウザなしでオフライン書き込みしたい教室にも便利なため、デスクトップ GUI アプリも用意されています。
+
+| 項目 | 内容 |
+|-----|------|
+| 入手先 | [リリースページ](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest)（v2026.07.1 以降のリリースに添付。Linux版は v2026.07.2 以降） |
+| 対応 | Windows / macOS（Apple Silicon・Intel）/ Linux（x64） |
+| 使い方 | ダウンロード → 起動 → 対象を選んで書き込み（macOS初回は右クリック→開く） |
+| ソースから | `python3 tools/flasher_gui/stampfly_flasher.py`（要 `pip install esptool`）または `sf flash --gui` |
+| `sf` 導入済みなら | `sf flasher install` でダウンロード〜SHA256検証〜ネイティブアプリ導入を自動化（詳細: [sf flasher](commands/sf-flasher.md)） |
+
+## 7. sf CLI クイックスタート
+
+**sf CLI** は、ビルド、書き込み、モニタ、ログ取得などをシンプルに実行できる統合コマンドラインツールです。
+
+環境を有効化します（新しい端末を開くたびに実行。Windows は `setup_env.bat`）。
+
+```bash
+source setup_env.sh
+```
+
+環境を診断します。
+
+```bash
+sf doctor
+```
+
+機体ファームウェアをビルドし、書き込み、モニタを開きます。
+
+```bash
+sf build vehicle && sf flash vehicle -m
+```
+
+### よく使うコマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `sf build vehicle` | 機体ファームウェアをビルド |
+| `sf flash vehicle -m` | 書き込み後にモニタを開く |
+| `sf monitor` | シリアルモニタを開く |
+| `sf log wifi` | WiFiテレメトリをキャプチャ |
+| `sf cal gyro` | ジャイロキャリブレーション |
+| `sf sim run vpython` | シミュレータを起動 |
+| `sf app new my_ctrl` | 自分の制御則プロジェクトを作成（研究・実験用） |
+
+**→ [コマンドリファレンス](commands/README.md)** | **[セットアップガイド](setup/README.md)**
+
 ## 8. 開発者向け機能
 
 ### WiFi テレメトリー
@@ -386,32 +270,21 @@ StampFlyは2つの通信モードをサポートしています。
 
 ### ログキャプチャ
 
-```bash
-# WiFiでテレメトリをキャプチャ（30秒）
-sf log wifi -d 30
-
-# USBシリアルでキャプチャ
-sf log capture -d 60
-
-# ログ一覧
-sf log list
-
-# フライト解析
-sf log analyze
-```
+| コマンド | 説明 |
+|---------|------|
+| `sf log wifi -d 30` | WiFi 経由でテレメトリを 30 秒間キャプチャ |
+| `sf log capture -d 60` | USB シリアル経由で 60 秒間キャプチャ |
+| `sf log list` | ログ一覧を表示 |
+| `sf log analyze` | フライトログを解析 |
 
 ### キャリブレーション
 
-```bash
-# ジャイロキャリブレーション
-sf cal gyro
-
-# 磁気キャリブレーション
-sf cal mag start
-# 機体を8の字に回転...
-sf cal mag stop
-sf cal mag save
-```
+| コマンド | 説明 |
+|---------|------|
+| `sf cal gyro` | ジャイロキャリブレーション |
+| `sf cal mag start` | 磁気キャリブレーション開始（この後、機体を8の字に回転させる） |
+| `sf cal mag stop` | 磁気キャリブレーション終了 |
+| `sf cal mag save` | キャリブレーション結果を保存 |
 
 ### CLI（コマンドラインインターフェース）
 
@@ -432,10 +305,9 @@ sf monitor
 ### Tello SDK 互換 API（プログラムからの飛行制御）
 
 コントローラでの通常操作に加えて、Vehicle は **Tello SDK 互換の UDP コマンド**（`UDP:8889`）を受け付け、
-`djitellopy` など既存の Tello 用 Python プログラムがほぼ無改変で動作します。
+`djitellopy` など既存の Tello 用 Python プログラムがほぼ無改変で動作します。例（`tools/stampfly_py` 配下）:
 
 ```bash
-# 例（tools/stampfly_py 配下）
 python3 tools/stampfly_py/example_djitellopy.py
 ```
 
@@ -443,136 +315,28 @@ python3 tools/stampfly_py/example_djitellopy.py
 参照してください。**送信機は安全装置として中立位置でONのまま保持してください**（スティックを動かせば
 いつでもパイロットが介入・停止できます）。
 
-## 9. 次のステップ
+## 9. さらに学ぶ
 
-- [コマンドリファレンス](commands/README.md) - sf CLI の全コマンド
-- [firmware/vehicle/README.md](../firmware/vehicle/README.md) - 機体ファームウェア詳細
-- [firmware/controller/README.md](../firmware/controller/README.md) - コントローラ詳細
-- [tools/stampfly_py/README.md](../tools/stampfly_py/README.md) - Tello SDK 互換 API 詳細
+| リンク | 説明 |
+|-------|------|
+| [コマンドリファレンス](commands/README.md) | sf CLI の全コマンド |
+| [firmware/vehicle/README.md](../firmware/vehicle/README.md) | 機体ファームウェア詳細 |
+| [firmware/controller/README.md](../firmware/controller/README.md) | コントローラ詳細 |
+| [tools/stampfly_py/README.md](../tools/stampfly_py/README.md) | Tello SDK 互換 API 詳細 |
 
 ---
 
 <a id="english"></a>
 
-# Getting Started
+# Next Steps
 
-This document explains the steps from environment setup to your first flight with the StampFly ecosystem.
-
----
-
-## 0. Try the Simulator First!
-
-Even without the actual drone, you can experience drone piloting with just the controller and a PC.
-
-### Requirements
-
-| Item | Description |
-|------|-------------|
-| M5Stack AtomS3 + Atom JoyStick | Controller (USB HID mode) |
-| PC | macOS / Windows / Linux |
-| USB-C Cable | For controller connection |
-
-### Quick Start (Flying in 5 minutes!)
-
-#### Step 1: Install Ecosystem
-
-```bash
-git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly_ecosystem
-./install.sh
-```
-
-The installer also guides ESP-IDF installation if needed.
-
-#### Step 2: Flash Controller Firmware (First time only)
-
-```bash
-# Activate development environment
-source setup_env.sh
-
-# Build and flash controller
-sf build controller
-sf flash controller
-```
-
-#### Step 3: Switch Controller to USB HID Mode
-
-1. Power on the controller
-2. **Press the screen (button)** to open the menu
-3. Move the right stick up/down to select the "**Comm: ESP-NOW**" row
-4. Press the right button (mode button): the row changes to "Comm: UDP". Press again: it changes to "**Comm: USB HID**"
-5. The controller restarts automatically and shows "= USB HID MODE =". The PC recognizes it as a gamepad
-
-#### Step 4: Launch Simulator
-
-```bash
-sf sim run vpython
-```
-
-A browser opens with the 3D view.
-
-#### Step 5: Let's Fly!
-
-| Control | Mode 2 (Default) | Mode 3 |
-|---------|------------------|--------|
-| Throttle | Left stick up/down | Right stick up/down |
-| Roll | Right stick left/right | Left stick left/right |
-| Pitch | Right stick up/down | Left stick up/down |
-| Yaw | Left stick left/right | Right stick left/right |
-
-### Simulator Options
-
-```bash
-# VPython simulator (default)
-sf sim run vpython
-
-# Genesis simulator (high-precision, separate install)
-sf setup genesis
-sf sim run genesis
-
-# World options
-sf sim run vpython --world ringworld  # Ring world
-sf sim run vpython --seed 12345       # Specify seed
-```
-
-### Troubleshooting
-
-| Symptom | Solution |
-|---------|----------|
-| Controller not recognized | Check USB HID mode is enabled. Restart PC |
-| Stick drifting | Run "Calibration" from menu |
-| vpython not found | Run `sf setup sim` |
-
-Once comfortable with the simulator, try flying the real drone!
-
-### Try it without building (Web Flasher)
-
-You can flash firmware to the real hardware straight from your browser — no build environment needed.
-
-| Item | Details |
-|------|---------|
-| URL | https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/ |
-| Requirements | Chrome or Edge (Web Serial support) + a USB-C data cable |
-| What it does | Flashes the latest GitHub Release full firmware image directly from the browser |
-
-#### Desktop App (StampFly Flasher)
-
-A desktop GUI app is also available — the browser flasher (Web Serial) has a known bug that
-crashes Chrome on macOS, and some classrooms need offline/no-browser flashing anyway.
-
-| Item | Details |
-|------|---------|
-| Get it | [Releases page](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) (attached to releases from v2026.07.1 onward; Linux build from v2026.07.2 onward) |
-| Supported | Windows / macOS (Apple Silicon and Intel) / Linux (x64) |
-| Usage | Download → launch → select target → flash (on macOS, right-click → Open the first time) |
-| From source | `python3 tools/flasher_gui/stampfly_flasher.py` (requires `pip install esptool`) or `sf flash --gui` |
-| If `sf` is set up | `sf flasher install` automates download, SHA256 verification, and native-app install (details: [sf flasher](commands/sf-flasher.md)) |
-
-If you want to build from source, continue with the rest of this guide (ESP-IDF setup).
+Once you can fly both the simulator and the real vehicle using the steps in the README, use this
+document to go deeper on piloting and development: simulator usage, communication mode selection,
+pre-flight checks, how to fly, flashing without building, sf CLI basics, and developer features.
 
 ---
 
-## 1. Requirements
+## 1. What You Need
 
 ### Hardware
 
@@ -591,111 +355,73 @@ If you want to build from source, continue with the rest of this guide (ESP-IDF 
 | Git | Latest | - |
 | Python | 3.10-3.12 (3.12 recommended) | - |
 
-## 2. Installation
+## 2. Using the Simulator
 
-> **Want to skip the terminal?** The GUI installer "StampFly Setup" automates the steps below —
-> just download it and launch it. See the [GUI Installer Guide](guides/gui-installer.md) for
-> details. The steps below use the terminal (CLI).
+Flashing the transmitter and switching it to USB HID (a standard USB gamepad protocol) mode are
+covered in the README's "Try the Simulator First!" section. For everything else about operating
+the transmitter, see [Using the Transmitter](guides/controller.md).
 
-### Step 1: Clone Repository
-
-```bash
-git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
-cd stampfly_ecosystem
-```
-
-### Step 2: Run Installer
+### Launch
 
 ```bash
-./install.sh
+sf sim run vpython
 ```
 
-### Step 3: Activate Environment
+A browser opens automatically with the 3D view.
+
+### Stick Controls
+
+| Control | Mode 2 (Default) | Mode 3 |
+|---------|------------------|--------|
+| Throttle | Left stick up/down | Right stick up/down |
+| Roll | Right stick left/right | Left stick left/right |
+| Pitch | Right stick up/down | Left stick up/down |
+| Yaw | Left stick left/right | Right stick left/right |
+
+### How to Fly
+
+1. **Slowly raise the throttle** → the drone lifts off
+2. **Adjust attitude with the sticks** → fly in the direction you want
+3. **Lower the throttle** → land
+
+### World Options
+
+| Option | Command | Description |
+|--------|---------|-------------|
+| Default | `sf sim run vpython` | Standard world |
+| Ring world | `sf sim run vpython --world ringworld` | Ring-shaped terrain |
+| Fixed seed | `sf sim run vpython --seed 12345` | Fix the random seed for terrain, etc. |
+
+### Genesis Simulator (Optional, High-Precision Physics)
+
+A higher-precision physics simulator than VPython. Requires a separate installation.
 
 ```bash
-source setup_env.sh
+sf setup genesis
+sf sim run genesis
 ```
 
-### Step 4: Verify Installation
+### Troubleshooting
 
-```bash
-sf doctor
-```
+| Symptom | Solution |
+|---------|----------|
+| Controller not recognized | Check USB HID mode is enabled. Restart PC |
+| Stick drifting | Run "Calibration" from menu |
+| vpython not found | Run `sf setup sim` |
 
-### Step 5: Keeping It Up to Date
-
-Once installed, run `sf upgrade` whenever you want to pull in new features or fixes. Any files you were editing are protected automatically.
-
-```bash
-sf upgrade
-```
-
-For the full walkthrough and troubleshooting, see the **[Upgrading Guide](guides/upgrading.md)**.
-
-## 3. Build and Flash Vehicle Firmware
-
-### Build
-
-```bash
-sf build vehicle
-```
-
-### Flash
-
-Connect StampFly via USB:
-
-```bash
-sf flash vehicle
-```
-
-Port is auto-detected. To specify manually:
-
-```bash
-sf flash vehicle -p /dev/ttyACM0    # Linux
-sf flash vehicle -p /dev/cu.usbmodem*  # macOS
-sf flash vehicle -p COM3            # Windows
-```
-
-### Serial Monitor
-
-```bash
-sf monitor
-```
-
-Exit with `Ctrl + ]`.
-
-### Build → Flash → Monitor
-
-```bash
-sf build vehicle && sf flash vehicle -m
-```
-
-## 4. Build and Flash Controller Firmware
-
-```bash
-sf build controller
-sf flash controller
-```
-
-## 5. Communication Mode Selection
+## 3. Choosing a Communication Mode
 
 StampFly supports two communication modes.
 
 | Mode | Features | Use Case |
 |------|----------|----------|
-| ESP-NOW | Low latency, TDMA sync, up to 10 devices | Multi-vehicle, racing |
+| ESP-NOW (Espressif's proprietary direct wireless protocol) | Low latency, TDMA (time-division multiple access) sync, up to 10 devices | Multi-vehicle formation, racing |
 | UDP | Simple, via WiFi AP, single-vehicle | Development, solo flight |
 
 ### ESP-NOW Mode (Default)
 
-For multi-vehicle formation or TDMA synchronization.
-
-**Pairing:**
-1. **Controller**: Hold M5 button (under screen) while powering on
-2. LCD shows "Pairing mode..." and beeping starts
-3. **StampFly**: Long-press the button (about 3 s) to enter pairing mode (LED blinks blue rapidly)
-4. Both beep when pairing completes
-5. Pairing info is saved automatically and auto-connects next time
+For multi-vehicle formation or TDMA synchronization. See [Using the Transmitter](guides/controller.md)
+for the pairing procedure.
 
 ### UDP Mode (Recommended for single-vehicle)
 
@@ -707,12 +433,13 @@ For solo flights or development/debugging. Simple setup.
    ```
    comm udp
    ```
-   This setting is saved to NVS and persists after restart.
+   This setting is saved to NVS (non-volatile storage that survives power-off) and persists
+   after restart.
 
 2. **Controller:**
-   - Press screen to open menu
-   - Select "UDP Mode"
-   - Controller restarts and connects to Vehicle's WiFi AP
+   Press the screen (button) to open the menu, use the right stick to select the `Comm: ESP-NOW`
+   row, and press the right button (mode button) once to switch to `Comm: UDP` (the order cycles
+   ESP-NOW → UDP → USB HID). Switching to UDP does not restart the controller.
 
 **How it works:**
 ```
@@ -724,7 +451,7 @@ For solo flights or development/debugging. Simple setup.
 
 **Note:** UDP mode does not require pairing. Auto-connects to Vehicle's WiFi AP.
 
-## 6. Pre-Flight Checks
+## 4. Pre-flight Checks
 
 ### Checklist
 
@@ -740,7 +467,9 @@ For solo flights or development/debugging. Simple setup.
 | Normal startup | Mode 2 |
 | **Hold left button while starting** | **Mode 3 (recommended)** |
 
-## 7. How to Fly
+## 5. How to Fly
+
+For flashing the vehicle firmware, see the README's "Let's Actually Fly" section.
 
 ### Stick Layout
 
@@ -801,9 +530,72 @@ For solo flights or development/debugging. Simple setup.
 > If required sensors are disabled (OFF in config.hpp), the mode automatically downgrades to STABILIZE.
 > POSITION_HOLD (POS_HOLD) has been validated on real hardware, including in-flight position hold.
 
+## 6. Flashing Without Building
+
+You can flash firmware to the real hardware straight from your browser — no build environment needed.
+
+### Web Flasher
+
+| Item | Details |
+|------|---------|
+| URL | https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/ |
+| Requirements | Chrome or Edge (Web Serial support) + a USB-C data cable |
+| What it does | Flashes the latest GitHub Release full firmware image directly from the browser |
+
+### Desktop App (StampFly Flasher)
+
+A desktop GUI app is also available — the browser flasher (Web Serial) has a known bug that
+crashes Chrome on macOS, and some classrooms need offline/no-browser flashing anyway.
+
+| Item | Details |
+|------|---------|
+| Get it | [Releases page](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) (attached to releases from v2026.07.1 onward; Linux build from v2026.07.2 onward) |
+| Supported | Windows / macOS (Apple Silicon and Intel) / Linux (x64) |
+| Usage | Download → launch → select target → flash (on macOS, right-click → Open the first time) |
+| From source | `python3 tools/flasher_gui/stampfly_flasher.py` (requires `pip install esptool`) or `sf flash --gui` |
+| If `sf` is set up | `sf flasher install` automates download, SHA256 verification, and native-app install (details: [sf flasher](commands/sf-flasher.md)) |
+
+## 7. sf CLI Quick Start
+
+**sf CLI** is an integrated command-line tool for build, flash, monitor, log capture, and more.
+
+Activate the environment (run in every new terminal; on Windows use `setup_env.bat`).
+
+```bash
+source setup_env.sh
+```
+
+Run the diagnostics.
+
+```bash
+sf doctor
+```
+
+Build the vehicle firmware, flash it, and open the monitor.
+
+```bash
+sf build vehicle && sf flash vehicle -m
+```
+
+### Common Commands
+
+| Command | Description |
+|---------|-------------|
+| `sf build vehicle` | Build vehicle firmware |
+| `sf flash vehicle -m` | Flash and open monitor |
+| `sf monitor` | Open serial monitor |
+| `sf log wifi` | Capture WiFi telemetry |
+| `sf cal gyro` | Gyro calibration |
+| `sf sim run vpython` | Run simulator |
+| `sf app new my_ctrl` | Create your own control-law project (research/experiments) |
+
+**→ [Command Reference](commands/README.md)** | **[Setup Guide](setup/README.md)**
+
 ## 8. Developer Features
 
 ### WiFi Telemetry
+
+The vehicle has a built-in WebSocket server for real-time sensor data.
 
 | Item | Value |
 |------|-------|
@@ -813,20 +605,21 @@ For solo flights or development/debugging. Simple setup.
 
 ### Log Capture
 
-```bash
-sf log wifi -d 30      # WiFi capture (30s)
-sf log capture -d 60   # USB serial capture
-sf log list            # List logs
-sf log analyze         # Flight analysis
-```
+| Command | Description |
+|---------|-------------|
+| `sf log wifi -d 30` | Capture telemetry over WiFi for 30 seconds |
+| `sf log capture -d 60` | Capture over USB serial for 60 seconds |
+| `sf log list` | List logs |
+| `sf log analyze` | Analyze a flight log |
 
 ### Calibration
 
-```bash
-sf cal gyro            # Gyro calibration
-sf cal mag start       # Start mag calibration
-sf cal mag save        # Save calibration
-```
+| Command | Description |
+|---------|-------------|
+| `sf cal gyro` | Gyro calibration |
+| `sf cal mag start` | Start magnetometer calibration (then rotate the vehicle in a figure-8) |
+| `sf cal mag stop` | Stop magnetometer calibration |
+| `sf cal mag save` | Save the calibration result |
 
 ### CLI
 
@@ -838,10 +631,9 @@ sf monitor
 
 In addition to normal controller operation, the Vehicle accepts **Tello SDK-compatible UDP
 commands** (`UDP:8889`), so existing Tello Python programs (e.g. `djitellopy`) run nearly
-unmodified.
+unmodified. Example (under `tools/stampfly_py`):
 
 ```bash
-# Example (under tools/stampfly_py)
 python3 tools/stampfly_py/example_djitellopy.py
 ```
 
@@ -849,9 +641,12 @@ See [`tools/stampfly_py/README.md`](../tools/stampfly_py/README.md) for the full
 and safety notes. **Keep the paired RC transmitter ON with neutral sticks as a safety device**
 — the pilot can intervene and stop the vehicle at any time by moving a stick.
 
-## 9. Next Steps
+## 9. Learn More
 
-- [Command Reference](commands/README.md) - All sf CLI commands
-- [firmware/vehicle/README.md](../firmware/vehicle/README.md) - Vehicle firmware details
-- [firmware/controller/README.md](../firmware/controller/README.md) - Controller details
-- [tools/stampfly_py/README.md](../tools/stampfly_py/README.md) - Tello SDK-compatible API details
+| Link | Description |
+|------|-------------|
+| [Command Reference](commands/README.md) | All sf CLI commands |
+| [firmware/vehicle/README.md](../firmware/vehicle/README.md) | Vehicle firmware details |
+| [firmware/controller/README.md](../firmware/controller/README.md) | Controller details |
+| [tools/stampfly_py/README.md](../tools/stampfly_py/README.md) | Tello SDK-compatible API details |
+</content>

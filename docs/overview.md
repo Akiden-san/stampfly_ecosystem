@@ -121,7 +121,7 @@ stampfly_ecosystem/
 
 ## 5. 次のステップ
 
-- [はじめに](getting-started.md) - 環境構築と初飛行
+- [次のステップ](next_step.md) - 操縦と開発の詳細（シミュレータの使い方・飛行方法・開発者向け機能）
 - [プロトコル仕様](../protocol/README.md) - 通信プロトコル詳細
 - [コントローラ](../firmware/controller/README.md) - コントローラファームウェア
 - [TDMA使用ガイド](architecture/tdma-usage.md) - 複数機運用
@@ -240,7 +240,7 @@ stampfly_ecosystem/
 
 ## 5. Next Steps
 
-- [Getting Started](getting-started.md) - Setup and first flight
+- [Next Steps](next_step.md) - Piloting and development details (simulator usage, how to fly, developer features)
 - [Protocol Specification](../protocol/README.md) - Communication protocol details
 - [Controller](../firmware/controller/README.md) - Controller firmware
 - [TDMA Guide](architecture/tdma-usage.md) - Multi-vehicle operation

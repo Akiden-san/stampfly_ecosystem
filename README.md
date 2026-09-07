@@ -179,7 +179,7 @@ sf sim run vpython
 
 スティックの割り当て、地形の切替、うまく動かないときの対処は、シミュレータの使い方ページを参照してください。
 
-**→ [シミュレータの使い方](docs/getting-started.md#0-まずはシミュレータで遊んでみよう)**
+**→ [シミュレータの使い方](docs/next_step.md#2-シミュレータの使い方)** | **[送信機の使い方](docs/guides/controller.md)**
 
 ---
 
@@ -214,57 +214,26 @@ sf flash vehicle
 
 飛行前の確認とスティック操作（アーム・離陸・着陸・飛行モードの切替）は、操縦方法のページを参照してください。
 
-**→ [操縦方法](docs/getting-started.md#7-飛行方法)**
+**→ [操縦方法](docs/next_step.md#5-飛行方法)** | **[送信機の使い方](docs/guides/controller.md)**
 
 ---
 
-## 🔗 すぐに使えるリソース
+## 🔗 リソースとドキュメント
 
 | リソース | 説明 |
 |---------|------|
+| [📖 次のステップ](docs/next_step.md) | シミュレータの使い方、飛行前の確認、飛行方法、開発者向け機能 |
+| [🎛️ 送信機の使い方](docs/guides/controller.md) | メニュー操作、通信モードの切替、ペアリング、ボタンの役割 |
+| [⌨️ sf コマンドリファレンス](docs/commands/README.md) | ビルド・書き込み・ログ取得など全コマンドの説明 |
+| [🛠️ セットアップガイド](docs/setup/README.md) | OS 別の導入手順の詳細とトラブル対応 |
 | [🌐 プロジェクト紹介](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | 実機3Dモデル付きランディングページ |
-| [📚 ドキュメント](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | 全ドキュメントを検索・閲覧 |
+| [📚 ドキュメントサイト](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | 全ドキュメントを検索・閲覧 |
+| [🗂️ ドキュメント目録](docs/DOCUMENT_INDEX.md) | リポジトリ内の全ドキュメントの目録 |
 | [🔌 Web書き込み](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | ビルド不要、ブラウザから実機に書き込み |
 | [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | デスクトップ書き込みアプリ（Windows/macOS・Python不要） |
 | [📦 ビルド済みファームウェア](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases（vehicle / controller） |
-
----
-
-## 🚀 sf CLI クイックスタート
-
-**sf CLI** は、ビルド、書き込み、モニタ、ログ取得などをシンプルに実行できる統合コマンドラインツールです。
-
-環境を有効化します（新しい端末を開くたびに実行。Windows は `setup_env.bat`）。
-
-```bash
-source setup_env.sh
-```
-
-環境を診断します。
-
-```bash
-sf doctor
-```
-
-機体ファームウェアをビルドし、書き込み、モニタを開きます。
-
-```bash
-sf build vehicle && sf flash vehicle -m
-```
-
-### よく使うコマンド
-
-| コマンド | 説明 |
-|---------|------|
-| `sf build vehicle` | 機体ファームウェアをビルド |
-| `sf flash vehicle -m` | 書き込み後にモニタを開く |
-| `sf monitor` | シリアルモニタを開く |
-| `sf log wifi` | WiFiテレメトリをキャプチャ |
-| `sf cal gyro` | ジャイロキャリブレーション |
-| `sf sim run vpython` | シミュレータを起動 |
-| `sf app new my_ctrl` | 自分の制御則プロジェクトを作成（研究・実験用） |
-
-**→ [コマンドリファレンス](docs/commands/README.md)** | **[セットアップガイド](docs/setup/README.md)**
+| [📐 物理パラメータリファレンス](docs/architecture/stampfly-parameters.md) | 機体の物理パラメータ（質量・慣性・モータ特性等）の確定値 |
+| [stampfly_physical.yaml](control/models/stampfly_physical.yaml) | 物理パラメータの機械可読 SSOT（Single Source of Truth: 唯一の正となる定義） |
 
 ---
 
@@ -311,19 +280,9 @@ stampfly_ecosystem/
 
 ---
 
-## 始めよう
-
-**→ [Getting Started（環境構築〜初フライト）](docs/getting-started.md)**
-
-ESP-IDFのセットアップから、ファームウェアのビルド、
-機体と送信機のペアリング、そして初フライトまで。
-すべての手順をステップバイステップで解説しています。
-
----
-
 ## ワークショップで本格的に学ぶ
 
-Getting Started で初フライトができたら、次は**ワークショップ**で制御の仕組みをじっくり学びましょう。
+実機で飛ばせたら、次は**ワークショップ**で制御の仕組みをじっくり学びましょう。
 
 | レッスン | テーマ | 学べること |
 |---------|--------|-----------|
@@ -349,16 +308,6 @@ Getting Started で初フライトができたら、次は**ワークショッ�
 | 姿勢推定 | ESKF（Error-State Kalman Filter） |
 | 通信 | ESP-NOW + WiFi（テレメトリ） |
 | センサー | BMI270, BMM150, BMP280, VL53L3CX, PMW3901 |
-
----
-
-## 詳細ドキュメント
-
-| ドキュメント | 説明 |
-|-------------|------|
-| [ドキュメント目録](docs/DOCUMENT_INDEX.md) | リポジトリ内の全ドキュメントの目録 |
-| [物理パラメータリファレンス](docs/architecture/stampfly-parameters.md) | 機体の物理パラメータ（質量・慣性・モータ特性等）の確定値 |
-| [stampfly_physical.yaml](control/models/stampfly_physical.yaml) | 物理パラメータの機械可読 SSOT（Single Source of Truth） |
 
 ---
 
@@ -551,7 +500,7 @@ sf sim run vpython
 
 For the stick assignment, world options, and troubleshooting, see the simulator guide.
 
-**→ [Simulator Guide](docs/getting-started.md#0-try-the-simulator-first)**
+**→ [Using the Simulator](docs/next_step.md#2-using-the-simulator)** | **[Controller Guide](docs/guides/controller.md)**
 
 ---
 
@@ -586,57 +535,26 @@ A vehicle with no pairing information starts searching as soon as it is powered 
 
 For the pre-flight checklist and stick operation (arm, take-off, landing, flight-mode switching), see the flying guide.
 
-**→ [How to Fly](docs/getting-started.md#7-how-to-fly)**
+**→ [How to Fly](docs/next_step.md#5-how-to-fly)** | **[Controller Guide](docs/guides/controller.md)**
 
 ---
 
-## 🔗 Quick Links
+## 🔗 Resources and Documentation
 
 | Resource | Description |
 |----------|-------------|
-| [🌐 Project Overview](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | Landing page with interactive 3D drone model |
-| [📚 Documentation](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | Browse and search all documentation |
-| [🔌 Web Flasher](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | Flash real hardware from the browser, no build required |
+| [📖 Next Steps](docs/next_step.md) | Using the simulator, pre-flight checks, how to fly, developer features |
+| [🎛️ Controller Guide](docs/guides/controller.md) | Menu operation, communication modes, pairing, what each button does |
+| [⌨️ sf Command Reference](docs/commands/README.md) | Every command: build, flash, log capture, and more |
+| [🛠️ Setup Guide](docs/setup/README.md) | Detailed per-OS installation and troubleshooting |
+| [🌐 Project Landing Page](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | Landing page with a 3D model of the real drone |
+| [📚 Documentation Site](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | Browse and search all documentation |
+| [🗂️ Document Index](docs/DOCUMENT_INDEX.md) | Index of every document in the repository |
+| [🔌 Web Flasher](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | Flash the drone from your browser, no build needed |
 | [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | Desktop flashing app (Windows/macOS, no Python required) |
-| [📦 Pre-built Firmware](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases (vehicle / controller binaries) |
-
----
-
-## 🚀 sf CLI Quick Start
-
-**sf CLI** is an integrated command-line tool for build, flash, monitor, log capture, and more.
-
-Activate the environment (run in every new terminal; on Windows use `setup_env.bat`).
-
-```bash
-source setup_env.sh
-```
-
-Run the diagnostics.
-
-```bash
-sf doctor
-```
-
-Build the vehicle firmware, flash it, and open the monitor.
-
-```bash
-sf build vehicle && sf flash vehicle -m
-```
-
-### Common Commands
-
-| Command | Description |
-|---------|-------------|
-| `sf build vehicle` | Build vehicle firmware |
-| `sf flash vehicle -m` | Flash and open monitor |
-| `sf monitor` | Open serial monitor |
-| `sf log wifi` | Capture WiFi telemetry |
-| `sf cal gyro` | Gyro calibration |
-| `sf sim run vpython` | Run simulator |
-| `sf app new my_ctrl` | Create your own control-law project (research/experiments) |
-
-**→ [Command Reference](docs/commands/README.md)** | **[Setup Guide](docs/setup/README.md)**
+| [📦 Pre-built Firmware](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases (vehicle / controller) |
+| [📐 Physical Parameters Reference](docs/architecture/stampfly-parameters.md) | Confirmed values of the vehicle's physical parameters (mass, inertia, motor characteristics, etc.) |
+| [stampfly_physical.yaml](control/models/stampfly_physical.yaml) | Machine-readable SSOT (Single Source of Truth) for the physical parameters |
 
 ---
 
@@ -683,19 +601,9 @@ stampfly_ecosystem/
 
 ---
 
-## Get Started
-
-**→ [Getting Started (Setup to First Flight)](docs/getting-started.md)**
-
-From ESP-IDF setup to firmware build,
-pairing vehicle and controller, and your first flight.
-All steps explained step-by-step.
-
----
-
 ## Learn Through the Workshop
 
-Once you've completed your first flight with Getting Started, dive deeper with the **Workshop** to learn how drone control really works.
+Once you have flown the real drone, dive deeper with the **Workshop** to learn how drone control really works.
 
 | Lesson | Topic | What You'll Learn |
 |--------|-------|-------------------|
@@ -721,16 +629,6 @@ Once you've completed your first flight with Getting Started, dive deeper with t
 | Pose Estimation | ESKF (Error-State Kalman Filter) |
 | Communication | ESP-NOW + WiFi (telemetry) |
 | Sensors | BMI270, BMM150, BMP280, VL53L3CX, PMW3901 |
-
----
-
-## Further Documentation
-
-| Document | Description |
-|----------|-------------|
-| [Document Index](docs/DOCUMENT_INDEX.md) | Index of all documentation in this repository |
-| [Physical Parameters Reference](docs/architecture/stampfly-parameters.md) | Confirmed values for the vehicle's physical parameters (mass, inertia, motor characteristics, etc.) |
-| [stampfly_physical.yaml](control/models/stampfly_physical.yaml) | Machine-readable SSOT (Single Source of Truth) for physical parameters |
 
 ---
 

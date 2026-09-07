@@ -213,7 +213,7 @@ python visualize_eskf.py data.bin --save test.png --no-show
 
 ## 関連ドキュメント
 
-- [Getting Started](getting-started.md) - 初期セットアップ
+- [次のステップ](../next_step.md) - 操縦と開発の詳細
 - `tools/log_analyzer/README.md` - 詳細なツールリファレンス
 - `tools/log_capture/README.md` - ログ取得の詳細
 - `tools/calibration/README.md` - キャリブレーションの詳細

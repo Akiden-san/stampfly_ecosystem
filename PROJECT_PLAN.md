@@ -49,7 +49,7 @@ stampfly-ecosystem/
 ```
 docs/
 ├── overview.md
-├── getting-started.md
+├── next_step.md
 ├── architecture/
 ├── protocol/
 ├── workshop/
@@ -61,10 +61,9 @@ docs/
 - 各ディレクトリの役割
 - 推奨ワークフロー（設計→実装→実験→解析）
 
-### docs/getting-started.md
-- 初学者向けの最短導線
-- examples・firmware への案内
-- 環境構築の最小手順
+### docs/next_step.md
+- README（導入・初飛行）の次に読む詳細
+- シミュレータの使い方・通信モード・飛行方法・開発者向け機能
 
 ### docs/architecture/
 - システム構成図

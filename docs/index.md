@@ -18,13 +18,13 @@ sf build vehicle
 sf flash vehicle -m
 ```
 
-詳しくは [クイックスタートガイド](getting-started.md) を参照してください。
+詳しくは [次のステップ](next_step.md) を参照してください。
 
 ## 主なコンテンツ
 
 | セクション | 説明 |
 |-----------|------|
-| [入門](getting-started.md) | 環境構築〜初フライト |
+| [次のステップ](next_step.md) | 操縦と開発の詳細（シミュレータの使い方・飛行方法・開発者向け機能） |
 | [アーキテクチャ](architecture/control-system.md) | 制御系設計・座標系・パラメータ |
 | [sf CLI](commands/README.md) | コマンドラインツール |
 | [ガイド](guides/safety.md) | 安全・トラブルシューティング |
@@ -66,13 +66,13 @@ sf build vehicle
 sf flash vehicle -m
 ```
 
-See the [Getting Started Guide](getting-started.md) for details.
+See the [Next Steps guide](next_step.md) for details.
 
 ## Main Contents
 
 | Section | Description |
 |---------|-------------|
-| [Getting Started](getting-started.md) | Environment setup to first flight |
+| [Next Steps](next_step.md) | Piloting and development details (simulator usage, how to fly, developer features) |
 | [Architecture](architecture/control-system.md) | Control system, coordinates, parameters |
 | [sf CLI](commands/README.md) | Command-line tools |
 | [Guides](guides/safety.md) | Safety & troubleshooting |

@@ -398,5 +398,6 @@ sudo rm -rf /Library/Developer/CommandLineTools
 | `docs/setup/macos.md` | Mac セットアップ詳細 |
 | `firmware/workshop/lessons/lesson_01_motor/README.md` | Lesson 1 解説 |
 | `firmware/workshop/lessons/lesson_02_controller/README.md` | コントローラ入力を使うレッスン |
-| `docs/getting-started.md` | 全体のスタートガイド（ペアリング・通信モード詳細含む） |
+| `docs/next_step.md` | 次のステップガイド（通信モード・飛行方法） |
+| `docs/guides/controller.md` | 送信機の使い方（ペアリング・メニュー操作） |
 | `docs/guides/safety.md` | 安全ガイドライン |

@@ -10,8 +10,8 @@ A cross-platform (Windows / macOS / Linux) desktop wizard that installs
 the full StampFly development environment (ESP-IDF + sfcli + the GUI
 Flasher). It exists so that a newcomer with no Python/git experience can
 go from "downloaded one file" to "sf doctor passes" by clicking through
-five screens, instead of opening a terminal and reading
-docs/guides/getting-started.md.
+five screens, instead of opening a terminal and reading the installation
+steps in README.md.
 
 StampFly の開発環境一式(ESP-IDF + sfcli + GUIフラッシャ)を導入する、
 クロスプラットフォーム(Windows/macOS/Linux)のデスクトップ・ウィザード。

@@ -126,7 +126,7 @@ nav:
   # ==================== docs/ ドキュメント ====================
   - ドキュメント:
     - 概要: docs/overview.md
-    - クイックスタート: docs/getting-started.md
+    - 次のステップ: docs/next_step.md
     - スライド資料: docs/slides.md
     - ドキュメント目録: docs/DOCUMENT_INDEX.md
     - セットアップ:

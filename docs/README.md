@@ -22,7 +22,7 @@ docs/
 │   ├── style-guide.md         # 記述スタイル規約
 │   ├── commit-guidelines.md   # コミットメッセージ規約
 ├── overview.md            # プロジェクト全体の俯瞰図
-├── getting-started.md     # 初学者向けクイックスタート
+├── next_step.md           # 次のステップ（操縦と開発の詳細）
 │
 ├── architecture/          # システム設計・技術仕様
 │   ├── stampfly-parameters.md   # 物理パラメータリファレンス
@@ -189,7 +189,7 @@ docs/
 ├── README.md              # This file (directory guide)
 ├── STYLE_GUIDE.md         # Writing style guide
 ├── overview.md            # Project overview
-├── getting-started.md     # Quick start for beginners
+├── next_step.md           # Next steps (piloting and development details)
 │
 ├── architecture/          # System design & technical specs
 │   ├── stampfly-parameters.md   # Physical parameters reference

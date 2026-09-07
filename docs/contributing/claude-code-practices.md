@@ -172,7 +172,7 @@ docs: update documentation to match current ESKF implementation
 
 Changes:
 - CLAUDE.md: update Firmware Structure section
-- docs/getting-started.md: add required sensors column to flight mode table
+- docs/next_step.md: add required sensors column to flight mode table
 - docs/plans/vehicle-firmware.md: clarify external ESKF repo is reference only
 - sf_algo_fusion/README.md: rewrite to document sensor control
 ```

@@ -11,7 +11,7 @@
 
 以下のドキュメントがスタイルの見本です：
 
-- `docs/getting-started.md` - 入門ガイド
+- `docs/next_step.md` - 次のステップガイド
 - `firmware/vehicle/README.md` - 機体ファームウェア
 - `firmware/controller/README.md` - 送信機ファームウェア
 
@@ -240,7 +240,7 @@ All project participants should follow this guide when creating documentation.
 
 The following documents serve as style examples:
 
-- `docs/getting-started.md` - Getting started guide
+- `docs/next_step.md` - Next steps guide
 - `firmware/vehicle/README.md` - Vehicle firmware
 - `firmware/controller/README.md` - Controller firmware
 
