@@ -192,15 +192,27 @@ sf log analyze <logfile>
 
 Lesson 5・8・11 で書く `setup()`/`loop_400Hz()`（`main/user_code.cpp`）は、実機フラッシュ前に SILS（`simulator/sils/`、`--target workshop`）上でも走らせられる。実機に書き込まれるのと同じソースがそのまま動く（Code Identity）ので、ARM・状態遷移（ARMED_GROUND→TAKEOFF→FLYING）・モータ応答の配線ミスは実機を壊さずに気付ける。
 
+一発で行うなら `sf lesson sils`（切替 → SILS ビルド → シナリオ実行を順に行う近道）:
+
 ```bash
-sf sils build --target workshop                  # 初回のみ
-sf lesson switch 8 --solution                    # 動作確認したいレッスンに切替
-touch firmware/workshop/main/user_code.cpp       # 切替は更新日時を保持するため touch する
-sf sils build --target workshop                  # touch 後にもう一度ビルドして反映
+sf lesson sils --solution 8
+```
+
+通常コマンドで同じことをする場合:
+
+```bash
+sf lesson switch 8 --solution
+```
+
+```bash
+sf sils build --target workshop
+```
+
+```bash
 sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop
 ```
 
-**手順の注意:** `sf lesson switch` は `student.cpp`/`solution.cpp` をコピーする際に更新日時を保持したままにするため、切替直後にそのまま `sf sils build --target workshop` を実行しても新しいコードとして認識されない。上記のとおり `touch firmware/workshop/main/user_code.cpp` で更新日時を進めてから**もう一度**再ビルドする、という2段階を毎回踏むこと（省略できる例外ではなく通常の手順）。また、`workshop_acro.scn` のスティック指令（duty）は Lesson 5/8 のレート制御解答が実測ホバー duty（~0.676）付近で中立に収束する前提でチューニングされている。旧 `acro_flight.scn`（vehicle 用の推力比率規約で調整済み）の値を workshop の生 duty として流用すると約35%不足し離陸しないため、離陸+ホバー相当のデモには本シナリオを使うこと。Lesson 5/8 では ARM→離陸検知→ホバー相当巡航→空中 DISARM の一連を確認できる（合格基準: 真値高度が0.1mを超える、roll+pitch合成傾きが15°未満）。Lesson 11（独自ファームウェア開発）は制御則が学習者ごとに異なるため、同じ duty で離陸する保証はない — ARM・モード遷移・モータ応答の配線確認が主な用途になる。詳細は `simulator/sils/README.md`「エミュレータターゲット」節を参照。
+**手順の注意:** `sf lesson switch` はファイルの内容だけをコピーし更新日時を新しくするので、切替直後の `sf sils build --target workshop` がそのまま新しいコードを取り込む（以前必要だった `touch` は不要になった）。また、`workshop_acro.scn` のスティック指令（duty）は Lesson 5/8 のレート制御解答が実測ホバー duty（~0.676）付近で中立に収束する前提でチューニングされている。旧 `acro_flight.scn`（vehicle 用の推力比率規約で調整済み）の値を workshop の生 duty として流用すると約35%不足し離陸しないため、離陸+ホバー相当のデモには本シナリオを使うこと。Lesson 5/8 では ARM→離陸検知→ホバー相当巡航→空中 DISARM の一連を確認できる（合格基準: 真値高度が0.1mを超える、roll+pitch合成傾きが15°未満）。Lesson 11（独自ファームウェア開発）は制御則が学習者ごとに異なるため、同じ duty で離陸する保証はない — ARM・モード遷移・モータ応答の配線確認が主な用途になる。詳細は `simulator/sils/README.md`「エミュレータターゲット」節を参照。
 
 ## 4. 安全管理
 
@@ -272,15 +284,27 @@ See the Japanese section above for detailed lesson-by-lesson instructions.
 
 **Trying learner code in SILS (Lessons 5/8/11):** the exact `main/user_code.cpp` a student writes can run on the host SILS bench before it ever touches hardware:
 
+The one-shot shortcut is `sf lesson sils` (switch → SILS build → scenario, in that order):
+
 ```bash
-sf sils build --target workshop                  # once
-sf lesson switch 8 --solution                     # switch to the lesson you want to check
-touch firmware/workshop/main/user_code.cpp        # switching preserves the mtime, so touch it
-sf sils build --target workshop                   # rebuild again so the new code is picked up
+sf lesson sils --solution 8
+```
+
+The same with ordinary commands:
+
+```bash
+sf lesson switch 8 --solution
+```
+
+```bash
+sf sils build --target workshop
+```
+
+```bash
 sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop
 ```
 
-`sf lesson switch` copies `student.cpp`/`solution.cpp` while preserving their old mtime, so a build run right after the switch will not detect the new code as changed. Touching the file and then rebuilding a **second** time is a required two-step sequence every time — not an occasional workaround. (See `simulator/sils/README.md`'s "Emulator targets" section; use `workshop_acro.scn`, not `acro_flight.scn` — the latter's stick values are tuned for vehicle's thrust-fraction convention and undershoot workshop's raw-duty convention by about 35%, so the craft never lifts off.) With `workshop_acro.scn`, Lessons 5/8's rate-control solutions do lift off and hold a hover-equivalent attitude (pass criteria: true altitude clears 0.1 m, combined roll+pitch tilt stays under 15°) before an in-air DISARM. Lesson 11 (open-ended custom firmware) has no such guarantee, since the control law varies by student — there, the scenario is mainly useful for catching ARM/state-machine/motor-wiring mistakes safely.
+`sf lesson switch` copies file content only and gives `user_code.cpp` a fresh mtime, so the SILS build right after the switch picks up the new code (the `touch` step that used to be required is gone). (See `simulator/sils/README.md`'s "Emulator targets" section; use `workshop_acro.scn`, not `acro_flight.scn` — the latter's stick values are tuned for vehicle's thrust-fraction convention and undershoot workshop's raw-duty convention by about 35%, so the craft never lifts off.) With `workshop_acro.scn`, Lessons 5/8's rate-control solutions do lift off and hold a hover-equivalent attitude (pass criteria: true altitude clears 0.1 m, combined roll+pitch tilt stays under 15°) before an in-air DISARM. Lesson 11 (open-ended custom firmware) has no such guarantee, since the control law varies by student — there, the scenario is mainly useful for catching ARM/state-machine/motor-wiring mistakes safely.
 
 ## 4. Safety
 

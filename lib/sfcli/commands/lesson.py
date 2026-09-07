@@ -79,7 +79,9 @@ def _ensure_user_code_exists() -> bool:
 
     try:
         user_code.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(seed, user_code)
+        # Content only (fresh mtime) — see run_switch for why not copy2.
+        # 内容のみコピー（更新時刻は新しく）— 理由は run_switch を参照。
+        shutil.copyfile(seed, user_code)
     except OSError:
         return False
 
@@ -867,8 +869,17 @@ def run_switch(args: argparse.Namespace) -> int:
 
     dst = _get_user_code_path()
 
-    # Copy file
-    shutil.copy2(src, dst)
+    # Copy the file CONTENT only (shutil.copyfile), not its metadata:
+    # shutil.copy2 would carry the source's mtime over, which can be older
+    # than the last build's object files, so `sf build workshop` / `sf sils
+    # build --target workshop` would silently skip recompiling the switched
+    # code. A fresh mtime means no `touch` is ever needed after switching.
+    # ファイルの内容だけをコピーする（shutil.copyfile）。shutil.copy2 はコピー元
+    # の更新時刻を引き継ぐため、直前ビルドのオブジェクトより古くなり、
+    # `sf build workshop` / `sf sils build --target workshop` が切替後のコードを
+    # 再コンパイルせずに済ませてしまうことがあった。更新時刻が新しくなるので、
+    # 切替後に `touch` は一切不要。
+    shutil.copyfile(src, dst)
 
     # Clean build directory to ensure the new user_code.cpp is compiled
     build_dir = paths.workshop() / "build"
@@ -1178,16 +1189,11 @@ def run_sils(args: argparse.Namespace) -> int:
     if scn_path is None:
         return 1
 
-    # shutil.copy2 (used by `sf lesson switch`) preserves the source
-    # file's mtime, which can predate the last build's object files and
-    # silently skip recompilation. Force a fresh mtime right before
-    # building so the switched-to code is always the code that gets built.
-    # shutil.copy2（`sf lesson switch` が使用）はコピー元のmtimeを保つため、
-    # 直前ビルドのオブジェクトファイルより古くなり再コンパイルが静かに
-    # スキップされることがある。ビルド直前にmtimeを強制更新し、切り替えた
-    # コードが必ずビルドされるようにする。
+    # `sf lesson switch` copies content only, so user_code.cpp always carries
+    # a fresh mtime and the SILS build below recompiles it — no `touch` needed.
+    # `sf lesson switch` は内容だけをコピーするため user_code.cpp の更新時刻は
+    # 常に新しく、下の SILS ビルドが再コンパイルする — `touch` は不要。
     _ensure_user_code_exists()
-    _get_user_code_path().touch()
 
     build_args = argparse.Namespace(
         jobs=8, target="workshop",
