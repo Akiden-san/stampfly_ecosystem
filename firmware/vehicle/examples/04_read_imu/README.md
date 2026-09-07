@@ -25,10 +25,13 @@ SPI通信でBMI270 IMU（慣性計測装置）からデータを取得する方�
 ## 実行手順
 
 ```bash
-cd firmware/vehicle/examples/04_read_imu
-idf.py set-target esp32s3
-idf.py build flash monitor
+source setup_env.sh                                 # Windows: setup_env.bat
+sf build vehicle/examples/04_read_imu
+sf flash vehicle/examples/04_read_imu -m             # 書き込み後にモニタを開く。終了は Ctrl+]
 ```
+
+`idf.py` を直接使う場合は例題ディレクトリで `idf.py build flash monitor`
+（チップは `sdkconfig.defaults` で ESP32-S3 に固定済み）。
 
 ## 動作
 

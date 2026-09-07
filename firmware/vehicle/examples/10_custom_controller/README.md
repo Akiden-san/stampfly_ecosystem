@@ -66,16 +66,16 @@ ControlOutput LearnerController::compute(const StateEstimate& state,
 ## 4. ビルド・書き込み・実行
 
 ```bash
-source setup_env.sh
-cd firmware/vehicle/examples/10_custom_controller
-idf.py set-target esp32s3
-idf.py build
-idf.py -p <port> flash monitor
+source setup_env.sh                                 # Windows: setup_env.bat
+sf build vehicle/examples/10_custom_controller
+sf flash vehicle/examples/10_custom_controller -m    # 書き込み後にモニタを開く。終了は Ctrl+]
 ```
 
 StampFly実機は不要（センサ・アクチュエータに一切触れない）。任意のESP32-S3
-ボードで実行できる。`sf` CLI の対象外（スタンドアロンプロジェクトのため）、
-上記の `idf.py` を直接使うこと。
+ボードで実行できる。vehicle 本体ビルドとは別のスタンドアロンプロジェクトだが、
+`sf build vehicle/examples/10_custom_controller` を対象として指定すればそのまま
+ビルド・書き込みできる。`idf.py` を直接使う場合は例題ディレクトリで
+`idf.py build flash monitor`（チップは `sdkconfig.defaults` で ESP32-S3 に固定済み）。
 
 ## 5. 期待される出力
 
@@ -214,16 +214,17 @@ copy-pasting it, and change exactly one thing.
 ## 4. Build / Flash / Run
 
 ```bash
-source setup_env.sh
-cd firmware/vehicle/examples/10_custom_controller
-idf.py set-target esp32s3
-idf.py build
-idf.py -p <port> flash monitor
+source setup_env.sh                                 # Windows: setup_env.bat
+sf build vehicle/examples/10_custom_controller
+sf flash vehicle/examples/10_custom_controller -m    # opens a monitor after flashing; exit with Ctrl+]
 ```
 
 No StampFly hardware is needed (nothing here touches a sensor or actuator);
 any ESP32-S3 board will run it. This is a standalone project (not part of
-`sf build`), so use `idf.py` directly.
+the vehicle firmware build), but `sf build`/`sf flash` can target it
+directly via `vehicle/examples/10_custom_controller`. If you prefer
+`idf.py` directly, run `idf.py build flash monitor` from the example
+directory (the chip is already pinned to ESP32-S3 via `sdkconfig.defaults`).
 
 ## 5. Expected Output
 

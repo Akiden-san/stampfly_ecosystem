@@ -24,10 +24,13 @@ I2C通信でVL53L3CX Time-of-Flightセンサからレーザー距離計測を行
 ## 実行手順
 
 ```bash
-cd firmware/vehicle/examples/05_read_tof
-idf.py set-target esp32s3
-idf.py build flash monitor
+source setup_env.sh                                 # Windows: setup_env.bat
+sf build vehicle/examples/05_read_tof
+sf flash vehicle/examples/05_read_tof -m             # 書き込み後にモニタを開く。終了は Ctrl+]
 ```
+
+`idf.py` を直接使う場合は例題ディレクトリで `idf.py build flash monitor`
+（チップは `sdkconfig.defaults` で ESP32-S3 に固定済み）。
 
 ## 動作
 

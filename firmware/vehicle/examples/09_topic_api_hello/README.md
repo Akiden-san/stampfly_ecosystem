@@ -50,15 +50,15 @@ float yaw_degrees   = euler_radians.z * config::kRadToDeg;
 ## 4. ビルド・書き込み・実行
 
 ```bash
-source setup_env.sh
-cd firmware/vehicle/examples/09_topic_api_hello
-idf.py set-target esp32s3
-idf.py build
-idf.py -p <port> flash monitor
+source setup_env.sh                                 # Windows: setup_env.bat
+sf build vehicle/examples/09_topic_api_hello
+sf flash vehicle/examples/09_topic_api_hello -m      # 書き込み後にモニタを開く。終了は Ctrl+]
 ```
 
-`sf` CLI を使う場合（vehicle 本体ビルドとは別のスタンドアロンプロジェクトのため、
-`sf build` の対象外 — 上記の `idf.py` を直接使うこと）。
+vehicle 本体ビルドとは別のスタンドアロンプロジェクトだが、`sf build`/`sf flash` に
+`vehicle/examples/09_topic_api_hello` を対象として指定すればそのままビルド・書き込み
+できる。`idf.py` を直接使う場合は例題ディレクトリで `idf.py build flash monitor`
+（チップは `sdkconfig.defaults` で ESP32-S3 に固定済み）。
 
 ## 5. 期待される出力
 
@@ -169,15 +169,16 @@ section 6).
 ## 4. Build / Flash / Run
 
 ```bash
-source setup_env.sh
-cd firmware/vehicle/examples/09_topic_api_hello
-idf.py set-target esp32s3
-idf.py build
-idf.py -p <port> flash monitor
+source setup_env.sh                                 # Windows: setup_env.bat
+sf build vehicle/examples/09_topic_api_hello
+sf flash vehicle/examples/09_topic_api_hello -m      # opens a monitor after flashing; exit with Ctrl+]
 ```
 
-This is a standalone project (not part of the vehicle firmware build), so
-use `idf.py` directly rather than `sf build`.
+This is a standalone project (not part of the vehicle firmware build), but
+`sf build`/`sf flash` can target it directly via
+`vehicle/examples/09_topic_api_hello`. If you prefer `idf.py` directly, run
+`idf.py build flash monitor` from the example directory (the chip is already
+pinned to ESP32-S3 via `sdkconfig.defaults`).
 
 ## 5. Expected Output
 

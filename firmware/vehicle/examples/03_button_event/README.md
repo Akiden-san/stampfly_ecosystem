@@ -19,10 +19,13 @@ GPIO入力の読み取りとソフトウェアデバウンスの仕組みを学�
 ## 実行手順
 
 ```bash
-cd firmware/vehicle/examples/03_button_event
-idf.py set-target esp32s3
-idf.py build flash monitor
+source setup_env.sh                                 # Windows: setup_env.bat
+sf build vehicle/examples/03_button_event
+sf flash vehicle/examples/03_button_event -m         # 書き込み後にモニタを開く。終了は Ctrl+]
 ```
+
+`idf.py` を直接使う場合は例題ディレクトリで `idf.py build flash monitor`
+（チップは `sdkconfig.defaults` で ESP32-S3 に固定済み）。
 
 ## 動作
 
