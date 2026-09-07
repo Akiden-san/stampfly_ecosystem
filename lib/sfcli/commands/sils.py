@@ -125,6 +125,14 @@ _TARGET_EXE_NAME = {name: f"emu_{name}" for name in SILS_TARGETS}
 # マイルストーン別の既定ノイズ（§13）: ノイズ系マイルストーンは N0 で走る。
 MILESTONE_NOISE = {"P5": "n0", "P6": "n0", "P7": "n0"}
 
+# CMake target/exe name for an embedded `sf app` project's SILS emulator: always
+# emu_vehicle (the app's sources are compiled INTO vehicle's own main component
+# via SF_APP_DIR, not a separate emulator target — sf-app-sils-plan.md Phase 1).
+# 組み込み型 `sf app` プロジェクトの SILS エミュレータの CMake ターゲット/実行ファイル名:
+# 常に emu_vehicle（app のソースは SF_APP_DIR 経由で vehicle 自身の main コンポーネントに
+# 直接コンパイルされる。別のエミュレータターゲットではない）。
+_APP_EMULATOR_TARGET = _TARGET_EXE_NAME["vehicle"]
+
 
 # --- path helpers / パスヘルパ -------------------------------------------------
 def _sils_dir() -> Path:
@@ -133,6 +141,86 @@ def _sils_dir() -> Path:
 
 def _model() -> Path:
     return _sils_dir() / "models" / "stampfly.xml"
+
+
+def app_build_dir(name: str) -> Path:
+    """Build directory for an embedded `sf app` project's own SILS emulator,
+    kept separate per app (simulator/sils/build/apps/<name>) so switching
+    between apps never shares or clobbers a CMake build cache (each app's
+    SF_APP_DIR is baked into its own build dir's CMakeCache.txt at first
+    configure — see build_app_emulator()).
+    組み込み型 `sf app` プロジェクト自身の SILS エミュレータのビルドディレクトリ。
+    app ごとに分離する（simulator/sils/build/apps/<name>）ことで、app を切り替えても
+    CMake ビルドキャッシュを共有・汚染しない。
+    """
+    return _sils_dir() / "build" / "apps" / name
+
+
+def _embedded_app_manifest_or_error(name: str):
+    """Load firmware/apps/<name>/app.yaml and verify it declares `type:
+    embedded`. Returns (manifest_dict, None) on success, or (None,
+    error_message) on failure.
+
+    Shared by `sils scenario --target apps/<name>`'s argparse `type=`
+    validator (_resolve_sils_target) and `sils build --target apps/<name>`'s
+    own hand-rolled check inside run_build() — `build -t/--target` has no
+    choices=/type= restriction (it stays a free-form cmake target string,
+    e.g. cores_smoke/hover_smoke/emu_vehicle), so it cannot use argparse
+    type= the way `scenario --target` does.
+    firmware/apps/<name>/app.yaml を読み `type: embedded` であることを確認する。
+    成功時は (manifest_dict, None)、失敗時は (None, error_message) を返す。
+
+    `sils scenario --target apps/<name>` の argparse type= バリデータ
+    （_resolve_sils_target）と `sils build --target apps/<name>` 自身の手作り
+    チェック（run_build() 内）の両方が共有する — `build -t/--target` は
+    choices=/type= 制約を持たない（cores_smoke/hover_smoke/emu_vehicle 等の
+    自由形式 cmake ターゲット文字列のまま）ため、`scenario --target` と同じ
+    argparse type= は使えない。
+    """
+    manifest_path = paths.apps() / name / "app.yaml"
+    if not manifest_path.exists():
+        return None, f"no {manifest_path} -- run `sf app new {name}` first"
+    try:
+        import yaml
+        with open(manifest_path, encoding="utf-8") as f:
+            manifest = yaml.safe_load(f) or {}
+    except Exception as exc:  # missing PyYAML, malformed YAML, ...
+        return None, f"failed to read {manifest_path}: {exc}"
+    app_type = manifest.get("type", "bench")
+    if app_type != "embedded":
+        return None, (
+            f"app.yaml declares type={app_type!r}, not 'embedded' -- bench apps are "
+            "standalone projects and cannot run inside the vehicle SILS emulator "
+            "(use `sf app new <name> --from 11_app_controller` for an embedded app)"
+        )
+    return manifest, None
+
+
+def _resolve_sils_target(value: str) -> str:
+    """argparse `type=` for `sils scenario --target`: accepts a friendly
+    firmware name (SILS_TARGETS) unchanged, or `apps/<name>` for an
+    embedded-type `sf app` project (see _embedded_app_manifest_or_error()).
+    Anything else raises ArgumentTypeError with the reason, mirroring
+    argparse's own `choices=` error style — this replaces the plain
+    `choices=list(SILS_TARGETS)` that used to reject `apps/<name>` outright,
+    since that value is an open-ended set validated against the filesystem,
+    not a fixed list.
+    `sils scenario --target` の argparse type=: 親しみやすいファーム名
+    （SILS_TARGETS）はそのまま、`apps/<name>` は組み込み型 `sf app`
+    プロジェクトであれば受理する。それ以外は理由付きで ArgumentTypeError を
+    送出する。
+    """
+    if value in SILS_TARGETS:
+        return value
+    if value.startswith("apps/"):
+        name = value[len("apps/"):]
+        _, error = _embedded_app_manifest_or_error(name)
+        if error:
+            raise argparse.ArgumentTypeError(f"'{value}': {error}")
+        return value
+    raise argparse.ArgumentTypeError(
+        f"invalid choice: '{value}' (choose from {', '.join(SILS_TARGETS)}, or "
+        "'apps/<name>' for an embedded `sf app` project)")
 
 
 # Well-known MSYS2 MinGW-w64 install location (winget/MSYS2 installer default).
@@ -324,8 +412,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument("-t", "--target", default=None,
                    help="cmake target (default: all). A friendly firmware name "
                         f"({', '.join(SILS_TARGETS)}) is mapped to its emu_<name> "
-                        "CMake target; any other value is passed through as-is "
-                        "(e.g. cores_smoke, hover_smoke, emu_vehicle).")
+                        "CMake target; apps/<name> builds an embedded-type `sf app` "
+                        "project's own emulator; any other value is passed through "
+                        "as-is (e.g. cores_smoke, hover_smoke, emu_vehicle).")
     p.add_argument("-y", "--yes", action="store_true",
                    help="Windows only: don't prompt before auto-installing the "
                         "MinGW-w64 toolchain if it is missing")
@@ -371,11 +460,12 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     # E6: 決定論的な *.scn 入力シナリオを走らせ、ファーム出力をアサートする。
     p = sub.add_parser("scenario", help="Run a *.scn input scenario and assert outputs (E6)")
     p.add_argument("scenario", help="path to the .scn scenario file")
-    p.add_argument("--target", choices=list(SILS_TARGETS), default="vehicle",
+    p.add_argument("--target", type=_resolve_sils_target, default="vehicle",
                    help="emulator binary (default: vehicle = current firmware; "
                         "vehicle_old = legacy firmware; workshop = learner "
                         "setup()/loop_400Hz() from `sf lesson switch`, on the "
-                        "same reused vehicle sensor/state tasks)")
+                        "same reused vehicle sensor/state tasks; apps/<name> = an "
+                        "embedded-type `sf app` project, built on demand)")
     p.add_argument("--expect", default=None,
                    help="assertions file (default: <scenario>.expect if it exists)")
     p.add_argument("--duration", type=int, default=25_000_000,
@@ -571,11 +661,58 @@ def run_install_toolchain(args: argparse.Namespace) -> int:
     return 0
 
 
+def _sils_generator_flags(build_dir: Path) -> list:
+    """Extra `-G`/`-D` cmake configure flags chosen on a build dir's FIRST
+    configure only (Windows: MinGW-w64 → Ninja+GCC/G++; Linux/macOS: Ninja if
+    on PATH). Shared by run_build() and build_app_emulator() so an app's SILS
+    build picks the same toolchain/generator as every other SILS build. Once
+    CMakeCache.txt exists the generator/compiler are already locked in, so a
+    reconfigure returns no flags (re-passing -G would error on a generator
+    mismatch).
+    ビルドディレクトリの初回 configure でのみ選ばれる追加の `-G`/`-D` フラグ
+    （Windows: MinGW-w64 の Ninja+GCC/G++、Linux/macOS: PATH にあれば Ninja）。
+    run_build() と build_app_emulator() の両方が共有し、app の SILS ビルドも
+    他の SILS ビルドと同じツールチェーン/ジェネレータを選ぶ。CMakeCache.txt が
+    既にあれば空リストを返す（再設定で -G を渡し直すとジェネレータ不一致で
+    エラーになるため）。
+    """
+    if (build_dir / "CMakeCache.txt").exists():
+        return []
+    mingw = mingw_bin()
+    if mingw is not None:
+        console.info(f"Windows: configuring for MinGW-w64 ({mingw})")
+        return ["-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
+                "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++"]
+    if not platform.is_windows() and shutil.which("ninja"):
+        console.info("Configuring with Ninja (found on PATH)")
+        return ["-G", "Ninja"]
+    return []
+
+
 def run_build(args: argparse.Namespace) -> int:
     # getattr defaults so the milestone flow (which lacks -j/-t) can reuse this.
     # milestone フローは -j/-t を持たないので getattr で既定値化して再利用できるようにする。
     jobs = getattr(args, "jobs", 8)
     target = getattr(args, "target", None)
+
+    # apps/<name>: build an embedded-type `sf app` project's own emulator
+    # (build_app_emulator()) instead of the friendly-target build below. `-t/
+    # --target` has no choices=/type= restriction (free-form cmake target
+    # string), so apps/<name> is validated by hand here rather than by
+    # argparse — see docs/plans/sf-app-sils-plan.md Phase 2.
+    # apps/<name>: 以下の通常ターゲットビルドではなく、組み込み型 `sf app`
+    # プロジェクト自身のエミュレータ（build_app_emulator()）をビルドする。
+    # `-t/--target` は choices=/type= 制約を持たない（自由形式の cmake
+    # ターゲット文字列）ため、apps/<name> はここで手動検証する。
+    if target and str(target).startswith("apps/"):
+        name = target[len("apps/"):]
+        _, error = _embedded_app_manifest_or_error(name)
+        if error:
+            console.error(f"'{target}': {error}")
+            return 1
+        exe = build_app_emulator(paths.apps() / name, app_build_dir(name), jobs)
+        return 0 if exe.exists() else 1
+
     # Map a friendly firmware name (vehicle/vehicle_old/workshop) onto its
     # actual CMake target (emu_<name>); any other value (cores_smoke,
     # hover_smoke, an explicit emu_vehicle, ...) passes through unchanged.
@@ -621,30 +758,7 @@ def run_build(args: argparse.Namespace) -> int:
     # ケースは普通に起こる）素の "cmake" は WinError 2 になる。
     cmake_exe = shutil.which("cmake", path=env.get("PATH")) or "cmake"
 
-    # Windows: configure for MinGW (Ninja + GCC/G++) the FIRST time only — once
-    # CMakeCache.txt exists the generator/compiler are already locked in, and
-    # re-passing -G would just make CMake error on a generator mismatch.
-    # Windows: MinGW 向け設定（Ninja + GCC/G++）は初回のみ — CMakeCache.txt が
-    # 既にあればジェネレータ/コンパイラは確定済みで、-G を渡し直すと
-    # ジェネレータ不一致で CMake がエラーになる。
-    cmake_cmd = [cmake_exe, "-S", str(sd), "-B", str(bd)]
-    mingw = mingw_bin()
-    if mingw is not None and not (bd / "CMakeCache.txt").exists():
-        console.info(f"Windows: configuring for MinGW-w64 ({mingw})")
-        cmake_cmd += ["-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
-                      "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++"]
-    elif (not platform.is_windows() and shutil.which("ninja")
-          and not (bd / "CMakeCache.txt").exists()):
-        # Linux/macOS: prefer Ninja over the default Unix Makefiles generator when
-        # it is on PATH (first configure only, same reasoning as the Windows branch
-        # above) — faster parallel builds, notably for the FetchContent MuJoCo
-        # build in CI (sils-regression.yml apt-installs ninja for exactly this).
-        # Linux/macOS: PATH に ninja があれば既定の Unix Makefiles より優先する
-        # （初回のみ、理由は上の Windows 分岐と同じ）— FetchContent の MuJoCo
-        # ビルドで特に効く並列ビルドの高速化（sils-regression.yml はまさにこの
-        # 目的で ninja を導入する）。
-        console.info("Configuring with Ninja (found on PATH)")
-        cmake_cmd += ["-G", "Ninja"]
+    cmake_cmd = [cmake_exe, "-S", str(sd), "-B", str(bd)] + _sils_generator_flags(bd)
 
     console.info("Configuring SILS (cmake)...")
     r = subprocess.run(cmake_cmd, env=env)
@@ -658,6 +772,50 @@ def run_build(args: argparse.Namespace) -> int:
     if r.returncode == 0:
         console.success("SILS build OK")
     return r.returncode
+
+
+def build_app_emulator(app_dir: Path, build_dir: Path, jobs: int = 8) -> Path:
+    """Configure+build an embedded `sf app` project's own SILS emulator: the
+    same base configure as `sf sils build` (MinGW/Ninja chosen on a build
+    dir's first configure — see _sils_generator_flags()), plus -DSF_APP_DIR
+    pointing CMake at the app's own sources (simulator/sils/CMakeLists.txt's
+    SF_APP_DIR handling), building the emu_vehicle target into `build_dir`
+    (kept separate per app — see app_build_dir() — so switching between apps
+    never shares/clobbers a build cache). Returns the built exe's path; the
+    caller checks `.exists()` to detect a failed build (this function already
+    prints its own success/error via console).
+
+    組み込み型 `sf app` プロジェクト自身の SILS エミュレータを configure+build
+    する: `sf sils build` と同じ基本 configure（初回のみ MinGW/Ninja選択、
+    _sils_generator_flags() 参照）に -DSF_APP_DIR を追加し（CMake に app 自身の
+    ソースを指す）、`build_dir`（app ごとに分離。app_build_dir() 参照 —
+    app を切り替えてもビルドキャッシュを共有・汚染しない）に emu_vehicle
+    ターゲットをビルドする。ビルド済み exe のパスを返す。失敗の検出は
+    呼び出し側が `.exists()` で行う（成功/失敗は本関数が自前で console
+    出力済み）。
+    """
+    paths.ensure_dir(build_dir)
+    env = win_run_env(build_dir)
+    cmake_exe = shutil.which("cmake", path=env.get("PATH")) or "cmake"
+    exe = build_dir / _exe(_APP_EMULATOR_TARGET)
+
+    cmake_cmd = ([cmake_exe, "-S", str(_sils_dir()), "-B", str(build_dir)]
+                 + _sils_generator_flags(build_dir)
+                 + [f"-DSF_APP_DIR={app_dir.resolve()}"])
+    console.info(f"Configuring SILS for app '{app_dir.name}' (cmake)...")
+    r = subprocess.run(cmake_cmd, env=env)
+    if r.returncode != 0:
+        console.error("cmake configure failed")
+        return exe
+
+    console.info(f"Building SILS emulator ({_APP_EMULATOR_TARGET}) for app '{app_dir.name}'...")
+    cmd = [cmake_exe, "--build", str(build_dir), "-j", str(jobs), "--target", _APP_EMULATOR_TARGET]
+    r = subprocess.run(cmd, env=env)
+    if r.returncode == 0:
+        console.success(f"SILS build OK: {exe}")
+    else:
+        console.error("SILS build failed")
+    return exe
 
 
 def run_run(args: argparse.Namespace) -> int:
@@ -916,23 +1074,64 @@ def _eval_expect(expect_path: Path, out_text: str, err_text: str, exit_code: int
 
 def run_scenario(args: argparse.Namespace) -> int:
     target = getattr(args, "target", "vehicle")
-    bd = _build_dir()
-    exe = bd / _exe(_TARGET_EXE_NAME.get(target, f"emu_{target}"))
-    if not exe.exists():
-        console.error(f"{exe.name} not built — run 'sf sils build' first"); return 1
-    # Build-freshness advisory (skippable — see SF_SILS_SKIP_FRESHNESS_CHECK): warn if
-    # this exe predates its own sources. run_regression sets the env var after doing
-    # this check ONCE up front, so its 30+ per-scenario subprocess calls into this
-    # function don't each re-warn (or re-walk the source tree) redundantly.
-    # ビルド鮮度の参考警告（SF_SILS_SKIP_FRESHNESS_CHECK でスキップ可）: この exe が
-    # 自身のソースより古ければ警告する。run_regression は冒頭で1回だけ判定した後に
-    # この環境変数を立てるので、以降30本超のシナリオ用子プロセスがこの関数を呼んでも
-    # 重複警告・重複走査は起きない。
-    if not os.environ.get("SF_SILS_SKIP_FRESHNESS_CHECK"):
-        _check_build_freshness(exe)
+
+    # apps/<name>: build (or incrementally rebuild — CMake is idempotent)
+    # this embedded `sf app` project's own emulator, rather than requiring a
+    # pre-built exe like every other target below (see
+    # docs/plans/sf-app-sils-plan.md Phase 2). _resolve_sils_target() already
+    # validated apps/<name> at argparse parse time.
+    # apps/<name>: 他の全ターゲットのようにビルド済み exe を要求せず、この
+    # 組み込み型 `sf app` プロジェクト自身のエミュレータをビルド（または
+    # 差分再ビルド — CMake は冪等）する。apps/<name> の妥当性は argparse の
+    # 解析時点で _resolve_sils_target() が検証済み。
+    if str(target).startswith("apps/"):
+        name = target[len("apps/"):]
+        exe = build_app_emulator(paths.apps() / name, app_build_dir(name),
+                                  jobs=getattr(args, "jobs", 8))
+        if not exe.exists():
+            console.error(f"SILS build failed for app '{name}' — see cmake/build output above")
+            return 1
+    else:
+        bd = _build_dir()
+        exe = bd / _exe(_TARGET_EXE_NAME.get(target, f"emu_{target}"))
+        if not exe.exists():
+            console.error(f"{exe.name} not built — run 'sf sils build' first"); return 1
+        # Build-freshness advisory (skippable — see SF_SILS_SKIP_FRESHNESS_CHECK): warn if
+        # this exe predates its own sources. run_regression sets the env var after doing
+        # this check ONCE up front, so its 30+ per-scenario subprocess calls into this
+        # function don't each re-warn (or re-walk the source tree) redundantly.
+        # ビルド鮮度の参考警告（SF_SILS_SKIP_FRESHNESS_CHECK でスキップ可）: この exe が
+        # 自身のソースより古ければ警告する。run_regression は冒頭で1回だけ判定した後に
+        # この環境変数を立てるので、以降30本超のシナリオ用子プロセスがこの関数を呼んでも
+        # 重複警告・重複走査は起きない。
+        if not os.environ.get("SF_SILS_SKIP_FRESHNESS_CHECK"):
+            _check_build_freshness(exe)
+
     scn = Path(args.scenario)
     if not scn.exists():
         console.error(f"scenario not found: {scn}"); return 1
+
+    return run_scenario_with_exe(exe, scn, args)
+
+
+def run_scenario_with_exe(exe: Path, scenario: Path, args: argparse.Namespace) -> int:
+    """Run one *.scn scenario against an already-built `exe`, apply its
+    .expect assertions, and return the PASS/FAIL exit convention (0 PASS / 2
+    FAIL) — the part of `run_scenario` that does not care how `exe` was
+    resolved (a friendly-target build vs. an `apps/<name>` emulator freshly
+    built by build_app_emulator()). `run_scenario` itself now just resolves
+    `exe` and the scenario path, then calls this; behavior for every
+    existing target is unchanged.
+    既にビルド済みの `exe` に対して1本の *.scn シナリオを実行し .expect の
+    アサーションを適用、合否の終了コード規約（0 PASS / 2 FAIL）を返す —
+    exe がどう解決されたか（従来ターゲットのビルド vs build_app_emulator()
+    で作った apps/<name> エミュレータ）を気にしない部分。`run_scenario` は
+    exe とシナリオパスを解決してこれを呼ぶだけになった。既存ターゲットの
+    挙動は変わらない。
+    """
+    scn = scenario
+    target = getattr(args, "target", "vehicle")
+    bd = exe.parent  # build dir this exe lives in (win_run_env's DLL search dir)
 
     bundle = _sils_dir() / "viz" / f"out_scn_{scn.stem}"
     bundle.mkdir(parents=True, exist_ok=True)
