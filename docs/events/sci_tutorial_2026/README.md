@@ -103,7 +103,7 @@ sf sim run vpython
 
 ### About This Document
 
-This document is the material index and pre-workshop checklist for the SCI/SICE Tutorial 2026, "Hands-On Drone Education with the StampFly Ecosystem: From Coding to Flight Testing and Data Acquisition."
+This document is the material index and pre-tutorial checklist for the SCI/SICE Tutorial 2026, "Hands-On Drone Education with the StampFly Ecosystem: From Coding to Flight Testing and Data Acquisition."
 
 ### Event Information
 
@@ -117,7 +117,7 @@ This document is the material index and pre-workshop checklist for the SCI/SICE 
 
 ### Target Audience
 
-- Tutorial participants (see §3 for pre-workshop preparation)
+- Tutorial participants (see §3 for pre-tutorial preparation)
 - Anyone reviewing or reproducing the day's material afterward
 - Organizers checking the structure of the slides and take-home material
 
@@ -148,7 +148,7 @@ Every session follows the same shape: map (where we are) -> three key points -> 
 | Exercise / demo expected results (SILS-generated plots, videos, verdict logs) | [`fallback/`](fallback/README.md) |
 | Slide appendix (take-home material) | The "Appendix" chapter at the end of the main deck (cheat sheets, troubleshooting, review paths) |
 
-## 4. Pre-Workshop Preparation
+## 4. Pre-Tutorial Preparation
 
 If you plan to join the hands-on parts, complete the following **before** the day. Venue WiFi and laptop conditions vary, so finishing the day before is recommended.
 
@@ -181,7 +181,7 @@ sf sim run vpython
 
 You are ready once a 3D view opens in your browser. See `simulator/README.md` for details.
 
-### Pre-workshop checklist
+### Pre-tutorial checklist
 
 | Check | Pass criterion |
 |-------|-----------------|

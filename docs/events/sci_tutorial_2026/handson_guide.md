@@ -23,7 +23,7 @@
 
 ## 2. S2 の再現: 開発環境とセンサデータ
 
-対応: 実習 2（IMU センサー、Workshop の Lesson 4）
+対応: 実習 2（IMU センサー）
 
 ```bash
 sf doctor                    # 環境診断
@@ -39,13 +39,14 @@ sf telemetry                 # 50Hz テレメトリのライブ表示
 
 ## 3. S3 の再現: モータ制御とコントローラ入力
 
-対応: 実習 3（モータ制御、Workshop の Lesson 1）、実習 4（コントローラ入力、Workshop の Lesson 2）
+対応: 実習 3（モータ制御）、実習 4（コントローラ入力）
+
+机上で行うこと。モータ回転中は手を近づけない。異常時は即 DISARM。
 
 ```bash
 sf lesson switch sci2026:3
 sf lesson build
 sf lesson flash
-# 机上で行うこと。モータ回転中は手を近づけない。異常時は即 DISARM
 ```
 
 **観察ポイント:** `motor_set_duty()` の duty を変えるとモータの回転数が変わる。
@@ -63,7 +64,7 @@ sf lesson flash
 
 ## 4. S4 の再現: フィードバック制御
 
-対応: 実習 5〜9（Workshop の Lesson 5〜9）。**必ず机上で行い、モータ回転中は手を近づけず、低スロットルから試すこと。異常時は即 DISARM。**
+対応: 実習 5〜9。**必ず机上で行い、モータ回転中は手を近づけず、低スロットルから試すこと。異常時は即 DISARM。**
 
 ### 実習 5: レート P 制御
 
@@ -76,13 +77,14 @@ sf lesson build && sf lesson flash
 
 ### 実習 6: システムモデリング（座学）
 
-実機操作はない。`docs/events/stampfly_workshop/slides/chapters/system_modeling.tex` の実測パラメータ（$K$, $\tau_m$）を確認し、$\zeta=0.7$ 設計の $K_p$ を計算しておく。
+実機操作はない。スライド S4「実測パラメータ」フレーム（$K_{roll}=102$、$K_{pitch}=70$、$\tau_m\approx0.02$\,s）を確認し、$\zeta=0.7$ 設計の $K_p$ を計算しておく。
 
 ### 実習 7: システム同定
 
+`sf lesson switch sci2026:7` の後、`user_code.cpp` に `Kp` をセットし `ws::set_rate_target()` で目標角速度を記録するコードを書いてからビルド・書き込みする。
+
 ```bash
 sf lesson switch sci2026:7
-# user_code.cpp に Kp をセットし、ws::set_rate_target() で目標角速度を記録
 sf lesson build && sf lesson flash
 sf log wifi -o flight.csv     # 離陸してスティック操作しながら取得
 sf sysid fit flight.csv --kp 0.5 --plot
@@ -97,21 +99,18 @@ sf lesson switch sci2026:8
 sf lesson build && sf lesson flash
 ```
 
-理想微分（振動する）→不完全微分（振動が減る）の順に試す。ログから調整表（`pid_control.tex`）を見ながらゲインを調整する。
+理想微分（振動する）→不完全微分（振動が減る）の順に試す。スライド S4「不完全微分と D-on-M」フレームを見ながらゲインを調整する。
 
 ### 実習 5/8 のコードを SILS で飛ばす
 
-実機を飛ばす前に、書いたコードを SILS（`simulator/sils/`）で確かめられる。実機に書き込まれるのと同じソースがそのまま動く（Code Identity）ので、墜落のリスクなしに ARM・状態遷移・モータ応答の配線ミスに気付ける。`sf lesson switch` はコピー先ファイルの更新日時を保持したままコピーするため、切替後すぐに `sf sils build` してもソースの変更が検出されず古いビルドのままになる。そのため `touch` で更新日時を進めてから再ビルドする、という手順を毎回踏むこと（省略可能な例外ではなく通常の手順）。
+実機を飛ばす前に、書いたコードを SILS（`simulator/sils/`）で確かめられる。実機に書き込まれるのと同じソースがそのまま動く（Code Identity）ので、墜落のリスクなしに ARM・状態遷移・モータ応答の配線ミスに気付ける。`sf lesson sils` が内部で再ビルドとシナリオ実行までまとめて行うため、切替後にこの1行を打つだけでよい。
 
 ```bash
-sf sils build --target workshop
 sf lesson switch sci2026:8 --solution        # または自分のコード
-touch firmware/workshop/main/user_code.cpp   # 切替はファイルの更新日時を保持するため touch する
-sf sils build --target workshop              # 新しいコードを反映するため再ビルド
-sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop
+sf lesson sils
 ```
 
-**観察ポイント:** 合格基準（`.expect`）は「離陸したか（真値高度が 0.1 m を超える）」「傾き 15° 未満か（転倒しない）」の2点。workshop ファームには高度ループがないため、着陸は DISARM による降下のみ。`sf sils gui` は現状ブラウザ画面から常に vehicle ファームを対象に実行し、workshop（学習者コード）を選ぶ操作はないので、学習者コードの実行には上記の CLI コマンドを使う。上記の手順どおりに実行すると `alt_max` ≈ 0.64 m、`tilt_max` = 0.0 で PASS になる。
+**観察ポイント:** 合格基準（`.expect`）は「離陸したか（真値高度が 0.1 m を超える）」「傾き 15° 未満か（転倒しない）」の2点。実習コードには高度ループがないため、着陸は DISARM による降下のみ。実習コードの SILS は常に `sf lesson sils` を使う（`sf sils gui` は vehicle 本体向け）。上記の手順どおりに実行すると `alt_max` ≈ 0.64 m、`tilt_max` = 0.0 で PASS になる。
 
 ### 実習 9: 姿勢推定
 
@@ -129,7 +128,7 @@ sf sysid rate-fit flight.csv --axis roll -o fit.json
 sf sysid rate-tune --fit fit.json --wc 25 --pm 60
 ```
 
-**参照:** `docs/events/stampfly_workshop/slides/chapters/{rate_p_control,system_modeling,system_identification,pid_control,attitude_estimation}.tex`
+**参照:** 本資料のスライド S4（`docs/events/sci_tutorial_2026/slides/chapters/sci_s4_pid.tex`）の「あとで読む」理論フレーム一式（フィードバック制御の基礎〜プラントモデリング〜システム同定〜PID理論〜相補フィルタ）
 
 ## 5. S5 の再現: シミュレータと解析ツール
 
@@ -180,7 +179,7 @@ This tutorial's exercise numbers map onto a `sci2026` exercise set (course); lis
 
 ## 2. Reproducing S2: Environment and Sensor Data
 
-Corresponding to: Exercise 2 (IMU sensor, Workshop Lesson 4)
+Corresponding to: Exercise 2 (IMU sensor)
 
 ```bash
 sf doctor
@@ -196,13 +195,14 @@ sf telemetry
 
 ## 3. Reproducing S3: Motor Control and Controller Input
 
-Corresponding to: Exercise 3 (motor control, Workshop Lesson 1), Exercise 4 (controller input, Workshop Lesson 2)
+Corresponding to: Exercise 3 (motor control), Exercise 4 (controller input)
+
+Do this on a table. Keep hands clear of the spinning motors. DISARM immediately if anything looks wrong.
 
 ```bash
 sf lesson switch sci2026:3
 sf lesson build
 sf lesson flash
-# Do this on a table. Keep hands clear of the spinning motors. DISARM immediately if anything looks wrong
 ```
 
 **Watch for:** motor speed changes with the duty passed to `motor_set_duty()`.
@@ -220,7 +220,7 @@ sf lesson flash
 
 ## 4. Reproducing S4: Feedback Control
 
-Corresponding to: Exercises 5-9 (Workshop Lessons 5-9). **Do this on a table, keep hands clear of the spinning motors, and start at low throttle. DISARM immediately if anything looks wrong.**
+Corresponding to: Exercises 5-9. **Do this on a table, keep hands clear of the spinning motors, and start at low throttle. DISARM immediately if anything looks wrong.**
 
 ### Exercise 5: Rate P-Control
 
@@ -233,13 +233,14 @@ Take off and check the response to stick input. Vary `Kp` and feel the differenc
 
 ### Exercise 6: System Modeling (lecture only)
 
-No hands-on flying here. Check the measured parameters ($K$, $\tau_m$) in `docs/events/stampfly_workshop/slides/chapters/system_modeling.tex` and compute the $K_p$ for a $\zeta=0.7$ design.
+No hands-on flying here. Check the measured parameters in slide S4's "Measured Parameters" frame ($K_{roll}=102$, $K_{pitch}=70$, $\tau_m\approx0.02$ s) and compute the $K_p$ for a $\zeta=0.7$ design.
 
 ### Exercise 7: System Identification
 
+After `sf lesson switch sci2026:7`, set `Kp` in `user_code.cpp` and call `ws::set_rate_target()` to log the rate target, then build and flash.
+
 ```bash
 sf lesson switch sci2026:7
-# set Kp in user_code.cpp, and call ws::set_rate_target() to log the rate target
 sf lesson build && sf lesson flash
 sf log wifi -o flight.csv     # take off and move the sticks while capturing
 sf sysid fit flight.csv --kp 0.5 --plot
@@ -254,21 +255,18 @@ sf lesson switch sci2026:8
 sf lesson build && sf lesson flash
 ```
 
-Try the ideal derivative (oscillates) then the incomplete-derivative filter (oscillation drops). Tune the gains against the log while consulting the tuning table in `pid_control.tex`.
+Try the ideal derivative (oscillates) then the incomplete-derivative filter (oscillation drops). Tune the gains against the log while consulting slide S4's "Incomplete Derivative and D-on-M" frame.
 
 ### Flying Exercise 5/8's Code in SILS
 
-You can check your code in SILS (`simulator/sils/`) before flying it for real. The exact source that gets flashed to the vehicle runs unmodified there (Code Identity), so you can catch ARM/state-transition/motor-response wiring mistakes with zero crash risk. `sf lesson switch` copies the file while preserving its old modification time, so building right after a switch will not pick up the change and reuses the stale build. Touching the file to bump its mtime and then rebuilding is the normal procedure every time -- not an occasional workaround.
+You can check your code in SILS (`simulator/sils/`) before flying it for real. The exact source that gets flashed to the vehicle runs unmodified there (Code Identity), so you can catch ARM/state-transition/motor-response wiring mistakes with zero crash risk. `sf lesson sils` handles the rebuild and scenario run internally, so typing this one line right after switching is enough.
 
 ```bash
-sf sils build --target workshop
 sf lesson switch sci2026:8 --solution        # or your own code
-touch firmware/workshop/main/user_code.cpp   # switching preserves the mtime, so touch it
-sf sils build --target workshop              # rebuild so the new code is compiled
-sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop
+sf lesson sils
 ```
 
-**Watch for:** the pass criteria (`.expect`) check two things: (1) did it lift off (true altitude exceeds 0.1 m), and (2) does tilt stay under 15° (no tumble). The workshop firmware has no altitude loop, so landing is by DISARM descent only. `sf sils gui` currently always runs against the vehicle firmware from the browser — there is no control to select workshop (learner code) — so use the CLI command above to run learner code. Following the sequence above as written yields `alt_max` ~= 0.64 m and `tilt_max` = 0.0, i.e. PASS.
+**Watch for:** the pass criteria (`.expect`) check two things: (1) did it lift off (true altitude exceeds 0.1 m), and (2) does tilt stay under 15° (no tumble). The lesson firmware has no altitude loop, so landing is by DISARM descent only. Use `sf lesson sils` for learner-code SILS runs (`sf sils gui` targets the vehicle firmware). Following the sequence above as written yields `alt_max` ~= 0.64 m and `tilt_max` = 0.0, i.e. PASS.
 
 ### Exercise 9: Attitude Estimation
 
@@ -286,7 +284,7 @@ sf sysid rate-fit flight.csv --axis roll -o fit.json
 sf sysid rate-tune --fit fit.json --wc 25 --pm 60
 ```
 
-**References:** `docs/events/stampfly_workshop/slides/chapters/{rate_p_control,system_modeling,system_identification,pid_control,attitude_estimation}.tex`
+**References:** this guide's slide deck, Session 4 (`docs/events/sci_tutorial_2026/slides/chapters/sci_s4_pid.tex`) -- the full set of "read later" theory frames (feedback control basics, plant modeling, system identification, PID theory, complementary filter)
 
 ## 5. Reproducing S5: Simulator and Analysis Tools
 

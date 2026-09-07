@@ -6,7 +6,7 @@
 
 ### このドキュメントについて
 
-`sf` CLI コマンドと `ws::` Workshop API（学習者コード用）の早見表。スライド付録のチートシートと同内容を、印刷・検索しやすい表形式でまとめたもの。
+`sf` CLI コマンドと `ws::` 実習用 API（学習者コード用）の早見表。スライド付録のチートシートと同内容を、印刷・検索しやすい表形式でまとめたもの。
 
 ## 2. sf CLI コマンド
 
@@ -36,7 +36,7 @@
 | `sf motor` | ベンチモータテスト（disarm 時のみ） |
 | `sf battery/height/tof/baro/attitude/acceleration/speed` | 機体状態の問い合わせ |
 | `sf rc` | RC 値の一時送信 |
-| `sf lesson list/switch/solution/info/edit/build/flash` | Workshop レッスン管理。本チュートリアルの実習番号は `sf lesson switch sci2026:N`、一覧は `sf lesson list --course sci2026` |
+| `sf lesson list/switch/solution/info/edit/build/flash/monitor/sils` | 実習コードの管理。本チュートリアルの実習番号は `sf lesson switch sci2026:N`、一覧は `sf lesson list --course sci2026` |
 | `sf competition hover-time/score` | ホバー耐久・スコア記録 |
 | `sf app` | カスタムファームアプリの管理 |
 | `sf docs` | ドキュメントサイトのビルド・配信 |
@@ -58,21 +58,32 @@
 | 機体 IP | `192.168.10.1`（DJI Tello 互換サブネット。`sf` の各種 `--ip` の既定値でもある） |
 | WiFi/ESP-NOW チャンネル | `wifi.channel`（既定 `1`、1〜13） |
 
+機体側: USB接続のまま `sf monitor` でCLIに入り、SoftAPへ切り替える（初回のみ）。PC側: WiFi設定でSSID `StampFly-XXYY` に接続（パスワードは既定 `stampfly`）。疎通確認は `sf telemetry`（IP指定不要、既定192.168.10.1で待ち受け）。
+
 ```bash
-# 機体側: USB接続のまま sf monitor でCLIに入り、SoftAPへ切り替える（初回のみ）
 param set wifi.mode 1
 param save
 reboot
-
-# PC側: WiFi設定でSSID `StampFly-XXYY` に接続（パスワードは既定 `stampfly`）
-
-# 疎通確認（IP指定不要、既定192.168.10.1で待ち受け）
 sf telemetry
 ```
 
 会場の WiFi は使わない（不通の前提で運用する）。各自の StampFly ごとに SSID が異なる点に注意。
 
-## 3. ws:: Workshop API（学習者コード用、`#include "workshop_api.hpp"`、全関数は `ws::` 名前空間）
+### sf lesson と通常コマンドの対応
+
+`sf lesson` は実習を滞りなく進めるための近道で、正は通常コマンド。各コマンドは次を呼んでいるだけ。
+
+| `sf lesson` コマンド | 実体 |
+|----------------------|------|
+| `sf lesson switch sci2026:N [--solution]` | 課題 N の `student.cpp`（`solution.cpp`）を実習ファームウェアの `user_code.cpp` にコピー |
+| `sf lesson edit` | その `user_code.cpp` を開く |
+| `sf lesson build` | `sf build workshop` |
+| `sf lesson flash` | `sf flash workshop -m`（`--no-monitor` で `-m` 無し） |
+| `sf lesson monitor` | `sf monitor workshop` |
+| `sf lesson sils` | `sf sils build --target workshop` → `sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop` |
+| `sf lesson sils --scenario step` | 同上でシナリオは `workshop_acro_step.scn` |
+
+## 3. ws:: 実習用 API（学習者コード用、`#include "workshop_api.hpp"`、全関数は `ws::` 名前空間）
 
 ### モータ制御
 
@@ -134,7 +145,7 @@ sf telemetry
 
 ### About This Document
 
-A cheat sheet for the `sf` CLI and the `ws::` Workshop API (for learner code). Same content as the slide-appendix cheat sheets, in a print/search-friendly table form.
+A cheat sheet for the `sf` CLI and the `ws::` lesson API (for learner code). Same content as the slide-appendix cheat sheets, in a print/search-friendly table form.
 
 ## 2. sf CLI Commands
 
@@ -164,7 +175,7 @@ In `sf --help` display order.
 | `sf motor` | Bench motor test (disarmed only) |
 | `sf battery/height/tof/baro/attitude/acceleration/speed` | Query vehicle state |
 | `sf rc` | Send RC values one-shot |
-| `sf lesson list/switch/solution/info/edit/build/flash` | Workshop lesson management. This tutorial's exercise numbers: `sf lesson switch sci2026:N`, listed with `sf lesson list --course sci2026` |
+| `sf lesson list/switch/solution/info/edit/build/flash/monitor/sils` | Lesson-code management. This tutorial's exercise numbers: `sf lesson switch sci2026:N`, listed with `sf lesson list --course sci2026` |
 | `sf competition hover-time/score` | Hover-endurance and score recording |
 | `sf app` | Manage custom firmware apps |
 | `sf docs` | Build/serve the documentation site |
@@ -186,22 +197,32 @@ All commands are implemented under `lib/sfcli/commands/`.
 | Vehicle IP | `192.168.10.1` (DJI Tello-compatible subnet; also the default for every `sf` `--ip` flag) |
 | WiFi/ESP-NOW channel | `wifi.channel` (default `1`, 1-13) |
 
+Vehicle side: enter the CLI over the still-live USB link with `sf monitor`, then switch to SoftAP (one-time only). PC side: join SSID `StampFly-XXYY` in WiFi settings (default password `stampfly`). Connectivity check: `sf telemetry` (no `--ip` needed; listens on the default 192.168.10.1).
+
 ```bash
-# Vehicle side: enter the CLI over the still-live USB link with sf monitor,
-# then switch to SoftAP (one-time only)
 param set wifi.mode 1
 param save
 reboot
-
-# PC side: join SSID `StampFly-XXYY` in WiFi settings (default password `stampfly`)
-
-# Connectivity check (no --ip needed; listens on the default 192.168.10.1)
 sf telemetry
 ```
 
 Do not rely on venue WiFi (assume it is down). Each attendee's StampFly has a different SSID.
 
-## 3. ws:: Workshop API (for learner code, `#include "workshop_api.hpp"`, all functions in the `ws::` namespace)
+### How sf lesson Maps to Plain Commands
+
+`sf lesson` is a shortcut for moving through the exercises smoothly; the plain commands are the source of truth. Each `sf lesson` command just calls one of these.
+
+| `sf lesson` command | What it actually runs |
+|----------------------|------|
+| `sf lesson switch sci2026:N [--solution]` | Copies exercise N's `student.cpp` (or `solution.cpp`) to the lesson firmware's `user_code.cpp` |
+| `sf lesson edit` | Opens that `user_code.cpp` |
+| `sf lesson build` | `sf build workshop` |
+| `sf lesson flash` | `sf flash workshop -m` (pass `--no-monitor` to drop `-m`) |
+| `sf lesson monitor` | `sf monitor workshop` |
+| `sf lesson sils` | `sf sils build --target workshop` -> `sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop` |
+| `sf lesson sils --scenario step` | Same, but with the `workshop_acro_step.scn` scenario |
+
+## 3. ws:: Lesson API (for learner code, `#include "workshop_api.hpp"`, all functions in the `ws::` namespace)
 
 ### Motor control
 

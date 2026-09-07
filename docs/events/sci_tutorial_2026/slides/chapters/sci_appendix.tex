@@ -17,7 +17,7 @@
       \code{sf telemetry}  & 50\,Hz テレメトリのライブ表示（\code{--web} でブラウザ） \\
       \code{sf blocks}     & Blockly ブロックプログラミング（\code{--demo} で機体なしデモ） \\
       \code{sf cal gyro/accel/mag} & センサキャリブレーション \\
-      \code{sf lesson}     & Workshop 実習管理（\code{switch sci2026:N}/\code{build}/\code{flash}，一覧は \code{list --course sci2026}） \\
+      \code{sf lesson}     & 実習コードの管理（\code{switch sci2026:N}/\code{build}/\code{flash}，一覧は \code{list --course sci2026}） \\
       \code{sf trim analyze} & ホバーログから姿勢トリムを算出 \\
       \code{sf takeoff} 等   & Tello 風ミニコマンド（\code{sf takeoff/land/hover/jump}，個別のトップレベルコマンド） \\
       \code{sf competition hover-time/score} & ホバー耐久・スコア記録 \\
@@ -48,6 +48,31 @@
   \end{table}
 
   {\footnotesize \code{sf --help} の順序を基本に，授業で頻出する \code{sf lesson} を前に出している。全コマンドは \code{lib/sfcli/commands/} に実装がある}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{sf lesson と通常コマンドの対応\later}
+  {\footnotesize \code{sf lesson} は実習を滞りなく進めるための近道で，正は通常コマンド。各コマンドは次を呼んでいるだけ}
+
+  \vspace{0.3em}
+
+  \begin{table}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{>{\raggedright\arraybackslash}p{46mm}>{\raggedright\arraybackslash}p{86mm}}
+      \hline
+      \textbf{\code{sf lesson} コマンド} & \textbf{実体} \\
+      \hline
+      \code{sf lesson switch sci2026:N \allowbreak [--solution]} & 課題 N の \code{student.cpp}（\code{solution.cpp}）を実習ファームウェアの \code{user\_code.cpp} にコピー \\
+      \code{sf lesson edit} & その \code{user\_code.cpp} を開く \\
+      \code{sf lesson build} & \code{sf build workshop} \\
+      \code{sf lesson flash} & \code{sf flash workshop -m}（\code{--no-monitor} で \code{-m} 無し） \\
+      \code{sf lesson monitor} & \code{sf monitor workshop} \\
+      \code{sf lesson sils} & \code{sf sils build \allowbreak --target workshop} $\to$ \code{sf sils scenario \allowbreak simulator/\allowbreak sils/\allowbreak scenarios/\allowbreak workshop\_acro.scn \allowbreak --target workshop} \\
+      \code{sf lesson sils \allowbreak --scenario step} & 同上でシナリオは \code{workshop\_acro\_step.scn} \\
+      \hline
+    \end{tabular}
+  \end{table}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -93,7 +118,7 @@
     \end{tabular}
   \end{table}
 
-  {\footnotesize \code{\#include "workshop\_api.hpp"}，全関数は \code{ws::} 名前空間}
+  {\footnotesize 実習用 API のヘッダ \code{\#include "workshop\_api.hpp"}，全関数は \code{ws::} 名前空間}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -167,17 +192,13 @@
       \hline
       & \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
       \hline
-      S4 & \code{sf lesson switch sci2026:8} & PID 制御（実習8）       & Workshop Lesson 8 \\
-      S4 & \code{sf sysid fit}              & システム同定（実習7）    & Workshop Lesson 7 \\
+      S4 & \code{sf lesson switch sci2026:8} & PID 制御（実習8）       & 本資料 S4「PID 制御器の構成」〜「ARM 遷移時の積分リセット」 \\
+      S4 & \code{sf sysid fit}              & システム同定（実習7）    & 本資料 S4「システム同定の考え方」〜「同定結果と理論値の比較」 \\
       S5 & \code{sf sils gui}               & SILS ブラウザ実験環境   & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
       S5 & \code{sf log viz}                & ログ解析                & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
       \hline
     \end{tabular}
   \end{table}
-
-  \vspace{0.5em}
-
-  {\footnotesize Workshop スライド（\code{docs/\allowbreak events/\allowbreak stampfly\_workshop/\allowbreak slides/\allowbreak chapters/}）内の該当 Lesson 章に対応}
 \end{frame}
 
 % ------------------------------------------------------------------

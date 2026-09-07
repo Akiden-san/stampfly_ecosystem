@@ -141,7 +141,7 @@
         \code{sf lesson edit}\\
         \code{sf lesson build}\\
         \code{sf lesson flash}\\
-        \code{sf monitor workshop}
+        \code{sf lesson monitor}
       \end{exampleblock}
     \end{column}
     \begin{column}{0.40\textwidth}
@@ -200,7 +200,7 @@
       \item \code{sf lesson edit} で \code{user\_code.cpp} を開き、次ページのコードを書く
       \item \code{sf lesson build}
       \item \code{sf lesson flash}
-      \item \code{sf monitor workshop}（\code{sf lesson flash} 直後はそのまま開く）
+      \item \code{sf lesson monitor}（\code{sf lesson flash} 直後はそのまま開く）
     \end{enumerate}
   \end{block}
 
@@ -229,7 +229,7 @@ void loop_400Hz(float dt) {
 
   \vspace{-4.5mm}
 
-  {\footnotesize VSCode 拡張 \code{alexnesnes.teleplot} を導入後、\code{sf monitor workshop} で接続（\code{sf lesson flash} 直後はそのまま開く）}
+  {\footnotesize VSCode 拡張 \code{alexnesnes.teleplot} を導入後、\code{sf lesson monitor} で接続（\code{sf lesson flash} 直後はそのまま開く）}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -382,7 +382,7 @@ sf log viz flight.csv
   \vspace{0.5em}
 
   {\small 学習者が呼ぶ \api{ws::} 関数は、内部で \code{sensor\_imu} トピックを購読しているだけである
-  （アクセス階層 L0（Workshop API）$\to$ L1（Topic API）の対応）}
+  （アクセス階層 L0（実習用 API）$\to$ L1（Topic API）の対応）}
 \end{frame}
 
 % ------------------------------------------------------------------

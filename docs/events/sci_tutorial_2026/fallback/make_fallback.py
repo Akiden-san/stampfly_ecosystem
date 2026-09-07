@@ -370,12 +370,10 @@ def build_s1(bundle: Path, copy_video: bool = True) -> None:
 S4_SCN = "workshop_acro_step"
 S4_RUN_CMDS = [
     "sf lesson switch 5 --solution",
-    "touch firmware/workshop/main/user_code.cpp",
     "sf sils build --target workshop",
     "sf sils scenario simulator/sils/scenarios/workshop_acro_step.scn --target workshop --video",
     "# copy the bundle aside before switching lessons — same bundle dir is reused",
     "sf lesson switch 8 --solution",
-    "touch firmware/workshop/main/user_code.cpp",
     "sf sils build --target workshop",
     "sf sils scenario simulator/sils/scenarios/workshop_acro_step.scn --target workshop --video",
     "sf lesson switch <original lesson>",
@@ -525,19 +523,17 @@ def run_s4(restore_lesson: str) -> tuple[Path, Path]:
     l8_dir.mkdir(parents=True, exist_ok=True)
     try:
         sf("sf lesson switch 5 --solution")
-        sf(f"touch {ROOT / 'firmware/workshop/main/user_code.cpp'} && true")
         sf("sf sils build --target workshop")
         sf(f"sf sils scenario simulator/sils/scenarios/{S4_SCN}.scn --target workshop --video")
         b = bundle_dir(S4_SCN)
         shutil.copyfile(b / "trajectory.csv", l5_dir / "trajectory.csv")
-        shutil.copyfile(b / f"scn_{S4_SCN}.mp4", OUT_DIR / "S4_lesson5_p_flight.mp4")
+        shutil.copyfile(b / f"scn_{S4_SCN}.mp4", OUT_DIR / "S4_ex5_p_flight.mp4")
 
         sf("sf lesson switch 8 --solution")
-        sf(f"touch {ROOT / 'firmware/workshop/main/user_code.cpp'} && true")
         sf("sf sils build --target workshop")
         sf(f"sf sils scenario simulator/sils/scenarios/{S4_SCN}.scn --target workshop --video")
         shutil.copyfile(b / "trajectory.csv", l8_dir / "trajectory.csv")
-        shutil.copyfile(b / f"scn_{S4_SCN}.mp4", OUT_DIR / "S4_lesson8_pid_flight.mp4")
+        shutil.copyfile(b / f"scn_{S4_SCN}.mp4", OUT_DIR / "S4_ex8_pid_flight.mp4")
 
         return l5_dir, l8_dir
     finally:

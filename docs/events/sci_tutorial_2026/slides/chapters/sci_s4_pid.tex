@@ -1107,28 +1107,25 @@ sf sysid rate-tune --fit fit.json --wc 25 --pm 60
     \includegraphics[width=\textwidth, height=0.32\textheight, keepaspectratio]{../fallback/S4_roll_step_p_vs_pid.png}
   \end{center}
 
-  {\footnotesize SILS（MuJoCo）で \code{workshop\_acro\_step.scn}（ロール $+0.3$ を $0.5$\,s）を実行。
+  {\footnotesize SILS（MuJoCo）でロールステップ試験（ロール $+0.3$ を $0.5$\,s）を実行。
   目標 15.1\,deg/s に対し実習 5（P）はピーク 17.9\,deg/s と $-2.4$\,deg/s のアンダーシュート，
   実習 8（PID）はピーク 13.2\,deg/s で振動なし。角速度は真値ロール角の数値微分}
   % Web版のみ: 静止グラフの代わりに実飛行動画2本を並べて見せる
-  % @web: video=../fallback/S4_lesson5_p_flight.mp4 caption=実習 5（P のみ）
-  % @web: video=../fallback/S4_lesson8_pid_flight.mp4 caption=実習 8（PID）
+  % @web: video=../fallback/S4_ex5_p_flight.mp4 caption=実習 5（P のみ）
+  % @web: video=../fallback/S4_ex8_pid_flight.mp4 caption=実習 8（PID）
   % @web: layout=replace
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{期待結果の再現手順\later}
   \begin{sflisting}{実習 5 の結果を再現する（実習 8 は sci2026:8 に置き換え）}
-sf sils build --target workshop
 sf lesson switch sci2026:5 --solution
-touch firmware/workshop/main/user_code.cpp
-sf sils build --target workshop
-sf sils scenario simulator/sils/scenarios/workshop_acro_step.scn --target workshop
+sf lesson sils --scenario step
   \end{sflisting}
 
   \vspace{0.3em}
 
-  {\footnotesize S5「実習: 自分の PID を SILS で飛ばす」も \code{workshop\_acro.scn} で同様に再現できる}
+  {\footnotesize S5「実習: 自分の PID を SILS で飛ばす」は，切替後に \code{sf lesson sils} を実行するだけでよい（ロールステップ試験は不要）}
 \end{frame}
 
 % ==============================================================================
@@ -1186,9 +1183,8 @@ sf sils scenario simulator/sils/scenarios/workshop_acro_step.scn --target worksh
     \end{tabular}
   \end{center}
 
-  {\scriptsize 複数回に分けたハンズオンとして通しでやり直したい場合は，
-  Workshop スライド（\code{docs/events/stampfly\_workshop/slides/chapters/}）の
-  対応する Lesson 5〜9 章も参照できる（同じ実習の，より時間をかけた版）}
+  {\scriptsize 帰宅後に複数回へ分けてやり直したい場合も，上表のフレームと
+  \code{sf lesson switch} $\to$ \code{sf lesson sils} の組だけで実習5〜9を再現できる}
 \end{frame}
 
 % ------------------------------------------------------------------

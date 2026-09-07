@@ -2,9 +2,9 @@
 
 > **Note:** [English version follows after the Japanese section.](#english) / 日本語の後に英語版があります。
 
-> 現行の workshop ファームは 2026-07-18 に vehicle のコンポーネント基盤上へ再構築された
-> （`firmware/vehicle/docs/workshop_migration.md` §8）。この再構築以降、実機ベンチ・飛行レッスン
-> （L5〜L8, L13）の実機検証は行われていない。本チェックリストは、9/10 のチュートリアル本番前に
+> 現行の実習ファームは 2026-07-18 に vehicle のコンポーネント基盤上へ再構築された
+> （`firmware/vehicle/docs/workshop_migration.md` §8）。この再構築以降、実機ベンチ・飛行レッスンの
+> 実機検証は行われていない。本チェックリストは、9/10 のチュートリアル本番前に
 > 講師が実機で確認する手順である。書式は DXH 講座の
 > `docs/events/dxh2026/day2-morning-checklist.md` に倣う。**各項目は「操作 → 期待される結果」**
 > **を確認し、チェックボックスで記録する。NG が出た場合は該当節の「NG時の代替」に従う。**
@@ -13,7 +13,7 @@
 
 - [ ] `sf doctor` を実行 → エラーなく完了すること
 - [ ] `sf build vehicle` → `sf flash vehicle -m` → 標準起動音（C5→E5→G5）・LED 白→緑常灯・モニタに起動ログ、まで到達すること（実習 1 と同じ手順）
-- [ ] 以降の `sf lesson` 書き込みでは起動音が授業チャイムに変わること（workshop ファーム共通の識別音。vehicle の標準起動音 C5→E5→G5 とは異なる。`sf flash vehicle` に戻すと標準音に戻る）
+- [ ] 以降の `sf lesson` 書き込みでは起動音が授業チャイムに変わること（実習ファーム共通の識別音。vehicle の標準起動音 C5→E5→G5 とは異なる。`sf flash vehicle` に戻すと標準音に戻る）
 - [ ] `sf lesson switch sci2026:3 --solution` → `sf lesson build` → `sf lesson flash` → 机上でモータが回転すること（duty を上げるとゆっくり回転数が上がる。異常時は即 DISARM）
 - [ ] `sf lesson switch sci2026:4 --solution` → コントローラのスティックを倒すと `rc_roll()`/`rc_pitch()` 等の値がシリアル出力で追従すること
 - [ ] USB 接続中は本体ボタン ARM が拒否されること（安全仕様）
@@ -22,7 +22,7 @@
 - [ ] `sf telemetry` でライブダッシュボードが表示されること
 - [ ] `sf log wifi -o bench.csv` でテレメトリ取得 → `sf log convert`（USB経由の場合）でCSV変換が成功すること
 
-**NG時の代替:** ベンチ確認で問題が出た場合、`sf flash vehicle`（標準ファーム）に戻して S1〜S3 の実機デモは標準ファームで行う。workshop ファーム固有の問題（実習5以降）は「見るだけ」に切り替え、実演できない場合の代替として事前取得済みのログ・動画（§5）を使う。
+**NG時の代替:** ベンチ確認で問題が出た場合、`sf flash vehicle`（標準ファーム）に戻して S1〜S3 の実機デモは標準ファームで行う。実習ファーム固有の問題（実習5以降）は「見るだけ」に切り替え、実演できない場合の代替として事前取得済みのログ・動画（§5）を使う。
 
 ## 2. 飛行確認（低スロットルから開始。異常時は即 DISARM）
 
@@ -64,11 +64,11 @@
 
 ## 1. Overview
 
-> The current workshop firmware was rebuilt onto the vehicle component base on
+> The current lesson firmware was rebuilt onto the vehicle component base on
 > 2026-07-18 (`firmware/vehicle/docs/workshop_migration.md` §8). Since that
-> rebuild, the hardware bench and flight lessons (L5-L8, L13) have not been
+> rebuild, the hardware bench and flight exercises have not been
 > verified on real hardware. This checklist is the instructor's pre-tutorial
-> (2026-09-10) hardware verification procedure, modeled on the DXH workshop's
+> (2026-09-10) hardware verification procedure, modeled on the DXH course's
 > `docs/events/dxh2026/day2-morning-checklist.md`. **Each item states an**
 > **action and its expected result; check the box once confirmed. If an item**
 > **fails, follow that section's fallback.**
@@ -77,7 +77,7 @@
 
 - [ ] `sf doctor` completes with no errors
 - [ ] `sf build vehicle` -> `sf flash vehicle -m` -> reaches the standard boot chime (C5-E5-G5), LED white then steady green, and the boot log in the monitor (same steps as Exercise 1)
-- [ ] Subsequent `sf lesson` flashes switch the boot sound to the school chime (the workshop firmware's common identity sound, distinct from the vehicle's standard C5-E5-G5 chime; `sf flash vehicle` restores the standard sound)
+- [ ] Subsequent `sf lesson` flashes switch the boot sound to the school chime (the lesson firmware's common identity sound, distinct from the vehicle's standard C5-E5-G5 chime; `sf flash vehicle` restores the standard sound)
 - [ ] `sf lesson switch sci2026:3 --solution` -> `sf lesson build` -> `sf lesson flash` -> motors spin on the table (speed rises gradually with duty; DISARM immediately if anything looks wrong)
 - [ ] `sf lesson switch sci2026:4 --solution` -> `rc_roll()`/`rc_pitch()` etc. track the controller sticks in the serial output
 - [ ] Button ARM is rejected while USB is connected (safety behavior)
@@ -86,7 +86,7 @@
 - [ ] `sf telemetry` shows the live dashboard
 - [ ] `sf log wifi -o bench.csv` captures telemetry; `sf log convert` (USB path) succeeds
 
-**Fallback:** if the bench check fails, flash the production firmware (`sf flash vehicle`) and run the S1-S3 hardware demos on it instead. For workshop-firmware-specific issues (Exercise 5 onward), switch to "watch only" and use the pre-recorded log/video from §5.
+**Fallback:** if the bench check fails, flash the production firmware (`sf flash vehicle`) and run the S1-S3 hardware demos on it instead. For lesson-firmware-specific issues (Exercise 5 onward), switch to "watch only" and use the pre-recorded log/video from §5.
 
 ## 2. Flight Check (start at low throttle; DISARM immediately if anything looks wrong)
 

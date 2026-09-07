@@ -25,11 +25,11 @@
 | S1 | POS_HOLD 水平位置保持: XY軌跡＋位置誤差 | `S1_pos_hold_xy.png` | 左図の赤い四角（POS_HOLD 捕捉点）を指し「ロールで一瞬乱しても、そこに戻って保持する」。右図で誤差が係合後 0.39 m 以内（判定条件 3.0 m）に収まっていることを指す | `sf sils scenario simulator/sils/scenarios/pos_roll.scn --target vehicle --video` |
 | S1 | POS_HOLD 高度・姿勢の時系列 | `S1_altitude_attitude.png` | 上段の高度がほぼ一定、下段のロール角が外乱直後に水平へ戻る立ち上がりを指す | 同上 |
 | S1 | POS_HOLD 飛行動画（MuJoCo 3D + 状態グラフ） | `S1_pos_hold_flight.mp4` | 「実機に書き込まれるのと同じ制御コードが、そのまま MuJoCo 上で飛んでいる」 | 同上（`--video` が動画を書き出す） |
-| S4 | 実習 5（P）vs 実習 8（PID）ロール・ステップ応答比較 | `S4_roll_step_p_vs_pid.png` | 上段（P）は破線の指令に速く追いつくがステップ終了直後に -2.4 deg/s のアンダーシュート（振動）が出る。下段（PID）は追いつきはやや遅いが振動が出ない — 上下段の破線と実線のズレ方の違いを指す | 下記 §3 の S4 コマンド列（Lesson 切替を含む） |
-| S4 | 実習 5（P制御）飛行動画 | `S4_lesson5_p_flight.mp4` | 「P だけでも離陸・ホバーはできるが、ステップ応答に振動が残る」 | 同上 |
-| S4 | 実習 8（PID制御）飛行動画 | `S4_lesson8_pid_flight.mp4` | 「同じシナリオを PID にすると応答が滑らかになる」 | 同上 |
+| S4 | 実習 5（P）vs 実習 8（PID）ロール・ステップ応答比較 | `S4_roll_step_p_vs_pid.png` | 上段（P）は破線の指令に速く追いつくがステップ終了直後に -2.4 deg/s のアンダーシュート（振動）が出る。下段（PID）は追いつきはやや遅いが振動が出ない — 上下段の破線と実線のズレ方の違いを指す | 下記 §3 の S4 再生成手順（実習切替を含む） |
+| S4 | 実習 5（P制御）飛行動画 | `S4_ex5_p_flight.mp4` | 「P だけでも離陸・ホバーはできるが、ステップ応答に振動が残る」 | 同上 |
+| S4 | 実習 8（PID制御）飛行動画 | `S4_ex8_pid_flight.mp4` | 「同じシナリオを PID にすると応答が滑らかになる」 | 同上 |
 | S5 | 合否判定結果（テキスト） | `S5_gate_result.txt` | 「STABILIZE 飛行の12項目チェックが全て PASS」 | `sf sils scenario simulator/sils/scenarios/stab_flight.scn --target vehicle --video` |
-| S5 | 回帰テスト最終サマリ | `S5_regression_summary.txt` | 「34本のシナリオ中 28 PASS、5件は既知の追跡中課題（KNOWN-FAIL、xfail マーカー付き）、1件は workshop 対象のスキップ — 新規の退行はゼロ」 | `sf sils regression` |
+| S5 | 回帰テスト最終サマリ | `S5_regression_summary.txt` | 「34本のシナリオ中 28 PASS、5件は既知の追跡中課題（KNOWN-FAIL、xfail マーカー付き）、1件は学習者コード対象のスキップ — 新規の退行はゼロ」 | `sf sils regression` |
 | S5 | 姿勢・角速度の時系列 | `S5_attitude_rate.png` | 「ロール+8°→-8°→ピッチ+8°→中立、の3連ステップに追従し、中立に戻すたび自己水平化する」 | `sf sils scenario simulator/sils/scenarios/stab_flight.scn --target vehicle --video` |
 | S5 | STABILIZE 飛行動画（MuJoCo 3D + 状態グラフ） | `S5_stab_flight.mp4` | 「STABILIZE はスロットルを自動制御しないので、そのまま上昇し続ける（仕様通り、故障ではない）」 | 同上 |
 
@@ -54,19 +54,19 @@ SF_ROOT_OVERRIDE=<このチェックアウトの絶対パス> PYTHONPATH=<同>/l
   python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py
 ```
 
-S1（`pos_roll.scn`）・S5（`stab_flight.scn`）を SILS で再実行してから生成する場合（vehicle ターゲットのみ、workshop レッスン状態には触れない・安全）:
+S1（`pos_roll.scn`）・S5（`stab_flight.scn`）を SILS で再実行してから生成する場合（vehicle ターゲットのみ、学習者コードの状態には触れない・安全）:
 
 ```bash
 python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py --run
 ```
 
-S4（実習 5 vs 実習 8）も再実行する場合。**`sf lesson switch` で `firmware/workshop/main/user_code.cpp` を書き換える**ため、実行前のレッスンを `sf lesson list` で確認し、`--restore-lesson` で指定すること（既定は `0` = 実習 1（Workshop Lesson 0）の student、本タスク実行時の元の状態）:
+S4（実習 5 vs 実習 8）も再実行する場合。**`sf lesson switch` で学習者コード（`firmware/workshop/main/user_code.cpp`）を書き換える**ため、実行前の実習を `sf lesson list` で確認し、`--restore-lesson` で指定すること（既定は `0` = 実習 1 の student に対応する内部レッスン番号、本タスク実行時の元の状態）:
 
 ```bash
 python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py --run --run-s4 --restore-lesson 0
 ```
 
-新規シナリオ `simulator/sils/scenarios/workshop_acro_step.scn`（S4 用、`workshop_acro.scn` にロール・ステップを挿入した変種、`.expect` なし＝回帰対象外）の詳細は同ファイルのヘッダコメント参照。
+新規シナリオ「ロールステップ試験」（S4 用、離陸試験用シナリオにロール・ステップを挿入した変種、`.expect` なし＝回帰対象外）の詳細は `simulator/sils/scenarios/workshop_acro_step.scn` のヘッダコメント参照。
 
 グラフのラベル文言だけを直したい場合（動画は再生成しない）は `--plots-only` を使う。既存の SILS バンドル・永続化済み `trajectory.csv` から PNG/テキストのみを再構築し、4本の動画ファイルには一切触れない。`--run`/`--run-s4` と同時指定はできない:
 
@@ -108,11 +108,11 @@ This directory holds pre-generated graphs, videos, and text summaries from SILS 
 | S1 | POS_HOLD horizontal position hold: XY trajectory + position error | `S1_pos_hold_xy.png` | Point at the red square (POS_HOLD engage point) in the left panel: "even after a momentary roll disturbance, it returns and holds." Point at the right panel: error stays within 0.39 m after engage (pass criterion 3.0 m) | `sf sils scenario simulator/sils/scenarios/pos_roll.scn --target vehicle --video` |
 | S1 | POS_HOLD altitude/attitude time series | `S1_altitude_attitude.png` | Top: altitude stays essentially flat. Bottom: roll returns to level right after the disturbance | same |
 | S1 | POS_HOLD flight video (MuJoCo 3D + state graphs) | `S1_pos_hold_flight.mp4` | "The exact same control code that flashes to hardware is flying here in MuJoCo" | same (`--video` renders it) |
-| S4 | Exercise 5 (P) vs Exercise 8 (PID) roll-rate step-response comparison | `S4_roll_step_p_vs_pid.png` | Top (P): catches up to the dashed command fast but undershoots to -2.4 deg/s right after the step ends. Bottom (PID): catches up a bit slower but no ringing — point at how the solid line tracks the dashed line differently in each panel | see the S4 command sequence in §3 (includes lesson switching) |
-| S4 | Exercise 5 (P-control) flight video | `S4_lesson5_p_flight.mp4` | "P alone can take off and hover, but the step response still rings" | same |
-| S4 | Exercise 8 (PID control) flight video | `S4_lesson8_pid_flight.mp4` | "The same scenario with PID responds more smoothly" | same |
+| S4 | Exercise 5 (P) vs Exercise 8 (PID) roll-rate step-response comparison | `S4_roll_step_p_vs_pid.png` | Top (P): catches up to the dashed command fast but undershoots to -2.4 deg/s right after the step ends. Bottom (PID): catches up a bit slower but no ringing — point at how the solid line tracks the dashed line differently in each panel | see the S4 regeneration steps in §3 (includes exercise switching) |
+| S4 | Exercise 5 (P-control) flight video | `S4_ex5_p_flight.mp4` | "P alone can take off and hover, but the step response still rings" | same |
+| S4 | Exercise 8 (PID control) flight video | `S4_ex8_pid_flight.mp4` | "The same scenario with PID responds more smoothly" | same |
 | S5 | Pass/fail verdict (text) | `S5_gate_result.txt` | "All 12 checks PASS for the STABILIZE flight" | `sf sils scenario simulator/sils/scenarios/stab_flight.scn --target vehicle --video` |
-| S5 | Regression suite final summary | `S5_regression_summary.txt` | "28 PASS out of 34 scenarios, 5 are known, tracked issues (KNOWN-FAIL, xfail-marked), 1 is a workshop-target skip — zero new regressions" | `sf sils regression` |
+| S5 | Regression suite final summary | `S5_regression_summary.txt` | "28 PASS out of 34 scenarios, 5 are known, tracked issues (KNOWN-FAIL, xfail-marked), 1 is a learner-code-target skip — zero new regressions" | `sf sils regression` |
 | S5 | Attitude/angular-rate time series | `S5_attitude_rate.png` | "It tracks a 3-step sequence (roll +8 -> -8 -> pitch +8 -> centre) and self-levels back to zero each time the stick centres" | `sf sils scenario simulator/sils/scenarios/stab_flight.scn --target vehicle --video` |
 | S5 | STABILIZE flight video (MuJoCo 3D + state graphs) | `S5_stab_flight.mp4` | "STABILIZE has no automatic throttle/altitude control, so it just keeps climbing — that's by design, not a malfunction" | same |
 
@@ -137,19 +137,19 @@ SF_ROOT_OVERRIDE=<absolute path to this checkout> PYTHONPATH=<same>/lib \
   python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py
 ```
 
-To re-run S1 (`pos_roll.scn`) and S5 (`stab_flight.scn`) in SILS first (vehicle target only — never touches workshop lesson state, safe):
+To re-run S1 (`pos_roll.scn`) and S5 (`stab_flight.scn`) in SILS first (vehicle target only — never touches the learner-code state, safe):
 
 ```bash
 python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py --run
 ```
 
-To also re-run S4 (Exercise 5 vs Exercise 8). **This rewrites `firmware/workshop/main/user_code.cpp` via `sf lesson switch`** — check the current lesson with `sf lesson list` first and pass it via `--restore-lesson` (default `0` = Exercise 1 (Workshop Lesson 0) student, the state this task found the repo in):
+To also re-run S4 (Exercise 5 vs Exercise 8). **This rewrites the learner code (`firmware/workshop/main/user_code.cpp`) via `sf lesson switch`** — check the current exercise with `sf lesson list` first and pass it via `--restore-lesson` (default `0` = the internal lesson number for Exercise 1's student code, the state this task found the repo in):
 
 ```bash
 python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py --run --run-s4 --restore-lesson 0
 ```
 
-See `simulator/sils/scenarios/workshop_acro_step.scn`'s header comment for the new scenario (S4's roll-step variant of `workshop_acro.scn`; no `.expect` — not part of the regression gate).
+See `simulator/sils/scenarios/workshop_acro_step.scn`'s header comment for the new "roll-step test" scenario (S4's roll-step variant of the take-off-test scenario; no `.expect` — not part of the regression gate).
 
 To fix only a graph's label text (no video regeneration), use `--plots-only`. It rebuilds PNGs/text from the existing SILS bundles / persisted `trajectory.csv` only and never touches any of the four video files. Incompatible with `--run`/`--run-s4`:
 

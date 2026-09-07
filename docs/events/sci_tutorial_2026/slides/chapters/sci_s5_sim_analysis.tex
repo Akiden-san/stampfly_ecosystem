@@ -205,25 +205,21 @@ sf sils gui
   \vspace{0.2em}
 
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
-    \item 実習8（PID）用に SILS ホストベンチをビルドする
     \item 実習8の解答（または S4 で書いた自分のコード）に切り替える
-    \item 切替後に再ビルドし，新しいコードを取り込む
-    \item シナリオを実行し，合否判定を確認する
+    \item \code{sf lesson sils} を実行し，合否判定を確認する
   \end{enumerate}
 
   \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{コマンド}
-sf sils build --target workshop
-sf lesson switch sci2026:8 --solution   # または S4 で書いた自分のコード
-touch firmware/workshop/main/user_code.cpp   # 切替後は更新日時が保たれるため
-sf sils build --target workshop         # 再ビルドで新しいコードを取り込む
-sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop
+sf lesson switch sci2026:8 --solution
+sf lesson sils
   \end{sflisting}
 
   \vspace{-2.5mm}
 
-  {\scriptsize 合格基準（\code{.expect}）: 離陸（真値高度 $>0.1$\,m）と傾き $15^\circ$ 未満
+  {\scriptsize 自分のコードで試す場合は\code{--solution}を付けずに切り替えるだけでよい。
+  合格基準（\code{.expect}）: 離陸（真値高度 $>0.1$\,m）と傾き $15^\circ$ 未満
   （発散しない）。実測 alt\_max $\approx 0.64$\,m，tilt\_max $0^\circ$，判定 PASS。
-  \warn{注:} \code{sf sils gui} は workshop を選べないため学習者コードには上記 CLI を使う}
+  \warn{注:} 実習コードの SILS は \code{sf lesson sils} を使う（\code{sf sils gui} は vehicle 本体向け）}
 \end{frame}
 
 % ------------------------------------------------------------------
