@@ -218,22 +218,43 @@ sf flash vehicle
 
 ---
 
-## 🔗 リソースとドキュメント
+## 🎓 ワークショップで本格的に学ぶ
 
-| リソース | 説明 |
-|---------|------|
-| [📖 次のステップ](docs/next_step.md) | シミュレータの使い方、飛行前の確認、飛行方法、開発者向け機能 |
-| [🎛️ 送信機の使い方](docs/guides/controller.md) | メニュー操作、通信モードの切替、ペアリング、ボタンの役割 |
-| [⌨️ sf コマンドリファレンス](docs/commands/README.md) | ビルド・書き込み・ログ取得など全コマンドの説明 |
-| [🛠️ セットアップガイド](docs/setup/README.md) | OS 別の導入手順の詳細とトラブル対応 |
-| [🌐 プロジェクト紹介](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | 実機3Dモデル付きランディングページ |
-| [📚 ドキュメントサイト](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | 全ドキュメントを検索・閲覧 |
-| [🗂️ ドキュメント目録](docs/DOCUMENT_INDEX.md) | リポジトリ内の全ドキュメントの目録 |
-| [🔌 Web書き込み](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | ビルド不要、ブラウザから実機に書き込み |
-| [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | デスクトップ書き込みアプリ（Windows/macOS・Python不要） |
-| [📦 ビルド済みファームウェア](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases（vehicle / controller） |
-| [📐 物理パラメータリファレンス](docs/architecture/stampfly-parameters.md) | 機体の物理パラメータ（質量・慣性・モータ特性等）の確定値 |
-| [stampfly_physical.yaml](control/models/stampfly_physical.yaml) | 物理パラメータの機械可読 SSOT（Single Source of Truth: 唯一の正となる定義） |
+実機で飛ばせたら、目的に合った講習資料で制御の中身に進みましょう。これまでに実施した 3 つの講習のスライドと手順書を公開しています。
+
+### StampFly 勉強会（4 日間 + 競技会 1 日）
+
+大学生・大学院生向けの標準カリキュラムです。受講者は `setup()` と `loop_400Hz()` の 2 つの関数だけを書き、モータ制御 → コントローラ入力 → IMU → P 制御で初フライト → モデリングとシステム同定 → PID → 姿勢推定 → Python SDK と段階的に進み、最終日に精密着陸競技会を行います。各レッスンの実習コードは `sf lesson switch <レッスン名>` で切り替えます。
+
+| 資料 | 内容 |
+|------|------|
+| [講師ガイド](docs/events/stampfly_workshop/workshop_guide.md) | Lesson 0〜13 の進め方、安全管理、トラブル対応 |
+| [スケジュール](docs/events/stampfly_workshop/workshop_schedule.md) | 4+1 日の時間割と準備物 |
+| [競技ルール](docs/events/stampfly_workshop/competition_rules.md) | 最終日の競技会の種目と採点 |
+| [スライド（PDF）](docs/events/stampfly_workshop/slides/stampfly_workshop.pdf) | 全レッスン統合スライド |
+
+### DXH 高校教員向け体験講座（2 時間）
+
+プログラミング初心者も含む高校教員向けの体験講座です。操縦体験、開発環境のインストール、プログラムの書き換え、モータの制御の 4 テーマを 120 分で回ります。ビルドせずにブラウザから書き込む手順を使うので、短時間でも実機を動かせます。
+
+| 資料 | 内容 |
+|------|------|
+| [開催概要](docs/events/dxh2026/README.md) | 対象・機材・文書一覧 |
+| [参加者用配布資料](docs/events/dxh2026/handout.md) | Web 書き込みとモータ制御の実習手順 |
+| [スライド（PDF）](docs/events/dxh2026/slides/dxh_workshop.pdf) | 進行スライド |
+
+### SCI/SICE チュートリアル講座 2026（1 日）
+
+制御工学の研究者・教育者向けに、エコシステムの全体像から環境構築、センサデータ取得、モータ制御とコントローラ入力、PID による姿勢安定化、シミュレータと解析ツールまでを 5 セッションで扱います。研究用の実験プラットフォームとして使いたい方の入口です。
+
+| 資料 | 内容 |
+|------|------|
+| [事前準備と資料索引](docs/events/sci_tutorial_2026/README.md) | タイムテーブル、参加者の事前準備 |
+| [復習ハンズオンガイド](docs/events/sci_tutorial_2026/handson_guide.md) | 各セッションの実習を自分で再現する手順 |
+| [チートシート](docs/events/sci_tutorial_2026/cheatsheet.md) | 当日使うコマンドの一覧 |
+| [スライド（PDF）](docs/events/sci_tutorial_2026/slides/sci_tutorial.pdf) | 全 5 セッションのスライド |
+
+**→ [イベント資料の一覧](docs/events/README.md)**
 
 ---
 
@@ -258,7 +279,61 @@ sf flash controller --legacy
 
 ---
 
-## ディレクトリ構成
+## 技術仕様
+
+### 機体（StampFly）
+
+| 項目 | 仕様 |
+|------|------|
+| MCU | ESP32-S3（M5Stamp S3） |
+| 質量 | 約 37 g（実測 36.8 g） |
+| 寸法 | モータ間距離（対角）65 mm、アーム長（中心→モータ）32.5 mm |
+| 慣性モーメント | Ixx 9.16e-6、Iyy 13.3e-6、Izz 20.4e-6 kg·m² |
+| モータ | 4 基（X 配置）、PWM 150 kHz 駆動 |
+| バッテリー | 1S LiPo（3.7 V）、低電圧警告 3.4 V |
+
+### センサ
+
+| センサ | 型番 | 更新周期 | 用途 |
+|--------|------|---------|------|
+| IMU（加速度・角速度） | BMI270 | 400 Hz | 姿勢推定の主センサ |
+| 地磁気 | BMM150 | 25 Hz | ヨー推定（研究用途） |
+| 気圧 | BMP280 | 50 Hz | 高度推定（ToF の測距範囲外） |
+| ToF 距離（下面・前面） | VL53L3CX × 2 | 30 Hz | 高度計測、前方の障害物検知 |
+| オプティカルフロー | PMW3901 | 100 Hz | 水平位置推定 |
+| 電源モニタ | INA3221 | 10 Hz | 電池電圧・電流 |
+
+### 機体ソフトウェア
+
+| 項目 | 仕様 |
+|------|------|
+| フレームワーク | ESP-IDF v5.5.2 + FreeRTOS |
+| 制御周期 | 400 Hz（IMU 同期） |
+| 状態推定 | ESKF（Error-State Kalman Filter: 誤差状態カルマンフィルタ）で姿勢・速度・位置を推定 |
+| 飛行モード | ACRO（角速度制御）/ STABILIZE（角度制御）/ ALT_HOLD（高度維持）/ POS_HOLD（位置保持） |
+| 送信機との通信 | ESP-NOW（TDMA 同期、最大 10 台同時）または UDP（機体の WiFi アクセスポイント経由） |
+| PC との通信 | WiFi テレメトリ 50 Hz、高速ログ 400 Hz、Tello SDK 互換 API |
+| 設定 | PID ゲイン等のパラメータは実行時に変更し、NVS（不揮発メモリ）に保存 |
+
+### 送信機
+
+| 項目 | 仕様 |
+|------|------|
+| 本体 | M5Stack AtomS3（ESP32-S3、LCD 付き）+ Atom JoyStick |
+| 通信モード | ESP-NOW / UDP / USB HID（PC のゲームパッドとして動作） |
+| スティック | 2 軸 × 2 本、Mode 2 / Mode 3 切替、押し込みボタン付き |
+
+### 開発ツール
+
+| 項目 | 仕様 |
+|------|------|
+| sf CLI | Python 3.10〜3.12。ビルド・書き込み・ログ取得・キャリブレーション・シミュレータ・SILS を一つのコマンド体系で操作 |
+| シミュレータ | VPython 版（ブラウザ 3D 表示）、Genesis 版（高精度物理エンジン）、SILS（ファームウェアそのものを PC 上で実行） |
+| 対応 OS | Windows / macOS / Ubuntu |
+
+物理パラメータの確定値と出典は [物理パラメータリファレンス](docs/architecture/stampfly-parameters.md)、機体ソフトウェアの要件と設計は [要件定義書](firmware/vehicle/docs/requirements.md) と [アーキテクチャ設計書](firmware/vehicle/docs/architecture.md) を参照してください。
+
+### リポジトリ構成
 
 ```
 stampfly_ecosystem/
@@ -280,34 +355,22 @@ stampfly_ecosystem/
 
 ---
 
-## ワークショップで本格的に学ぶ
+## 🔗 リソースとドキュメント
 
-実機で飛ばせたら、次は**ワークショップ**で制御の仕組みをじっくり学びましょう。
-
-| レッスン | テーマ | 学べること |
-|---------|--------|-----------|
-| Lesson 1 | 環境構築 | ESP-IDF セットアップ、ビルド＆書き込み |
-| Lesson 2 | コントローラ入力 | ESP-NOW 通信、スティック値の読み取り |
-| Lesson 3 | LED 制御 | システム状態の可視化 |
-| Lesson 4 | IMU センサー | 加速度・ジャイロデータの取得と理解 |
-| Lesson 5 | モータ制御 | PWM によるモータ個別制御 |
-| Lesson 6 | 姿勢推定 | 相補フィルタによる姿勢角の算出 |
-| Lesson 7 | レート P 制御 | 角速度フィードバックによる安定化 |
-| Lesson 8 | PID 制御 | 姿勢角の PID 制御と飛行 |
-
-**→ [ワークショップスライド](docs/events/README.md)** | **[ワークショップガイド](docs/events/stampfly_workshop/)**
-
----
-
-## 技術仕様
-
-| 項目 | 仕様 |
-|------|------|
-| MCU | ESP32-S3（M5Stamp S3） |
-| フレームワーク | ESP-IDF v5.5.2 + FreeRTOS |
-| 姿勢推定 | ESKF（Error-State Kalman Filter） |
-| 通信 | ESP-NOW + WiFi（テレメトリ） |
-| センサー | BMI270, BMM150, BMP280, VL53L3CX, PMW3901 |
+| リソース | 説明 |
+|---------|------|
+| [📖 次のステップ](docs/next_step.md) | シミュレータの使い方、飛行前の確認、飛行方法、開発者向け機能 |
+| [🎛️ 送信機の使い方](docs/guides/controller.md) | メニュー操作、通信モードの切替、ペアリング、ボタンの役割 |
+| [⌨️ sf コマンドリファレンス](docs/commands/README.md) | ビルド・書き込み・ログ取得など全コマンドの説明 |
+| [🛠️ セットアップガイド](docs/setup/README.md) | OS 別の導入手順の詳細とトラブル対応 |
+| [🌐 プロジェクト紹介](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | 実機3Dモデル付きランディングページ |
+| [📚 ドキュメントサイト](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | 全ドキュメントを検索・閲覧 |
+| [🗂️ ドキュメント目録](docs/DOCUMENT_INDEX.md) | リポジトリ内の全ドキュメントの目録 |
+| [🔌 Web書き込み](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | ビルド不要、ブラウザから実機に書き込み |
+| [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | デスクトップ書き込みアプリ（Windows/macOS・Python不要） |
+| [📦 ビルド済みファームウェア](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases（vehicle / controller） |
+| [📐 物理パラメータリファレンス](docs/architecture/stampfly-parameters.md) | 機体の物理パラメータ（質量・慣性・モータ特性等）の確定値 |
+| [stampfly_physical.yaml](control/models/stampfly_physical.yaml) | 物理パラメータの機械可読 SSOT（Single Source of Truth: 唯一の正となる定義） |
 
 ---
 
@@ -539,22 +602,43 @@ For the pre-flight checklist and stick operation (arm, take-off, landing, flight
 
 ---
 
-## 🔗 Resources and Documentation
+## 🎓 Learn Through the Workshops
 
-| Resource | Description |
-|----------|-------------|
-| [📖 Next Steps](docs/next_step.md) | Using the simulator, pre-flight checks, how to fly, developer features |
-| [🎛️ Controller Guide](docs/guides/controller.md) | Menu operation, communication modes, pairing, what each button does |
-| [⌨️ sf Command Reference](docs/commands/README.md) | Every command: build, flash, log capture, and more |
-| [🛠️ Setup Guide](docs/setup/README.md) | Detailed per-OS installation and troubleshooting |
-| [🌐 Project Landing Page](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | Landing page with a 3D model of the real drone |
-| [📚 Documentation Site](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | Browse and search all documentation |
-| [🗂️ Document Index](docs/DOCUMENT_INDEX.md) | Index of every document in the repository |
-| [🔌 Web Flasher](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | Flash the drone from your browser, no build needed |
-| [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | Desktop flashing app (Windows/macOS, no Python required) |
-| [📦 Pre-built Firmware](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases (vehicle / controller) |
-| [📐 Physical Parameters Reference](docs/architecture/stampfly-parameters.md) | Confirmed values of the vehicle's physical parameters (mass, inertia, motor characteristics, etc.) |
-| [stampfly_physical.yaml](control/models/stampfly_physical.yaml) | Machine-readable SSOT (Single Source of Truth) for the physical parameters |
+Once you can fly the real drone, pick the course material that matches your goal. Slides and hands-on guides from three courses we have run are published here.
+
+### StampFly Workshop (4 days + 1 competition day)
+
+The standard curriculum for undergraduate and graduate students. Learners write only two functions, `setup()` and `loop_400Hz()`, and progress step by step: motor control → controller input → IMU → P control and first flight → modeling and system identification → PID → attitude estimation → Python SDK, ending with a precision-landing competition. Each lesson's exercise code is selected with `sf lesson switch <lesson>`.
+
+| Material | Contents |
+|----------|----------|
+| [Instructor Guide](docs/events/stampfly_workshop/workshop_guide.md) | How to run Lessons 0–13, safety, troubleshooting |
+| [Schedule](docs/events/stampfly_workshop/workshop_schedule.md) | 4+1 day timetable and equipment |
+| [Competition Rules](docs/events/stampfly_workshop/competition_rules.md) | Events and scoring for the final day |
+| [Slides (PDF)](docs/events/stampfly_workshop/slides/stampfly_workshop.pdf) | All lessons in one deck |
+
+### DXH Workshop for High-School Teachers (2 hours)
+
+A hands-on session for high-school teachers, including programming beginners. Four themes in 120 minutes: flying, installing the development environment, editing a program, and controlling the motors. It uses the browser-based flasher, so the real drone runs even in a short session.
+
+| Material | Contents |
+|----------|----------|
+| [Overview](docs/events/dxh2026/README.md) | Audience, equipment, document list |
+| [Participant Handout](docs/events/dxh2026/handout.md) | Web-flashing and motor-control exercise steps |
+| [Slides (PDF)](docs/events/dxh2026/slides/dxh_workshop.pdf) | Session slides |
+
+### SCI/SICE Tutorial 2026 (1 day)
+
+For control-engineering researchers and educators. Five sessions cover the ecosystem overview, environment setup, sensor data acquisition, motor control and controller input, PID attitude stabilization, and the simulator and analysis tools. This is the entry point if you want to use StampFly as a research platform.
+
+| Material | Contents |
+|----------|----------|
+| [Preparation and Index](docs/events/sci_tutorial_2026/README.md) | Timetable and participant preparation |
+| [Hands-on Review Guide](docs/events/sci_tutorial_2026/handson_guide.md) | Reproduce each session's exercises on your own |
+| [Cheat Sheet](docs/events/sci_tutorial_2026/cheatsheet.md) | Commands used on the day |
+| [Slides (PDF)](docs/events/sci_tutorial_2026/slides/sci_tutorial.pdf) | All five sessions |
+
+**→ [All Event Materials](docs/events/README.md)**
 
 ---
 
@@ -579,7 +663,61 @@ sf flash controller --legacy
 
 ---
 
-## Directory Structure
+## Technical Specifications
+
+### Vehicle (StampFly)
+
+| Item | Specification |
+|------|---------------|
+| MCU | ESP32-S3 (M5Stamp S3) |
+| Mass | about 37 g (measured 36.8 g) |
+| Size | motor-to-motor (diagonal) 65 mm, arm length (center to motor) 32.5 mm |
+| Moments of inertia | Ixx 9.16e-6, Iyy 13.3e-6, Izz 20.4e-6 kg·m² |
+| Motors | 4 (X configuration), 150 kHz PWM drive |
+| Battery | 1S LiPo (3.7 V), low-voltage warning at 3.4 V |
+
+### Sensors
+
+| Sensor | Part | Rate | Purpose |
+|--------|------|------|---------|
+| IMU (accelerometer + gyro) | BMI270 | 400 Hz | Primary sensor for attitude estimation |
+| Magnetometer | BMM150 | 25 Hz | Yaw estimation (research use) |
+| Barometer | BMP280 | 50 Hz | Altitude beyond ToF range |
+| ToF range (down, front) | VL53L3CX × 2 | 30 Hz | Altitude measurement, forward obstacle detection |
+| Optical flow | PMW3901 | 100 Hz | Horizontal position estimation |
+| Power monitor | INA3221 | 10 Hz | Battery voltage and current |
+
+### Vehicle Software
+
+| Item | Specification |
+|------|---------------|
+| Framework | ESP-IDF v5.5.2 + FreeRTOS |
+| Control rate | 400 Hz (synchronized to the IMU) |
+| State estimation | ESKF (Error-State Kalman Filter) for attitude, velocity and position |
+| Flight modes | ACRO (rate control) / STABILIZE (angle control) / ALT_HOLD (altitude hold) / POS_HOLD (position hold) |
+| Link to the controller | ESP-NOW (TDMA-synchronized, up to 10 vehicles) or UDP (via the vehicle's WiFi access point) |
+| Link to a PC | WiFi telemetry at 50 Hz, high-rate log at 400 Hz, Tello-SDK-compatible API |
+| Configuration | Parameters such as PID gains are changed at runtime and saved to NVS (non-volatile memory) |
+
+### Controller
+
+| Item | Specification |
+|------|---------------|
+| Hardware | M5Stack AtomS3 (ESP32-S3 with LCD) + Atom JoyStick |
+| Communication modes | ESP-NOW / UDP / USB HID (acts as a PC gamepad) |
+| Sticks | 2 axes × 2, Mode 2 / Mode 3 switchable, with push buttons |
+
+### Development Tools
+
+| Item | Specification |
+|------|---------------|
+| sf CLI | Python 3.10–3.12. Build, flash, log capture, calibration, simulator and SILS under one command set |
+| Simulators | VPython (3D in the browser), Genesis (high-fidelity physics), SILS (the firmware itself running on the PC) |
+| Supported OS | Windows / macOS / Ubuntu |
+
+Confirmed physical parameters and their sources are in the [Physical Parameters Reference](docs/architecture/stampfly-parameters.md); vehicle software requirements and design are in the [Requirements](firmware/vehicle/docs/requirements.md) and [Architecture](firmware/vehicle/docs/architecture.md) documents.
+
+### Repository Layout
 
 ```
 stampfly_ecosystem/
@@ -601,34 +739,22 @@ stampfly_ecosystem/
 
 ---
 
-## Learn Through the Workshop
+## 🔗 Resources and Documentation
 
-Once you have flown the real drone, dive deeper with the **Workshop** to learn how drone control really works.
-
-| Lesson | Topic | What You'll Learn |
-|--------|-------|-------------------|
-| Lesson 1 | Environment Setup | ESP-IDF setup, build & flash |
-| Lesson 2 | Controller Input | ESP-NOW communication, reading stick values |
-| Lesson 3 | LED Control | Visualizing system state |
-| Lesson 4 | IMU Sensor | Reading accelerometer & gyroscope data |
-| Lesson 5 | Motor Control | Individual motor control via PWM |
-| Lesson 6 | Attitude Estimation | Computing attitude angles with complementary filter |
-| Lesson 7 | Rate P Control | Stabilization via angular rate feedback |
-| Lesson 8 | PID Control | Attitude PID control and flight |
-
-**→ [Workshop Slides](docs/events/README.md)** | **[Workshop Guide](docs/events/stampfly_workshop/)**
-
----
-
-## Technical Specifications
-
-| Item | Specification |
-|------|---------------|
-| MCU | ESP32-S3 (M5Stamp S3) |
-| Framework | ESP-IDF v5.5.2 + FreeRTOS |
-| Pose Estimation | ESKF (Error-State Kalman Filter) |
-| Communication | ESP-NOW + WiFi (telemetry) |
-| Sensors | BMI270, BMM150, BMP280, VL53L3CX, PMW3901 |
+| Resource | Description |
+|----------|-------------|
+| [📖 Next Steps](docs/next_step.md) | Using the simulator, pre-flight checks, how to fly, developer features |
+| [🎛️ Controller Guide](docs/guides/controller.md) | Menu operation, communication modes, pairing, what each button does |
+| [⌨️ sf Command Reference](docs/commands/README.md) | Every command: build, flash, log capture, and more |
+| [🛠️ Setup Guide](docs/setup/README.md) | Detailed per-OS installation and troubleshooting |
+| [🌐 Project Landing Page](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | Landing page with a 3D model of the real drone |
+| [📚 Documentation Site](https://m5fly-kanazawa.github.io/stampfly_ecosystem/docs/) | Browse and search all documentation |
+| [🗂️ Document Index](docs/DOCUMENT_INDEX.md) | Index of every document in the repository |
+| [🔌 Web Flasher](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) | Flash the drone from your browser, no build needed |
+| [🖥️ StampFly Flasher](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest) | Desktop flashing app (Windows/macOS, no Python required) |
+| [📦 Pre-built Firmware](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases) | GitHub Releases (vehicle / controller) |
+| [📐 Physical Parameters Reference](docs/architecture/stampfly-parameters.md) | Confirmed values of the vehicle's physical parameters (mass, inertia, motor characteristics, etc.) |
+| [stampfly_physical.yaml](control/models/stampfly_physical.yaml) | Machine-readable SSOT (Single Source of Truth) for the physical parameters |
 
 ---
 
