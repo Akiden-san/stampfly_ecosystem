@@ -96,6 +96,7 @@
 | ファイル | 説明 |
 |---------|------|
 | [plans/education-outreach-strategy.md](plans/education-outreach-strategy.md) | 教育普及戦略（階層別展開・3 Horizons） |
+| [plans/sf-app-sils-plan.md](plans/sf-app-sils-plan.md) | `sf app` 自作プロジェクトの SILS 対応計画（現状のギャップと Phase 0〜4） |
 | [plans/ecosystem-migration.md](plans/ecosystem-migration.md) | エコシステムマイグレーション計画 |
 | [plans/installer-architecture.md](plans/installer-architecture.md) | インストーラ設計 |
 | [plans/archive/controller-menu-usb.md](plans/archive/controller-menu-usb.md) | コントローラメニュー・USB 計画（完了） |
@@ -320,6 +321,7 @@ POS_HOLD 位置制御の実機検証を機に `firmware/vehicle_new` が `firmwa
 | File | Description |
 |------|-------------|
 | [plans/education-outreach-strategy.md](plans/education-outreach-strategy.md) | Education outreach strategy (per-tier rollout, 3 horizons) |
+| [plans/sf-app-sils-plan.md](plans/sf-app-sils-plan.md) | Plan to run `sf app` projects in SILS (current gaps, Phases 0–4) |
 | [plans/ecosystem-migration.md](plans/ecosystem-migration.md) | Ecosystem migration plan |
 | [plans/installer-architecture.md](plans/installer-architecture.md) | Installer architecture |
 | [plans/archive/controller-menu-usb.md](plans/archive/controller-menu-usb.md) | Controller menu & USB plan (completed) |
