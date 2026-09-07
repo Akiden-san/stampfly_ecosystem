@@ -1,8 +1,10 @@
 """
-sf lesson - Workshop lesson management
+sf lesson - Lesson management (実習管理)
 
-Manages workshop lessons: list, switch, view solutions, build, flash.
-ワークショップレッスンの管理: 一覧、切替、解答表示、ビルド、フラッシュ。
+Manages the tutorial lessons: list, switch, view solutions, build, flash,
+monitor, run in SILS.
+実習（レッスン）の管理: 一覧、切替、解答表示、ビルド、フラッシュ、
+シリアルモニタ、SILS実行。
 
 Subcommands:
     list      - List all available lessons
@@ -10,8 +12,10 @@ Subcommands:
     solution  - Show solution diff for a lesson
     info      - Show detailed lesson information
     edit      - Open user_code.cpp in editor (VSCode > vi)
-    build     - Build workshop firmware (= sf build workshop)
-    flash     - Flash workshop firmware (= sf flash workshop -m)
+    build     - Build the lesson firmware
+    flash     - Flash the lesson firmware
+    monitor   - Open the lesson firmware's serial monitor
+    sils      - Run the lesson code in SILS (simulation)
 """
 
 import argparse
@@ -23,7 +27,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from ..utils import console, editor, paths
 
 COMMAND_NAME = "lesson"
-COMMAND_HELP = "Workshop lesson management"
+COMMAND_HELP = "Lesson management (実習管理)"
 
 # Lesson directory naming convention: lesson_NN_name
 LESSONS_DIR = "lessons"
@@ -371,7 +375,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     list_parser = lesson_subparsers.add_parser(
         "list",
         help="List all available lessons",
-        description="Show all workshop lessons with status.",
+        description="Show all lessons with status.",
     )
     list_parser.add_argument(
         "--course",
@@ -426,7 +430,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     edit_parser = lesson_subparsers.add_parser(
         "edit",
         help="Open user_code.cpp in editor",
-        description="Open the workshop user_code.cpp in your editor (VSCode > vi).",
+        description="Open the current lesson's user_code.cpp in your editor (VSCode > vi).",
     )
     edit_parser.add_argument(
         "--editor",
@@ -443,8 +447,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     # --- build ---
     build_parser = lesson_subparsers.add_parser(
         "build",
-        help="Build workshop firmware",
-        description="Build the workshop firmware (equivalent to 'sf build workshop').",
+        help="Build the lesson firmware",
+        description="Build the lesson firmware.",
     )
     build_parser.add_argument(
         "-c", "--clean",
@@ -462,8 +466,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     # --- flash ---
     flash_parser = lesson_subparsers.add_parser(
         "flash",
-        help="Flash workshop firmware",
-        description="Flash workshop firmware with monitor (equivalent to 'sf flash workshop -m').",
+        help="Flash the lesson firmware",
+        description="Flash the lesson firmware with monitor.",
     )
     flash_parser.add_argument(
         "-p", "--port",
@@ -482,6 +486,69 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help="Don't start monitor after flashing",
     )
     flash_parser.set_defaults(func=run_flash)
+
+    # --- monitor ---
+    monitor_parser = lesson_subparsers.add_parser(
+        "monitor",
+        help="Open the lesson firmware's serial monitor",
+        description="Open the serial monitor for the lesson firmware.",
+    )
+    monitor_parser.add_argument(
+        "-p", "--port",
+        default=None,
+        help="Serial port (auto-detect if not specified)",
+    )
+    monitor_parser.add_argument(
+        "-b", "--baud",
+        type=int,
+        default=115200,
+        help="Baud rate (default: 115200)",
+    )
+    monitor_parser.set_defaults(func=run_monitor)
+
+    # --- sils ---
+    # Local import so the sci2026-style "just run my code" flow can reach
+    # sils.NOISE_LEVELS for --noise's choices without a module-level
+    # dependency (sils.py is already imported eagerly by commands/__init__.py,
+    # but keeping the import local mirrors run_build/run_flash's convention
+    # of not committing to another command module's internals at import time).
+    # ローカルimport: sci2026のような「自分のコードをとにかく動かす」導線が
+    # --noise の choices に sils.NOISE_LEVELS を使えるようにする。sils.py は
+    # commands/__init__.py が既に先行importしているが、run_build/run_flashの
+    # 慣例（import時に他コマンドモジュールの内部へ結びつけない）に合わせ
+    # ローカルimportのままにする。
+    from . import sils as sils_cmd
+
+    sils_parser = lesson_subparsers.add_parser(
+        "sils",
+        help="Run the lesson code in SILS (simulation)",
+        description="Build the lesson firmware and run it against a SILS scenario.",
+    )
+    sils_parser.add_argument(
+        "--solution",
+        default=None,
+        metavar="<course_id>:<N> | <N>",
+        help="Switch to a lesson's solution.cpp before building (same identifier as 'sf lesson switch')",
+    )
+    sils_parser.add_argument(
+        "--scenario",
+        default="acro",
+        metavar="acro|step|<path>",
+        help="Scenario to run: 'acro' (default), 'step' (a step disturbance), or a path to a .scn file",
+    )
+    sils_parser.add_argument(
+        "--noise",
+        choices=sils_cmd.NOISE_LEVELS,
+        default="off",
+        help="Sensor noise level for the simulated plant (default: off)",
+    )
+    sils_parser.add_argument(
+        "--seed",
+        type=int,
+        default=12345,
+        help="Noise RNG seed (determinism)",
+    )
+    sils_parser.set_defaults(func=run_sils)
 
     # Default: show help
     parser.set_defaults(func=lambda args: (parser.print_help(), 0)[1])
@@ -551,7 +618,7 @@ def _run_list_manifest(manifest: List[Dict[str, Any]]) -> int:
     # Build number->entry lookup
     by_number = {e["number"]: e for e in manifest}
 
-    console.header("Workshop Lessons")
+    console.header("Lessons")
     console.print()
 
     for day, numbers in DAY_GROUPS:
@@ -635,16 +702,21 @@ def _run_list_course(course_id: str) -> int:
 
     for step in course.get("steps", []):
         lesson_entry = by_id.get(step["lesson"])
-        base_number = lesson_entry["number"] if lesson_entry else "?"
         step_title_ja = lesson_entry.get("title_ja", "") if lesson_entry else step["lesson"]
         step_title_en = lesson_entry.get("title_en", "") if lesson_entry else ""
 
         is_current = bool(lesson_entry) and _is_lesson_current(lesson_entry, current_content)
         marker = " >> " if is_current else "    "
 
+        # Speak only in the course's own step numbering / session (S2, S3,
+        # ...) — never the underlying Workshop lesson number, so sci2026
+        # participants never need to know Workshop exists.
+        # コース自身のステップ番号・セッション(S2, S3, ...)のみで話す —
+        # 実体のWorkshopレッスン番号は出さない。sci2026参加者がWorkshopの
+        # 存在を知る必要をなくすため。
         console.print(
             f"{marker}実習 {step['number']}: {step_title_ja} / {step_title_en}"
-            f"  (Lesson {base_number}, {step.get('session', '-')})"
+            f"  ({step.get('session', '-')})"
         )
 
     console.print()
@@ -687,7 +759,7 @@ def _run_list_fallback() -> int:
 
     current_content = _current_user_code()
 
-    console.header("Workshop Lessons")
+    console.header("Lessons")
     console.print()
 
     for num, name, path in lessons:
@@ -764,16 +836,28 @@ def run_switch(args: argparse.Namespace) -> int:
     lesson_dir = _find_lesson(identifier)
 
     if lesson_dir is None:
-        console.error(f"Lesson '{args.identifier}' not found")
-        manifest = _load_manifest()
-        if manifest:
-            ids = [f"{e['number']} ({e['id']})" for e in manifest if e.get("firmware_dir") and e["firmware_dir"] != "null"]
-            console.print(f"  Available: {', '.join(ids)}")
+        if course_display:
+            # Course-based lookup already failed above (unknown course/step)
+            # with its own bilingual error if the identifier itself was bad;
+            # reaching here means the manifest points at a firmware dir that
+            # doesn't exist. Speak only in the course's own step number —
+            # never dump the underlying Workshop lesson numbers below.
+            # コース経由の検索は識別子自体が不正なら上で既にエラー済み —
+            # ここに来るのはマニフェストが存在しないファームウェアディレクトリを
+            # 指している場合。コース自身のステップ番号のみで話し、下記の
+            # 実体Workshopレッスン番号一覧は出さない。
+            console.error(f"実習 '{course_display}' not found (firmware missing)")
         else:
-            lessons = _discover_lessons()
-            if lessons:
-                nums = [str(n) for n, _, _ in lessons]
-                console.print(f"  Available: {', '.join(nums)}")
+            console.error(f"Lesson '{args.identifier}' not found")
+            manifest = _load_manifest()
+            if manifest:
+                ids = [f"{e['number']} ({e['id']})" for e in manifest if e.get("firmware_dir") and e["firmware_dir"] != "null"]
+                console.print(f"  Available: {', '.join(ids)}")
+            else:
+                lessons = _discover_lessons()
+                if lessons:
+                    nums = [str(n) for n, _, _ in lessons]
+                    console.print(f"  Available: {', '.join(nums)}")
         return 1
 
     source = _resolve_switch_source(lesson_dir, identifier, args.identifier, args.solution)
@@ -794,21 +878,29 @@ def run_switch(args: argparse.Namespace) -> int:
 
     # Display lesson info from manifest
     num_display = args.identifier
+    title_ja = None
     manifest = _load_manifest()
     if manifest:
         num = identifier if isinstance(identifier, int) else None
         for entry in manifest:
             if entry.get("number") == num or entry.get("id") == identifier:
-                num_display = f"{entry['number']:02d} - {entry['title_ja']}"
+                title_ja = entry.get("title_ja", "")
+                num_display = f"{entry['number']:02d} - {title_ja}"
                 break
 
-    # When switched via a course, show the tutorial-local step alongside
-    # the underlying lesson so the user can cross-reference either.
-    # コース経由で切り替えた場合、実体のレッスンと併せてチュートリアル
-    # 固有のステップも表示し、どちらからでも参照できるようにする。
-    course_suffix = f"  [{course_display}]" if course_display else ""
+    if course_display:
+        # Course-based switch: speak only in the course's own step number
+        # (e.g. "sci2026:8" -> 実習 8) that participants already see from
+        # `sf lesson list --course`; never expose the underlying Workshop
+        # lesson number.
+        # コース経由の切替: 参加者が `sf lesson list --course` で既に見て
+        # いるコース自身のステップ番号（例: "sci2026:8" -> 実習 8）のみで
+        # 話す。実体のWorkshopレッスン番号は出さない。
+        step_number = course_display.rpartition(":")[2]
+        console.success(f"Switched to 実習 {step_number}: {title_ja} ({label})")
+    else:
+        console.success(f"Switched to Lesson {num_display} ({label})")
 
-    console.success(f"Switched to Lesson {num_display} ({label}){course_suffix}")
     console.print(f"  Source: {src}")
     console.print(f"  Target: {dst}")
     console.print()
@@ -1017,3 +1109,99 @@ def run_flash(args: argparse.Namespace) -> int:
         monitor=not args.no_monitor,
     )
     return flash_cmd.run(flash_args)
+
+
+def run_monitor(args: argparse.Namespace) -> int:
+    """Open the lesson firmware's serial monitor (= sf monitor workshop)"""
+    from . import monitor as monitor_cmd
+
+    # monitor.py has no make_run_args() factory (unlike build.py/flash.py),
+    # so the Namespace is hand-built here — same pattern sils.py's
+    # run_sysid_gate() uses to call run_scenario() directly.
+    # monitor.py には（build.py/flash.pyと違い）make_run_args()が無いため、
+    # ここでNamespaceを手組みする — sils.pyのrun_sysid_gate()が
+    # run_scenario()を直接呼ぶのと同じパターン。
+    monitor_args = argparse.Namespace(
+        target="workshop",
+        port=args.port,
+        baud=args.baud,
+    )
+    return monitor_cmd.run(monitor_args)
+
+
+def _resolve_sils_scenario(raw: str) -> Optional[Path]:
+    """Resolve `sf lesson sils --scenario`'s shorthand or a path to a .scn file.
+
+    `sf lesson sils --scenario` の短縮形、またはパスを .scn ファイルへ解決する。
+
+    'acro' and 'step' are shorthands for the two scenarios used across the
+    sci2026 slides (workshop_acro.scn / workshop_acro_step.scn); anything
+    else is treated as a path, so an instructor can point at any other
+    scenario under simulator/sils/scenarios/ without lesson.py knowing
+    about it by name.
+    'acro'/'step' はsci2026スライド全体で使う2本のシナリオ
+    （workshop_acro.scn / workshop_acro_step.scn）の短縮形。それ以外は
+    パスとして扱うため、講師は lesson.py がその名前を知らなくても
+    simulator/sils/scenarios/ 配下の他のシナリオを指定できる。
+    """
+    shortcuts = {
+        "acro": "workshop_acro.scn",
+        "step": "workshop_acro_step.scn",
+    }
+    scenarios_dir = paths.root() / "simulator" / "sils" / "scenarios"
+    filename = shortcuts.get(raw)
+    scn_path = scenarios_dir / filename if filename else Path(raw)
+
+    if not scn_path.exists():
+        console.error(f"Scenario not found: {scn_path}")
+        return None
+    return scn_path
+
+
+def run_sils(args: argparse.Namespace) -> int:
+    """Build the lesson code and run it against a SILS scenario, without
+    the caller needing to know the underlying Workshop firmware/target name.
+    実体のWorkshopファームウェア/ターゲット名を呼び出し側が知らなくても、
+    実習コードをビルドしSILSシナリオで実行する。
+    """
+    from . import sils as sils_cmd
+
+    console.info("実習コード（user_code.cpp）を SILS（シミュレーション）で飛ばします")
+
+    if args.solution:
+        switch_args = argparse.Namespace(identifier=args.solution, solution=True)
+        result = run_switch(switch_args)
+        if result != 0:
+            return result
+
+    scn_path = _resolve_sils_scenario(args.scenario)
+    if scn_path is None:
+        return 1
+
+    # shutil.copy2 (used by `sf lesson switch`) preserves the source
+    # file's mtime, which can predate the last build's object files and
+    # silently skip recompilation. Force a fresh mtime right before
+    # building so the switched-to code is always the code that gets built.
+    # shutil.copy2（`sf lesson switch` が使用）はコピー元のmtimeを保つため、
+    # 直前ビルドのオブジェクトファイルより古くなり再コンパイルが静かに
+    # スキップされることがある。ビルド直前にmtimeを強制更新し、切り替えた
+    # コードが必ずビルドされるようにする。
+    _ensure_user_code_exists()
+    _get_user_code_path().touch()
+
+    build_args = argparse.Namespace(
+        jobs=8, target="workshop",
+        yes=False, no_auto_toolchain=False, winget=False,
+    )
+    build_result = sils_cmd.run_build(build_args)
+    if build_result != 0:
+        return build_result
+
+    scenario_args = argparse.Namespace(
+        scenario=str(scn_path), target="workshop", expect=None,
+        duration=25_000_000, noise=args.noise, seed=args.seed,
+        video=False, ground_effect=None, turbulence=None,
+        motor_delay=None, thrust_eff=None, torque_authority=None,
+        flow_scale=None, unpaired=False, params=None,
+    )
+    return sils_cmd.run_scenario(scenario_args)
