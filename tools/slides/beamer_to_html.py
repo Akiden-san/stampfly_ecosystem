@@ -1302,7 +1302,7 @@ def render_plain_prose(raw: str) -> str:
 
 MASTER_ITEM_RE = re.compile(
     r"\\input\{chapters/(\w+)\}"
-    r"|\\scisession\{([^}]*)\}\{([^}]*)\}\{([^}]*)\}"
+    r"|\\scisession\{([^}]*)\}\{([^}]*)\}\{([^}]*)\}(?:\{([^}]*)\})?"
 )
 
 
@@ -1323,7 +1323,7 @@ def parse_master_sequence(sci_tex_path: Path):
         if m.group(1):
             items.append(("input", m.group(1)))
         else:
-            items.append(("session", m.group(2), m.group(3), m.group(4)))
+            items.append(("session", m.group(2), m.group(3), m.group(4), m.group(5) or ""))
     return fields, items
 
 
@@ -1338,6 +1338,7 @@ class Slide:
     date_html: str = ""
     is_later: bool = False
     session_label: str = ""
+    footer_label: str = ""   # left footer cell, mirrors the PDF footline / PDF フッター左と同じ文言
     divider_num: str = ""
     divider_time: str = ""
     todo_count: int = 0
@@ -1414,7 +1415,7 @@ def apply_web_markers(body_html: str, markers: WebMarkers):
     return body_html + extra_html, True
 
 
-def make_content_slide(frame: Frame, session_label: str) -> Slide:
+def make_content_slide(frame: Frame, session_label: str, footer_label: str) -> Slide:
     body_html, has_web_extra = apply_web_markers(render_block(frame.body_nodes), frame.web_markers)
     return Slide(
         kind="content",
@@ -1423,6 +1424,7 @@ def make_content_slide(frame: Frame, session_label: str) -> Slide:
         body_html=body_html,
         is_later=frame.is_later,
         session_label=session_label,
+        footer_label=footer_label,
         todo_count=frame.todo_count,
         has_web_extra=has_web_extra,
     )
@@ -1446,14 +1448,16 @@ def build_slides(sci_dir: Path) -> list[Slide]:
     fields, items = parse_master_sequence(slides_dir / "sci_tutorial.tex")
     slides = [make_title_slide(fields)]
     session_label = "オープニング"
+    footer_label = "オープニング"
     for item in items:
         if item[0] == "input":
             chapter_path = slides_dir / "chapters" / (item[1] + ".tex")
             for frame in parse_chapter_frames(chapter_path):
-                slides.append(make_content_slide(frame, session_label))
+                slides.append(make_content_slide(frame, session_label, footer_label))
         else:
-            _, num, stitle, stime = item
+            _, num, stitle, stime, sfooter = item
             session_label = f"S{num}" if num.isdigit() else stitle
+            footer_label = sfooter or (f"Session {num}" if num.isdigit() else stitle)
             slides.append(make_divider_slide(num, stitle, stime))
     return slides
 
@@ -1486,7 +1490,8 @@ def render_content_slide_body(slide: Slide, index: int, total: int) -> str:
     web_badge = '<span class="web-badge">Web 版のみ</span>' if slide.has_web_extra else ""
     header = f'<header class="slide-header"><h2>{slide.title_html}</h2>{later_badge}{web_badge}</header>'
     body = f'<div class="slide-body">{slide.body_html}</div>'
-    footer = (f'<footer class="slide-footer"><span class="footer-title">'
+    footer = (f'<footer class="slide-footer"><span class="footer-session">'
+              f'{esc(slide.footer_label)}</span><span class="footer-title">'
               f'{esc(DECK_SHORT_TITLE)}</span><span class="footer-page">'
               f'{index} / {total}</span></footer>')
     return header + body + footer

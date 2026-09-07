@@ -20,7 +20,36 @@
 % \lessondivider は "Lesson N" を固定表示するため、時間割で区切る本チュートリアル
 % には合わない。共有スタイルは触らず、セッション番号・題目・時間帯を出す専用の
 % 区切りマクロをここで定義する（dxh_workshop.tex と同じ方針）。
-\newcommand{\scisession}[3]{%
+% --- Footer: current session on the left, course title + lecturer in the middle
+% The shared footline (stampfly_slides.sty) shows author | title | page. For
+% a timetabled day the instructor wants the current session on the left and
+% the lecturer folded into the course title, so override the footline here
+% (shared style untouched, same policy as \scisession). \sciFooterSession is
+% set by \scisession's 4th argument; the opening sets it explicitly below.
+% 共有フッター（著者｜題目｜ページ）を、本デッキだけ「現在のセッション｜
+% 講習名（講師名を統合）｜ページ」に置き換える。共有スタイルは触らない。
+% \sciFooterSession は \scisession の第 4 引数で更新し、オープニングは下で明示する。
+\newcommand{\sciFooterSession}{}
+\newcommand{\sciFooterTitle}{制御教育教材 StampFly Ecosystem の紹介 ｜ 伊藤 恒平（金沢工業大学）}
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox{%
+    \begin{beamercolorbox}[wd=.30\paperwidth,ht=2.5ex,dp=1ex,center]{palette primary}%
+      \usebeamerfont{author in head/foot}\sciFooterSession
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.55\paperwidth,ht=2.5ex,dp=1ex,center]{palette secondary}%
+      \usebeamerfont{title in head/foot}\sciFooterTitle
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.15\paperwidth,ht=2.5ex,dp=1ex,right]{palette tertiary}%
+      \usebeamerfont{date in head/foot}%
+      \insertframenumber{} / \inserttotalframenumber\hspace*{2ex}
+    \end{beamercolorbox}%
+  }\vskip0pt%
+}
+
+% #1 session number, #2 title, #3 time slot, #4 short label for the footer
+% #1 セッション番号, #2 題目, #3 時間帯, #4 フッター用の短い表示名
+\newcommand{\scisession}[4]{%
+  \gdef\sciFooterSession{#4}%
   \begin{frame}[plain]
     \centering
     \vspace*{\fill}
@@ -79,30 +108,31 @@
 \end{frame}
 
 % === Opening: how this day works, participation levels, materials ===
+\gdef\sciFooterSession{オープニング}
 \input{chapters/sci_intro}
 
 % === Session 1: overview and design philosophy (10:05-11:00) ===
-\scisession{1}{StampFly Ecosystem の全体像と設計思想}{10:05 -- 11:00}
+\scisession{1}{StampFly Ecosystem の全体像と設計思想}{10:05 -- 11:00}{Session 1: 全体像と設計思想}
 \input{chapters/sci_s1_overview}
 
 % === Session 2: environment setup and sensor data (11:00-12:00) ===
-\scisession{2}{開発環境のセットアップとセンサデータの取得}{11:00 -- 12:00}
+\scisession{2}{開発環境のセットアップとセンサデータの取得}{11:00 -- 12:00}{Session 2: 環境構築とセンサ}
 \input{chapters/sci_s2_setup_sensors}
 
 % === Session 3: motor control and controller input (13:00-14:00) ===
-\scisession{3}{モータ制御とコントローラ入力の実装}{13:00 -- 14:00}
+\scisession{3}{モータ制御とコントローラ入力の実装}{13:00 -- 14:00}{Session 3: モータとコントローラ}
 \input{chapters/sci_s3_motor_controller}
 
 % === Session 4: feedback control basics, PID attitude stabilisation (14:00-15:00) ===
-\scisession{4}{フィードバック制御の基礎 --- PID による姿勢安定化}{14:00 -- 15:00}
+\scisession{4}{フィードバック制御の基礎 --- PID による姿勢安定化}{14:00 -- 15:00}{Session 4: PID 姿勢安定化}
 \input{chapters/sci_s4_pid}
 
 % === Session 5: simulator, analysis tools, advanced topics, Q&A (15:30-16:30) ===
-\scisession{5}{シミュレータ・解析ツールの活用と発展的テーマ}{15:30 -- 16:30}
+\scisession{5}{シミュレータ・解析ツールの活用と発展的テーマ}{15:30 -- 16:30}{Session 5: シミュレータと発展}
 \input{chapters/sci_s5_sim_analysis}
 
 % === Appendix: cheat sheets, review paths, troubleshooting ===
-\scisession{付録}{チートシートと復習パス}{持ち帰り資料}
+\scisession{付録}{チートシートと復習パス}{持ち帰り資料}{付録: チートシート・復習パス}
 \input{chapters/sci_appendix}
 
 \end{document}

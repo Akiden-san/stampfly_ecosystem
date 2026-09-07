@@ -97,6 +97,20 @@
   font-size: 17px;
   line-height: 1.2;
 }
+/* Left cell: current session (mirrors the PDF footline). Middle cell stays
+   centred by giving the outer cells equal width. */
+/* 左: 現在のセッション（PDF フッターと同じ）。両端を同幅にして中央を中央揃えに保つ */
+.footer-session,
+.footer-page {
+  flex: 0 0 26%;
+}
+.footer-page {
+  text-align: right;
+}
+.footer-title {
+  flex: 1 1 auto;
+  text-align: center;
+}
 
 /* ---- blocks (block / exampleblock / alertblock) ---------------------- */
 .block {
