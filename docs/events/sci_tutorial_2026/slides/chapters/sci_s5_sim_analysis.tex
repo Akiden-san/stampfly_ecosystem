@@ -110,7 +110,7 @@
   \vspace{0.5em}
 
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{lc}
       \hline
       \textbf{指標} & \textbf{許容差（判定条件）} \\
@@ -128,7 +128,7 @@
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{VPython と Genesis}
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{lll}
       \hline
       & \textbf{特徴} & \textbf{用途} \\
@@ -333,7 +333,30 @@ sf sysid noise static_noise.csv --sensor gyro --static-only --plot
 % estimator.typeパラメータで分岐；制御器はcontrol_task.cppの単一static
 % PidControllerインスタンスを直接差し替える — 制御器側にはまだファクトリが
 % 無いため）。
-\begin{frame}{研究利用の入口 (1/3): Topic API とは\later}
+% ------------------------------------------------------------------
+% Where to start: the lesson flow (switch/edit/build/flash) told
+% participants exactly where to write; `sf app` gives the same four
+% steps for one's own project (instructor request, 2026-09-07).
+% どこから始めるか: 実習は switch/edit/build/flash で書く場所が明確だった。
+% 研究利用でも同じ 4 手順を `sf app` で提供する（講師の指摘、2026-09-07）。
+\begin{frame}[fragile]{研究利用の入口 (1/4): 自分のコードはどこに書くか}
+  \begin{block}{実習と同じ 4 手順で自分のプロジェクトを持つ}\footnotesize
+    例題を複製した \code{firmware/apps/<名前>/} が自分の場所。\code{main/learner\_controller.cpp} に
+    制御則を書き，実習の \code{switch $\to$ edit $\to$ build $\to$ flash} と同じ順で動かす
+  \end{block}
+
+  \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{コマンド}
+sf app new my_ctrl        # 例題 10_custom_controller を複製
+sf app edit my_ctrl       # learner_controller.cpp が開く
+sf app build my_ctrl
+sf app flash my_ctrl -m
+  \end{sflisting}
+
+  {\scriptsize センサ値・推定値を読む研究なら \code{--from 09\_topic\_api\_hello}（姿勢トピックを購読して表示する例題）。
+  \code{sf app list} で例題一覧。(2/4)〜(4/4) は，このプロジェクトの中で何が読めて何を差し替えられるかの説明}
+\end{frame}
+
+\begin{frame}{研究利用の入口 (2/4): Topic API とは\later}
   \begin{block}{Pub-Sub（発行/購読型のメッセージ配信）}\footnotesize
     \code{Topic<T>}（\code{sf\_core}）がコンポーネント間を疎結合につなぐ。
     発行側は \code{publish(data)}，購読側は \code{latest()} で最新値を読む
@@ -342,7 +365,7 @@ sf sysid noise static_noise.csv --sensor gyro --static-only --plot
   \vspace{0.2em}
 
   \begin{table}
-    \centering\scriptsize
+    \centering\footnotesize
     \begin{tabular}{ll}
       \hline
       \textbf{トピック（\code{sf::}名前空間）} & \textbf{内容} \\
@@ -361,14 +384,14 @@ sf sysid noise static_noise.csv --sensor gyro --static-only --plot
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{研究利用の入口 (2/3): 推定器・制御器を載せる\later}
+\begin{frame}[fragile]{研究利用の入口 (3/4): 推定器・制御器を載せる\later}
   \begin{block}{\code{IEstimator}/\code{IController} を実装する}\footnotesize
     既存の ESKF・PID と同じインターフェース（\code{sf\_estimator}/\code{sf\_controller}）
     を実装すれば差し替えられる
   \end{block}
 
   \begin{table}
-    \centering\scriptsize
+    \centering\footnotesize
     \begin{tabular}{ll}
       \hline
       \textbf{インターフェース} & \textbf{主なメソッド} \\
@@ -386,7 +409,7 @@ sf sysid noise static_noise.csv --sensor gyro --static-only --plot
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{研究利用の入口 (3/3): サンプルプログラム\later}
+\begin{frame}[fragile]{研究利用の入口 (4/4): サンプルプログラム\later}
   \begin{block}{\code{examples/09\_topic\_api\_hello}}\footnotesize
     姿勢トピックを購読し，roll/pitch/yaw を 10\,Hz でシリアル表示する最小例
   \end{block}
@@ -399,7 +422,7 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
        rpy.x*180/M_PI, rpy.y*180/M_PI, rpy.z*180/M_PI);
   \end{sflisting}
 
-  {\scriptsize ビルド・書き込み: \code{sf build vehicle/examples/09\_topic\_api\_hello} $\to$ \code{sf flash vehicle/examples/09\_topic\_api\_hello -m}\\[0pt]
+  {\scriptsize 自分の複製で試す: \code{sf app new my\_hello --from 09\_topic\_api\_hello} $\to$ \code{sf app edit/build/flash my\_hello}\\[0pt]
   \warn{帰宅後に再現:} \code{examples/09\_topic\_api\_hello}（\code{04\_read\_imu} 等と
   同じく単独ビルド可能）を手元で試す}
 \end{frame}
@@ -413,7 +436,7 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
   \vspace{0.3em}
 
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{lp{80mm}}
       \hline
       \textbf{原則} & \textbf{内容} \\
@@ -490,21 +513,25 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
 \begin{frame}{理論とコードの対応表\later}
   {\footnotesize 本セッションの概念が，リポジトリのどのファイル・コマンドに対応するか一覧する}
 
-  \vspace{0.3em}
+  \vspace{0.15em}
 
-  \resizebox{\textwidth}{!}{%
-  \begin{tabular}{lll}
-    \hline
-    \textbf{概念} & \textbf{実装場所} & \textbf{コマンド} \\
-    \hline
-    層1: 設計用線形モデル       & \code{control/models/stampfly\_physical.yaml} & \code{sf sysid rate-fit} \\
-    層2: 実ログ駆動オフライン再生 & \code{analysis/scripts/}                       & --- \\
-    層3: SILS                   & \code{simulator/sils/}                         & \code{sf sils scenario} \\
-    モデル一致の合否判定         & \code{tools/log\_analyzer/rate\_sysid.py}      & \code{sf sils sysid-gate} \\
-    推定インターフェース         & \code{sf\_estimator} / \code{sf\_estimator\_eskf} & --- \\
-    制御インターフェース         & \code{sf\_controller} / \code{sf\_controller\_pid} & --- \\
-    \hline
-  \end{tabular}}
+  \begin{table}
+    \centering\footnotesize
+    \renewcommand{\arraystretch}{0.9}
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{>{\raggedright\arraybackslash}p{35mm}>{\raggedright\arraybackslash}p{58mm}>{\raggedright\arraybackslash}p{35mm}}
+      \hline
+      \textbf{概念} & \textbf{実装場所} & \textbf{コマンド} \\
+      \hline
+      層1: 設計用線形モデル       & \code{control/\allowbreak models/\allowbreak stampfly\_physical.yaml} & \code{sf sysid rate-fit} \\
+      層2: 実ログ駆動オフライン再生 & \code{analysis/\allowbreak scripts/}                       & --- \\
+      層3: SILS                   & \code{simulator/\allowbreak sils/}                         & \code{sf sils scenario} \\
+      モデル一致の合否判定         & \code{tools/\allowbreak log\_analyzer/\allowbreak rate\_sysid.py}      & \code{sf sils sysid-gate} \\
+      推定インターフェース         & \code{sf\_estimator} / \code{sf\_estimator\_\allowbreak eskf} & --- \\
+      制御インターフェース         & \code{sf\_controller} / \code{sf\_controller\_\allowbreak pid} & --- \\
+      \hline
+    \end{tabular}
+  \end{table}
 
   \vspace{0.5em}
 
@@ -514,17 +541,20 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
 
 % ------------------------------------------------------------------
 \begin{frame}{復習パス}
-  \resizebox{\textwidth}{!}{%
-  \begin{tabular}{lll}
-    \hline
-    \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
-    \hline
-    \code{sf sim run vpython}  & VPython シミュレータ    & \code{simulator/README.md} \\
-    \code{sf sils gui}         & SILS ブラウザ実験環境   & \code{simulator/sils/gui/README.md} \\
-    \code{sf log viz}          & ログ可視化              & \code{docs/guides/flight-log-viz.md} \\
-    ---                        & シミュレーション方針     & \code{docs/architecture/simulation-policy.md} \\
-    \hline
-  \end{tabular}}
+  \begin{table}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{>{\raggedright\arraybackslash}p{32mm}>{\raggedright\arraybackslash}p{35mm}>{\raggedright\arraybackslash}p{60mm}}
+      \hline
+      \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
+      \hline
+      \code{sf sim run vpython}  & VPython シミュレータ    & \code{simulator/\allowbreak README.md} \\
+      \code{sf sils gui}         & SILS ブラウザ実験環境   & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
+      \code{sf log viz}          & ログ可視化              & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
+      ---                        & シミュレーション方針     & \code{docs/\allowbreak architecture/\allowbreak simulation-policy.md} \\
+      \hline
+    \end{tabular}
+  \end{table}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -572,7 +602,7 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
       \item[$\square$] \code{sf sils gui} でのシナリオ実行とパラメータ編集の流れを見た
             （または手元で試した）
       \item[$\square$] L1 Topic API で自分の推定器・制御器を差し替える方法を理解した
-            （詳しくは「研究利用の入口 (1/3)〜(3/3)」）
+            （詳しくは「研究利用の入口 (1/4)〜(4/4)」）
       \item[$\square$] 解析ツールの入口を把握した
     \end{itemize}
   \end{alertblock}

@@ -53,8 +53,10 @@
     \end{column}
     \begin{column}{0.56\textwidth}
       \begin{table}
-        \centering\scriptsize
-        \begin{tabular}{ll}
+        \centering\footnotesize
+        \renewcommand{\arraystretch}{0.82}
+        \setlength{\tabcolsep}{3pt}
+        \begin{tabular}{lp{58mm}}
           \hline
           \textbf{項目} & \textbf{仕様} \\
           \hline
@@ -72,6 +74,7 @@
           \hline
         \end{tabular}
       \end{table}
+      \vspace{-2pt}
 
       {\scriptsize IMU（慣性計測装置）／ESP-NOW（ESP32 の無線プロトコル）。前方 ToF は未使用（高度推定は下方 ToF）}
     \end{column}
@@ -95,8 +98,7 @@
 % ------------------------------------------------------------------
 \begin{frame}{既存プラットフォームとの比較}
   \begin{table}
-    \centering
-    \resizebox{\textwidth}{!}{%
+    \centering\footnotesize
     \begin{tabular}{lcccc}
       \hline
        & Crazyflie & Tello EDU\textsuperscript{*} & PX4 & StampFly Eco. \\
@@ -107,7 +109,7 @@
       コスト             & 高 & 低 & 高 & 低 \\
       コード規模         & 中 & --- & 大 & 小 \\
       \hline
-    \end{tabular}}
+    \end{tabular}
   \end{table}
 
   \vspace{0.5em}
@@ -151,7 +153,7 @@
   \vspace{0.15em}
 
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \renewcommand{\arraystretch}{1.0}
     \setlength{\tabcolsep}{10pt}
     \begin{tabular}{ll}
@@ -182,7 +184,7 @@
   \vspace{0.5em}
 
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{ll}
       \hline
       \textbf{カテゴリ} & \textbf{コマンド例} \\
@@ -213,7 +215,7 @@
 % ------------------------------------------------------------------
 \begin{frame}{vehicle ファーム構造}
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{ll}
       \hline
       コンポーネント数 & 30（\code{sf\_*} 命名, フラット構造） \\
@@ -263,9 +265,9 @@
   \vspace{0.3em}
 
   \begin{table}
-    \centering\scriptsize
-    \setlength{\tabcolsep}{7pt}
-    \begin{tabular}{lp{58mm}p{48mm}}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{5pt}
+    \begin{tabular}{p{28mm}p{52mm}p{42mm}}
       \hline
       \textbf{層} & \textbf{内容} & \textbf{位置づけ} \\
       \hline
@@ -276,11 +278,11 @@
     \end{tabular}
   \end{table}
 
-  \vspace{0.3em}
+  \vspace{0.2em}
 
   {\footnotesize SILS（Software-in-the-Loop Simulation: 実ファームをホスト PC 上で MuJoCo 物理エンジンと組み合わせて動かすシミュレーション検証）}
 
-  \vspace{0.2em}
+  \vspace{0.1em}
 
   {\small 3 層とも同じ物理パラメータを参照するため、飛ばす前の設計（層 1・層 2）と飛ばした後の答え合わせ（層 3）が同じモデルの上でつながる。合否の基準と SILS の実習は S5 で扱う}
 \end{frame}
@@ -288,9 +290,8 @@
 % ------------------------------------------------------------------
 \begin{frame}{開発の3原則\later}
   \begin{table}
-    \centering
-    \resizebox{\textwidth}{!}{%
-    \begin{tabular}{lp{105mm}}
+    \centering\footnotesize
+    \begin{tabular}{lp{100mm}}
       \hline
       \textbf{原則} & \textbf{内容} \\
       \hline
@@ -298,7 +299,7 @@
       Parameter Identity & SILS も実機も \code{params.cpp} を唯一の基準として読む。チューニング値は同じスキーマで往復する \\
       Model Fidelity & SILS の真値は物理モデルから得る。実機データが必要になるのは、初飛行のあとにモデルを現実へ近づける段階だけである \\
       \hline
-    \end{tabular}}
+    \end{tabular}
   \end{table}
 \end{frame}
 
@@ -405,16 +406,19 @@ sf sils gui
 
 % ------------------------------------------------------------------
 \begin{frame}{復習パス\later}
-  \resizebox{\textwidth}{!}{%
-  \begin{tabular}{lll}
-    \hline
-    \textbf{コマンド} & \textbf{対象} & \textbf{文書} \\
-    \hline
-    \code{sf sim run vpython} & シミュレータ操縦 & \code{docs/architecture/simulation-policy.md} \\
-    \code{sf sils gui} & SILS シナリオ実行・可視化 & \code{simulator/sils/gui/README.md} \\
-    --- & 4階層アクセス & \code{firmware/vehicle/docs/architecture.md \S2} \\
-    \hline
-  \end{tabular}}
+  \begin{table}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{>{\raggedright\arraybackslash}p{35mm}>{\raggedright\arraybackslash}p{35mm}>{\raggedright\arraybackslash}p{65mm}}
+      \hline
+      \textbf{コマンド} & \textbf{対象} & \textbf{文書} \\
+      \hline
+      \code{sf sim run vpython} & シミュレータ操縦 & \code{docs/\allowbreak architecture/\allowbreak simulation-policy.md} \\
+      \code{sf sils gui} & SILS シナリオ実行・可視化 & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
+      --- & 4階層アクセス & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak architecture.md \S2} \\
+      \hline
+    \end{tabular}
+  \end{table}
 \end{frame}
 
 % ------------------------------------------------------------------

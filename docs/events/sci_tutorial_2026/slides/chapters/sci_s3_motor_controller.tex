@@ -192,7 +192,7 @@ void loop_400Hz(float dt) {
   \vspace{0.3em}
 
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{ll}
       \hline
       \api{ws::rc\_throttle/roll/pitch/yaw()} & スティック値の取得 \\
@@ -312,30 +312,36 @@ void loop_400Hz(float dt) {
 
   \vspace{0.3em}
 
-  \resizebox{\textwidth}{!}{%
-  \begin{tabular}{llll}
-    \hline
-    \textbf{理論} & \textbf{コード} & \textbf{通信} & \textbf{トピック} \\
-    \hline
-    Duty比 $[0,1]$ & \api{ws::motor\_set\_duty(id,d)} & --- & \code{actuator\_motor} \\
-    スティック指令 $T,R,P,Y$ & \api{ws::rc\_throttle()} 等 & \code{ControlPacket}（14B） & \code{command\_setpoint} \\
-    ミキシング & \api{ws::motor\_mixer(T,R,P,Y)} & --- & --- \\
-    \hline
-  \end{tabular}}
+  \begin{table}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{>{\raggedright\arraybackslash}p{30mm}>{\raggedright\arraybackslash}p{40mm}>{\raggedright\arraybackslash}p{35mm}>{\raggedright\arraybackslash}p{26mm}}
+      \hline
+      \textbf{理論} & \textbf{コード} & \textbf{通信} & \textbf{トピック} \\
+      \hline
+      Duty比 $[0,1]$ & \api{ws::\allowbreak motor\_set\_duty(id,d)} & --- & \code{actuator\_\allowbreak motor} \\
+      スティック指令 $T,R,P,Y$ & \api{ws::\allowbreak rc\_throttle()} 等 & \code{ControlPacket}（14B） & \code{command\_\allowbreak setpoint} \\
+      ミキシング & \api{ws::\allowbreak motor\_mixer(T,R,P,Y)} & --- & --- \\
+      \hline
+    \end{tabular}
+  \end{table}
 \end{frame}
 
 % ------------------------------------------------------------------
 \begin{frame}{復習パス\later}
-  \resizebox{\textwidth}{!}{%
-  \begin{tabular}{lll}
-    \hline
-    \textbf{コマンド} & \textbf{実習} & \textbf{文書} \\
-    \hline
-    \code{sf lesson switch sci2026:3} & 実習 3 モータ制御 & \code{firmware/vehicle/docs/hardware\_init.md} \\
-    \code{sf lesson switch sci2026:4} & 実習 4 コントローラ入力 & \code{protocol/spec/}（ControlPacket） \\
-    \code{sf flash controller} & --- & \code{docs/commands/sf-flasher.md} \\
-    \hline
-  \end{tabular}}
+  \begin{table}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{>{\raggedright\arraybackslash}p{40mm}>{\raggedright\arraybackslash}p{35mm}>{\raggedright\arraybackslash}p{55mm}}
+      \hline
+      \textbf{コマンド} & \textbf{実習} & \textbf{文書} \\
+      \hline
+      \code{sf lesson switch sci2026:3} & 実習 3 モータ制御 & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak hardware\_init.md} \\
+      \code{sf lesson switch sci2026:4} & 実習 4 コントローラ入力 & \code{protocol/\allowbreak spec/}（ControlPacket） \\
+      \code{sf flash controller} & --- & \code{docs/\allowbreak commands/\allowbreak sf-flasher.md} \\
+      \hline
+    \end{tabular}
+  \end{table}
 
   \vspace{0.5em}
 

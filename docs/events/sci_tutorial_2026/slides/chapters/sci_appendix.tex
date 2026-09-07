@@ -134,28 +134,50 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{5セッション復習パス}
-  \resizebox{\textwidth}{!}{%
-  \begin{tabular}{llll}
-    \hline
-    & \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
-    \hline
-    S1 & \code{sf sim run vpython}        & シミュレータ操縦        & \code{docs/commands/sf-sim.md} \\
-    S1 & \code{sf sils gui}               & 層 3 の体験             & \code{simulator/sils/gui/README.md} \\
-    S2 & \code{sf lesson switch sci2026:2} & IMU センサ（実習2）    & \code{firmware/vehicle/docs/architecture.md \S2} \\
-    S2 & \code{sf log wifi/viz}           & テレメトリ取得と可視化  & \code{docs/guides/flight-log-viz.md} \\
-    S3 & \code{sf lesson switch sci2026:3} & モータ制御（実習3）     & \code{firmware/vehicle/docs/hardware\_init.md} \\
-    S3 & \code{sf lesson switch sci2026:4} & コントローラ入力（実習4） & \code{protocol/spec/}（ControlPacket） \\
-    S4 & \code{sf lesson switch sci2026:8} & PID 制御（実習8）       & Workshop Lesson 8 \\
-    S4 & \code{sf sysid fit}              & システム同定（実習7）    & Workshop Lesson 7 \\
-    S5 & \code{sf sils gui}               & SILS ブラウザ実験環境   & \code{simulator/sils/gui/README.md} \\
-    S5 & \code{sf log viz}                & ログ解析                & \code{docs/guides/flight-log-viz.md} \\
-    \hline
-  \end{tabular}}
+% NOTE: 元は1枚・10行の表だったが、footnotesize では frame の縦幅（vbox）に
+% 収まらず（実測で規定の縦幅を約13mm超過）、scriptsizeに落としても\code
+% マクロが常に\smallで組まれるため解消しなかった。列幅・行間・余白の調整
+% だけでは収まらないため、sf CLIチートシート等と同じ(1/2)/(2/2)の2枚構成に
+% 分割し、footnotesize を維持する。
+\begin{frame}{5セッション復習パス (1/2)}
+  \begin{table}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{l>{\raggedright\arraybackslash}p{40mm}>{\raggedright\arraybackslash}p{33mm}>{\raggedright\arraybackslash}p{55mm}}
+      \hline
+      & \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
+      \hline
+      S1 & \code{sf sim run vpython}        & シミュレータ操縦        & \code{docs/\allowbreak commands/\allowbreak sf-sim.md} \\
+      S1 & \code{sf sils gui}               & 層 3 の体験             & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
+      S2 & \code{sf lesson switch sci2026:2} & IMU センサ（実習2）    & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak architecture.md \S2} \\
+      S2 & \code{sf log wifi/viz}           & テレメトリ取得と可視化  & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
+      S3 & \code{sf lesson switch sci2026:3} & モータ制御（実習3）     & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak hardware\_init.md} \\
+      S3 & \code{sf lesson switch sci2026:4} & コントローラ入力（実習4） & \code{protocol/\allowbreak spec/}（ControlPacket） \\
+      \hline
+    \end{tabular}
+  \end{table}
+\end{frame}
 
-  \vspace{0.3em}
+% ------------------------------------------------------------------
+\begin{frame}{5セッション復習パス (2/2)}
+  \begin{table}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{l>{\raggedright\arraybackslash}p{40mm}>{\raggedright\arraybackslash}p{33mm}>{\raggedright\arraybackslash}p{55mm}}
+      \hline
+      & \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
+      \hline
+      S4 & \code{sf lesson switch sci2026:8} & PID 制御（実習8）       & Workshop Lesson 8 \\
+      S4 & \code{sf sysid fit}              & システム同定（実習7）    & Workshop Lesson 7 \\
+      S5 & \code{sf sils gui}               & SILS ブラウザ実験環境   & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
+      S5 & \code{sf log viz}                & ログ解析                & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
+      \hline
+    \end{tabular}
+  \end{table}
 
-  {\scriptsize Workshop スライド（\code{docs/events/stampfly\_workshop/slides/chapters/}）内の該当 Lesson 章に対応}
+  \vspace{0.5em}
+
+  {\footnotesize Workshop スライド（\code{docs/\allowbreak events/\allowbreak stampfly\_workshop/\allowbreak slides/\allowbreak chapters/}）内の該当 Lesson 章に対応}
 \end{frame}
 
 % ------------------------------------------------------------------

@@ -30,7 +30,7 @@
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{OS による違いはここだけ}
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{lll}
       \hline
       \textbf{OS} & \textbf{インストール} & \textbf{環境の有効化} \\
@@ -105,7 +105,7 @@
   \vspace{0.5em}
 
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{ll}
       \hline
       \textbf{コマンド} & \textbf{役割} \\
@@ -171,7 +171,7 @@
 % ------------------------------------------------------------------
 \begin{frame}{IMU API と単位}
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{lll}
       \hline
       \textbf{関数} & \textbf{説明} & \textbf{単位} \\
@@ -368,7 +368,7 @@ sf log viz flight.csv
   \vspace{0.3em}
 
   \begin{table}
-    \centering\small
+    \centering\footnotesize
     \begin{tabular}{lccc}
       \hline
       \textbf{理論} & \textbf{コード} & \textbf{Data Stream 列} & \textbf{トピック} \\
@@ -387,16 +387,19 @@ sf log viz flight.csv
 
 % ------------------------------------------------------------------
 \begin{frame}{復習パス\later}
-  \resizebox{\textwidth}{!}{%
-  \begin{tabular}{lll}
-    \hline
-    \textbf{コマンド} & \textbf{実習} & \textbf{文書} \\
-    \hline
-    \code{sf doctor} / \code{sf build vehicle} / \code{sf flash vehicle -m} & 実習1（環境確認とビルド） & \code{docs/guides/troubleshooting.md} \\
-    \code{sf lesson switch sci2026:2} & 実習2（IMU） & \code{firmware/vehicle/docs/architecture.md \S2} \\
-    \code{sf log wifi} / \code{sf log viz} & --- & \code{docs/guides/flight-log-viz.md} \\
-    \hline
-  \end{tabular}}
+  \begin{table}
+    \centering\footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{>{\raggedright\arraybackslash}p{50mm}>{\raggedright\arraybackslash}p{28mm}>{\raggedright\arraybackslash}p{55mm}}
+      \hline
+      \textbf{コマンド} & \textbf{実習} & \textbf{文書} \\
+      \hline
+      \code{sf doctor} / \code{sf build vehicle} / \code{sf flash vehicle -m} & 実習1（環境確認とビルド） & \code{docs/\allowbreak guides/\allowbreak troubleshooting.md} \\
+      \code{sf lesson switch sci2026:2} & 実習2（IMU） & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak architecture.md \S2} \\
+      \code{sf log wifi} / \code{sf log viz} & --- & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
+      \hline
+    \end{tabular}
+  \end{table}
 \end{frame}
 
 % ------------------------------------------------------------------
