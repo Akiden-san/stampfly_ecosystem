@@ -1,76 +1,119 @@
-# `sf app` プロジェクトの SILS 対応計画
+# `sf app` を L1（Topic API）の入口にし、SILS で検証できるようにする計画
 
-作成: 2026-09-07。発端: README「何ができるのか？」に「飛行プログラムの SILS（Software In the
-Loop Simulation: ファームウェアそのものを PC 上で動かす試験）での検証」を掲げたが、`sf app` で
-作った自作プロジェクトは現状 SILS で動かせないと判明したため、何が欠けているかを洗い出し、
-実装計画を定める。
+作成: 2026-09-07（同日、L0 骨格への一本化案を取り下げて改訂）。
+
+発端: README「何ができるのか？」に「独自の飛行プログラムの作成」「飛行プログラムの SILS
+（Software In the Loop Simulation: ファームウェアそのものを PC 上で動かす試験）での検証」を
+掲げたが、`sf app` で作った自作プロジェクトは現状 SILS で動かせないと判明した。
+
+方針の前提（2026-09-07 ユーザー確認）:
+
+- workshop 骨格（`firmware/workshop`、`setup()` / `loop_400Hz()`）は **L0**（最下層の飛行制御を
+  自分で書けるようになるための初心者の層）であり、`sf app` の対象ではない。
+- `sf app` が担うのは **L1**: vehicle 本体の Pub-Sub（Topic API、`sf::api::`）を使って自分の
+  プログラム（コントローラ・推定器・ガイダンス、トピックを読むタスク）を書き、それを
+  **vehicle 本体に組み込んで**実機と SILS の両方で動かすこと。
+- HAL（L2）や BSP（L3）を自分で書きたい人は現時点では考慮しない。
 
 ## 0. 要旨
 
 | 観点 | 内容 |
 |------|------|
-| 現状 | `sf app` プロジェクトは例題（`firmware/vehicle/examples/<N>`）の複製で、独立した ESP-IDF プロジェクト。SILS は `vehicle` / `vehicle_old` / `workshop` の 3 ターゲットを CMake にベタ書きしており、`apps/<name>` を受け付ける口がどの層にも無い |
-| 根本の問題 | 既定の複製元 `10_custom_controller` は合成信号で制御則を呼ぶだけの**ベンチ**で、機体のタスク基盤も実センサも使わない。仮に SILS でビルドできても閉ループにならず、飛行検証にはならない |
-| 方針 | 「自作飛行プログラム」の受け皿を、すでに実機・SILS 両対応の **workshop 骨格**（vehicle のタスク基盤 + 学習者コード `setup()` / `loop_400Hz()`）に一本化する。`sf app` プロジェクトは「学習者コード一式を持つディレクトリ」となり、実機ビルドと SILS ビルドの両方が同じ骨格にそのコードを差し込む。並列の新機構は作らない |
-| 成果 | `sf app new my_ctrl` → `sf app build my_ctrl`（実機）／ `sf app sils my_ctrl`（SILS）が**同一ソース**をコンパイルする。Code Identity（実機と SILS で同じコードが動くこと）を自作プロジェクトにも拡張する |
-| 見積り | Phase 0〜3 で 4〜6 日。Phase 4（`sf lesson` の同方式への移行）は任意 |
+| 現状 | `sf app` プロジェクトは例題 09 / 10 の複製で、vehicle 本体とは別の独立した ESP-IDF プロジェクト。例題は vehicle のタスクを起動せず、10 番は合成信号でコントローラだけを回す**ベンチ**。実機で飛ばすには vehicle 本体の `control_task.cpp` を手で 1 行書き換える必要があり、`sf app` も SILS もそれを自動化していない |
+| 何が無いか | (1) vehicle 本体に「ユーザーのコントローラ／推定器／タスク」を差し込む正式な口、(2) 実機ビルドと SILS ビルドの両方に外部ディレクトリ（`firmware/apps/<name>`）を取り込む CMake の口、(3) それを呼ぶ `sf app` / `sf sils` の配線 |
+| 方針 | vehicle 本体に **アプリフック**（`sf::app::start()`、`sf::app::controller()`、`sf::app::estimator()`）を 1 組定義し、`firmware/apps/<name>` をその実装として **vehicle の main コンポーネントに直接コンパイルする**。実機ビルドも SILS の `emu_vehicle` も同じ変数 `SF_APP_DIR` でそのディレクトリを取り込む。L0（workshop）とは並列に共存する層であり、置き換えない |
+| 成果 | `sf app new my_ctrl` → `sf app build my_ctrl`（実機）／ `sf app sils my_ctrl`（SILS）が**同一ソース**を vehicle 本体に組み込んで動かす。Code Identity（実機と SILS で同じコードが動く）を自作プログラムに拡張する |
+| 見積り | Phase 0〜3 で 5〜7 日。Phase 4（書き込み系 API の拡張）は別途設計 |
 
 ## 1. 何ができていないか（事実）
 
-調査は 2026-09-07 に実施し、以下の行番号はその時点のもの。
+調査は 2026-09-07 に実施し、行番号はその時点のもの。★は計画立案者が直接コードで再確認した項目。
 
-### sf CLI 層
-
-| 項目 | 現状 | 根拠 |
-|------|------|------|
-| SILS ターゲットの固定 | `SILS_TARGETS = ("vehicle", "vehicle_old", "workshop")`、実行ファイル名は `emu_<name>` | `lib/sfcli/commands/sils.py:122-123` |
-| `sf sils scenario --target` | `choices=list(SILS_TARGETS)` のため `apps/<name>` は引数解析の段階で拒否される | `sils.py:374` |
-| `sf sils build --target` | 自由文字列だが `cmake --build --target <name>` にそのまま渡り、CMake 側に無いターゲットなので失敗する | `sils.py:325-328, 584, 654` |
-| `sf app` の副コマンド | `new` / `edit` / `build` / `flash` / `list` のみ。`build` / `flash` は `sf build apps/<name>` / `sf flash apps/<name>` への委譲で、SILS には触れない | `lib/sfcli/commands/app.py:397-425` |
-| `sf build` | `firmware/<target>` を `idf.py build` する実機ビルド専用。SILS（ホスト側 CMake）とは別系統 | `lib/sfcli/commands/build.py:87, 135`、`lib/sfcli/utils/paths.py:206-208` |
-
-### SILS の CMake 層
+### vehicle ファームウェア層
 
 | 項目 | 現状 | 根拠 |
 |------|------|------|
-| ターゲット定義 | `emu_vehicle` / `emu_vehicle_old` / `emu_workshop` の 3 つの `add_executable()` がベタ書き。ディレクトリを走査して動的にターゲットを生やす仕組みは無い | `simulator/sils/CMakeLists.txt:314-344, 358-404, 437-511` |
-| `emu_workshop` の構成 | vehicle の全ソース（`EMU_FW_SRCS`）から `main/main.cpp`・`tasks/control_task.cpp`・`tasks/tasks.cpp` を正規表現で除き、`firmware/workshop/main/workshop_{main,tasks,control_task}.cpp` と `user_code.cpp` を足す | `CMakeLists.txt:468-475` |
-| アプリ固有コードの注入点 | `emu_main.cpp` が `extern "C" void app_main()` を 1 つだけリンク時に解決する。「どの main をリンクするか」を CMake に書くことが唯一のフック | `simulator/sils/emu/emu_main.cpp:55, 387` |
-| 学習者コードの初回生成 | `user_code.cpp` が無ければ Lesson 0 の `student.cpp` から `configure_file` で生成するロジックが、実機ビルドと SILS ビルドの 2 か所に重複している | `firmware/workshop/main/CMakeLists.txt:15-24`、`simulator/sils/CMakeLists.txt:450-455` |
+| コントローラの選択 ★ | `static sf::PidController controller;` の 1 行で固定。ファクトリ・レジストリ・弱シンボル・マクロは無い | `firmware/vehicle/tasks/control_task.cpp:63` |
+| 推定器の選択 ★ | `createEstimator()` がパラメータ `estimator.type` で ESKF と相補フィルタの**既存 2 実装**から選ぶだけ。ユーザー実装を差し込む口は無い | `firmware/vehicle/tasks/imu_task.cpp:115-129` |
+| タスク起動 | `start_all()` は 16 タスクの固定列挙。`app_main()` は 5 フェーズ（NVS → BSP → topics → params → `start_all()`）。ユーザー追加タスクを起動するフックは無い | `firmware/vehicle/tasks/tasks.cpp:42-104`、`firmware/vehicle/main/main.cpp:38-89` |
+| Topic API の範囲 ★ | `sf::api::` は「最新値の読み取り」のみ（`imu_latest()`、`estimate_latest()`、`command_latest()`、`control_latest()`、`motor_latest()`、`power_latest()`、`current_mode()`、`is_armed()`）。アクチュエータ操作・状態要求は「M5 に先送り」と明記 | `firmware/vehicle/components/sf_api/include/sf_api.hpp:24-34, 55-162` |
+| `IController` | 12 メソッド（`compute` / `reset` / `onModeChange` / `onLanding` / `onTakeoff` / `onTakeoffComplete` / `isTakeoffComplete` / `setGuidanceTarget` / `isGuidanceActive` / `startExcitation` / `fetchSysidResult` / `reloadParams`）。実装は `PidController` のみ | `firmware/vehicle/components/sf_controller/include/controller.hpp:56-201` |
+| `IEstimator` | 実装は `EskfEstimator`、`ComplementaryEstimator` | `firmware/vehicle/components/sf_estimator/include/estimator.hpp:54-248` |
+| 外部ディレクトリの取り込み ★ | `EXTRA_COMPONENT_DIRS` は `components` と `../common` の 2 つ固定。`main/CMakeLists.txt` の `REQUIRES` は 27 コンポーネントの静的列挙 | `firmware/vehicle/CMakeLists.txt:13-16`、`firmware/vehicle/main/CMakeLists.txt:21-55` |
+| 新規 Topic の追加 | `data_types.hpp` → `topics.hpp` → `topics.cpp` → 文書更新、の vehicle 本体編集が前提。外部から追加する経路は無い | `firmware/vehicle/docs/topic_reference.md` §7（335-346 行） |
 
-### ファームウェア層（例題・apps の設計）
-
-| 項目 | 現状 | 根拠 |
-|------|------|------|
-| 既定の複製元 | `sf app new` の既定 `--from` は `10_custom_controller` | `app.py`（`DEFAULT_EXAMPLE`） |
-| 10_custom_controller の性質 | 独自 `app_main()` を持ち、合成サイン波でピッチ外乱を作って `LearnerController::compute()` を呼ぶだけ。プラントモデル無し・飛行シミュレータではないと README が明記 | `firmware/vehicle/examples/10_custom_controller/README.md:15-28` |
-| 実機で飛ばす手順 | 「vehicle 本体を再ビルドする必要がある」とし、`tasks/control_task.cpp:63` の `static sf::PidController controller;` を**手で**書き換える手順を示す。自動化は無い | 同 README §8（159-175 行） |
-| 09_topic_api_hello | 同様に独自 `app_main()` と簡易センサフィードを持つ独立プロジェクト | `firmware/vehicle/examples/09_topic_api_hello/main/` |
-| apps の位置づけ | 「いずれの例題も StampFly 実機本体を飛ばすものではない」「飛行制御パイプラインに組み込むには `firmware/vehicle` 本体の再ビルドが必要」と明記。SILS への言及は無い | `firmware/apps/README.md` §5、`docs/commands/sf-app.md` |
-| workshop 骨格の学習者 API | センサ値（gyro/accel/baro/mag/tof/flow）、送信機入力、モータ出力とミキサ、アーム、推定姿勢を関数で提供。学習者は `setup()` と `loop_400Hz(float dt)` を書く | `firmware/workshop/main/workshop_api.hpp` |
-| `sf lesson switch` の実体 | `lessons/lesson_NN/{student,solution}.cpp` を `firmware/workshop/main/user_code.cpp` へ単純コピー。コピーが更新時刻を保つため、SILS 再ビルド前に `touch` が必要と講師ガイドに明記 | `lib/sfcli/commands/lesson.py:48-50, 758-793`、`docs/events/stampfly_workshop/workshop_guide.md:191-203` |
-
-### テスト・CI・文書
+### 例題・`sf app` 層
 
 | 項目 | 現状 | 根拠 |
 |------|------|------|
-| SILS シナリオ | workshop 向けは `workshop_acro.scn` / `.expect`（離陸すること・転倒しないことの緩い合格基準）が存在。apps 向けは無い | `simulator/sils/scenarios/workshop_acro.*` |
-| CI | `sils-regression.yml` は 3 ターゲットの範囲で回る。apps を回すジョブは無い | `.github/workflows/sils-regression.yml` |
-| 文書 | `docs/commands/sf-app.md`・`firmware/apps/README.md` に SILS 連携の記述は無い（意図的に「飛ばさない」設計と明記） | 同上 |
+| `sf app` の実体 | `firmware/vehicle/examples/<N>` を `firmware/apps/<name>` に複製し、`EXTRA_COMPONENT_DIRS` を `../../vehicle/components` に向け直すだけ。`build` / `flash` は `sf build apps/<name>` / `sf flash apps/<name>` への委譲。SILS には触れない | `lib/sfcli/commands/app.py:238-268, 397-425` |
+| 09_topic_api_hello | vehicle のタスクを起動せず、`internal_sensor_feed.cpp` が自前で BMI270 を読み相補フィルタで `estimate_state` を publish する独立プロジェクト（README で「L2 の下ごしらえ」と明記） | `firmware/vehicle/examples/09_topic_api_hello/main/main.cpp:75-131` |
+| 10_custom_controller | `LearnerController` は `IController` を実装しているが、`main.cpp` は合成サイン波に対して単体で回すベンチ。README §8 が「実機で飛ばすレシピ」として、新コンポーネント化 → `main/CMakeLists.txt` の `REQUIRES` 追加 → `control_task.cpp` に include 追加 → 63 行目を `static sf::LearnerController controller;` に書き換え → `sf build vehicle` と SILS 退行確認、を**手作業**で示す | `firmware/vehicle/examples/10_custom_controller/README.md`（§2、§8） |
+| 設計原則との関係 | 例題集は「単独でビルド・実行可能（vehicle 全体のビルド不要）」を設計原則としており、計画中の L1 例題（`11_pid_single_axis` 〜 `20_pubsub_basics`）も同じ単独ベンチ路線の見積りになっている。vehicle 組み込みを前提とした例題計画は無い | `firmware/vehicle/docs/coding_and_education.md:218-227, 254-284` |
+| 廃止された先行例 | `firmware/my_drone`（2026-03 最終更新）は vehicle のタスクを共有するユーザーファームを試みた形跡があるが、参照するコンポーネント名が現行と異なり、現状はビルドできない可能性が高い（推測） | `firmware/my_drone/main/CMakeLists.txt` |
+
+### SILS・sf CLI 層
+
+| 項目 | 現状 | 根拠 |
+|------|------|------|
+| SILS ターゲット | `SILS_TARGETS = ("vehicle", "vehicle_old", "workshop")` 固定。`sf sils scenario --target` は `choices` で `apps/<name>` を引数解析の段階で拒否 | `lib/sfcli/commands/sils.py:122-123, 374` |
+| `emu_vehicle` のソース ★ | `firmware/vehicle` の `main` / `tasks` / `components` を `GLOB_RECURSE` で収集し `docs` / `examples` / `test` / `build` を除外。外部ディレクトリを足す変数は無い | `simulator/sils/CMakeLists.txt:289-293` |
+| `sf sils build` の configure | `-D` は `CMAKE_BUILD_TYPE`・コンパイラ・ジェネレータのみ | `sils.py:634-647` |
+| 近い前例 | `emu_workshop` は vehicle のソースから `main.cpp` / `control_task.cpp` / `tasks.cpp` を除き、`firmware/workshop/main/*.cpp` を足す。実機側 `firmware/workshop/main/CMakeLists.txt` も同じ除外をする。「vehicle の main コンポーネントに外部ソースを混ぜる」実働例 | `simulator/sils/CMakeLists.txt:437-511`、`firmware/workshop/main/CMakeLists.txt:30-92` |
+| テスト・CI | apps 向けシナリオ・CI ジョブは無い | `simulator/sils/scenarios/`、`.github/workflows/sils-regression.yml` |
 
 ## 2. 設計判断
 
-| 案 | 内容 | 判断 |
-|----|------|------|
-| A. 例題の `app_main` をそのまま SILS で動かす | `emu_apps_<name>` を追加し例題の main をリンク | **却下**。例題は機体のタスク基盤を使わず、プラントとの閉ループにならない。動いても「飛行プログラムの検証」にならない |
-| B. vehicle 本体に新しい「コントローラ差し替えフック」を作り、apps がコントローラ実装を供給 | `control_task.cpp:63` の手作業を CMake 変数で自動化 | **保留**。workshop 骨格の `setup()`/`loop_400Hz()` と並ぶ第 2 の拡張点になり、二重構造を生む（アーキテクチャ不変条件「並列経路を作らない」に抵触）。Phase 4 以降で workshop 骨格と統合できる見通しが立ったときに再検討 |
-| C. workshop 骨格を「ユーザーコード実行基盤」として一般化し、学習者コードの所在を CMake 変数で指定できるようにする | lessons も apps も同じ変数で差し込む | **採用**。実機・SILS 両対応と Code Identity が既に実証済み（CI で workshop ターゲットが回っている）。新機構は「変数化」だけ |
+### 拡張点: vehicle 本体の「アプリフック」
 
-採用案の要点:
+vehicle 本体に、ユーザープログラムが実装を提供できる関数を 1 組だけ定義する（仮称、命名は
+Phase 0 で確定）。
 
-- 拡張点は 1 つ（`setup()` / `loop_400Hz()`）。`sf lesson`（学習）と `sf app`（研究・自作）は同じ骨格の利用者になる。
-- 09 / 10 の例題は「API 学習・ベンチ」として残す。`sf app new --from 10_custom_controller` は引き続き可能だが、`sf app list` で **SILS 不可（ベンチ）** と表示し、既定の複製元は飛べるテンプレートに変える。
-- 骨格ディレクトリ名 `firmware/workshop` を中立な名前に改める案は影響が大きいので Phase 4 で別途判断する。まず変数化で機能を成立させる。
+| フック | 既定の実装（app 無し） | ユーザー実装の例 |
+|--------|----------------------|------------------|
+| `sf::IController& sf::app::controller()` | `PidController` の静的インスタンスを返す（現行 63 行目と同じ挙動） | 自作 `IController` を返す（10 番の `LearnerController` 相当） |
+| `sf::IEstimator& sf::app::estimator()` | 現行 `createEstimator()` と同じ（`estimator.type` で ESKF／相補） | 自作 `IEstimator` を返す |
+| `void sf::app::start()` | 何もしない | トピックを読んで記録・判定・通知するタスクを起動する（`sf::api::*_latest()` を使う） |
+
+- `control_task.cpp:63` と `imu_task.cpp` の `createEstimator()` は、このフックを呼ぶ形に置き換える。
+  現行の手作業レシピ（README §8）を正式な口にするだけで、制御則そのものは変えない。
+- `main.cpp` の起動フェーズ末尾で `sf::app::start()` を呼ぶ。
+- 既定実装は `firmware/vehicle/main/app_default.cpp` に置く。
+
+### 取り込み方式: main コンポーネントへの直接コンパイル
+
+| 方式 | 判断 |
+|------|------|
+| A. 弱シンボル（既定を `__attribute__((weak))`、app が強シンボル） | **不採用**。ESP-IDF はコンポーネントを静的ライブラリにするため、弱定義で参照が満たされると app 側のアーカイブ要素が引き込まれない事故が起きうる（`WHOLE_ARCHIVE` 指定で回避できるが構成が増える） |
+| B. 同名コンポーネントの差し替え（`EXTRA_COMPONENT_DIRS` の優先順で `sf_app` を上書き） | **不採用**。優先順の規則に依存し、SILS 側（ESP-IDF を使わない素の CMake）には同じ仕組みが無い |
+| C. **`SF_APP_DIR` の `*.cpp` を main コンポーネントの `SRCS` に足し、`app_default.cpp` を外す** | **採用**。workshop 骨格が `user_code.cpp` で行っている方式と同型で、実機（ESP-IDF）と SILS（素の CMake）の両方に同じ 5 行で書ける。同一アーカイブ内なので参照解決の事故が無い |
+
+`firmware/apps/<name>/` の中身は `app.cpp`（フックの実装）と任意の追加 `*.cpp` / `*.hpp`、
+`app.yaml`（複製元・説明・対応: 実機 / SILS）、`README.md`。ESP-IDF の依存（`REQUIRES`）は
+main コンポーネントのものを共有するので、app 側に CMakeLists は不要。
+
+### L0 との関係
+
+L0（workshop）は `ControlTask` を丸ごと `WorkshopControlTask` に置き換える層、L1（本計画）は
+vehicle 本体のタスク構成をそのまま使い `IController` / `IEstimator` / 追加タスクを差し込む層。
+アーキテクチャ設計書 §2.5 が「各層は並列に共存する」と定めるとおり、両者は別の入口として
+維持する。将来 `WorkshopControlTask` を L1 フックの上に載せ替える案はあるが、本計画の範囲外。
+
+### 例題 09 / 10 の扱い
+
+- 09 / 10 は「vehicle 全体をビルドせずに API を学ぶ」単独ベンチとして残す（設計原則どおり）。
+- `sf app new` の既定の複製元は、新設する **L1 組み込み型テンプレート**に変える。09 / 10 からの
+  複製は引き続き可能だが、`app.yaml` に `sils: false` を記録し、`sf app list` に「ベンチ（SILS 不可）」
+  と表示する。
+- 10 番の README §8 は、新方式では「`sf app new --from 11_app_controller` でそのまま使える」に
+  書き換える。
+
+### 書き込み系 API（後続）
+
+`sf::api::` は現状読み取り専用で、アクチュエータ操作・状態要求は「M5 に先送り」と明記されて
+いる。ガイダンス目標の設定（`IController::setGuidanceTarget` を外から呼ぶ）、モード要求、
+パラメータの読み書きを L1 から行えるようにする範囲は、Phase 4 として別途設計する（状態機械の
+不変条件との照合が必要なため、本計画では範囲を決めない）。
 
 ## 3. 目標の使い方（受け入れ基準）
 
@@ -88,74 +131,78 @@ sf app sils my_ctrl
 
 | 基準 | 内容 |
 |------|------|
-| 同一ソース | `sf app build` と `sf app sils` が `firmware/apps/my_ctrl/user_code.cpp` を同じ骨格にリンクする |
-| 合格基準 | 既定テンプレートで `workshop_acro` 相当のシナリオ（離陸する・転倒しない）が PASS する |
-| 退行なし | 既存の SILS 回帰（vehicle / vehicle_old / workshop）と実機ビルド（`sf build workshop`、`sf lesson build`）に変化がない |
-| 分離 | app ごとにビルド成果物が分かれ、別 app の切替でキャッシュ汚染や `touch` が要らない |
+| 同一ソース | `sf app build` と `sf app sils` が `firmware/apps/my_ctrl/*.cpp` を vehicle 本体の main コンポーネントに組み込む |
+| 既定挙動の維持 | app 無しの vehicle（既定実装）は現行と同じバイナリ挙動。SILS 回帰（vehicle / vehicle_old / workshop）に退行が無い |
+| 合格基準 | 既定テンプレート（PID と同等の `IController`）で既存シナリオ `alt_flight`・`acro_flight` が PASS する |
+| 分離 | app ごとに実機・SILS のビルド成果物が分かれ、app の切替でキャッシュ汚染が起きない |
 | 3 OS | Windows（CMD）/ macOS / Ubuntu で同じコマンドが通る（パスに空白を含む場合を含む） |
 
 ## 4. 実装計画
 
-### Phase 0: 仕様確定（0.5 日）
+### Phase 0: 仕様確定（0.5〜1 日）
 
 | 作業 | 内容 |
 |------|------|
-| プロジェクト構造の確定 | `firmware/apps/<name>/` に `user_code.cpp`（必須）、追加の `*.cpp` / `*.hpp`（任意）、`app.yaml`（複製元・説明・`sils: true/false`）、`README.md` |
-| テンプレートの選定 | 既定 `--from` を、離陸できる学習者コード（`lessons/lesson_08_pid/solution.cpp` 相当）を骨格に持つ新例題（仮名 `11_user_code_flight`）にする。まず現行の lesson 8 解答が `workshop_acro` を PASS することを SILS で確認する |
-| 変数名の確定 | CMake 変数 `SF_USER_CODE_DIR`（絶対パス）。未指定時は従来どおり `firmware/workshop/main/user_code.cpp`（初回は Lesson 0 から生成） |
+| フックの名称と署名 | `firmware/vehicle/main/app_hooks.hpp` に 3 関数を宣言。`@design` タグで `architecture.md` §2.5（L1）と `detailed_design.md` の該当節を参照 |
+| 設計文書の更新 | `architecture.md` §2.5 の L1 行に「入口は `sf app`、フックは `app_hooks.hpp`」を追記。`coding_and_education.md` §3 の「例題は単独ビルド可能」原則に「L1 組み込み型テンプレート（`sf app` 用）は vehicle 本体と一緒にビルドする」例外を明記。不変条件（INV）節との照合を記録 |
+| テンプレートの仕様 | `11_app_controller`（`PidController` に委譲しつつ 1 軸だけ自分の式に置き換えられる `IController`）と `12_app_task_hello`（`estimate_latest()` を読んで一定周期で記録するタスク）の 2 つ。既定の複製元は 11 |
 
-### Phase 1: ビルド基盤の変数化（1〜2 日）
-
-| 作業 | 対象 | 内容 |
-|------|------|------|
-| 実機ビルド | `firmware/workshop/main/CMakeLists.txt` | `SF_USER_CODE_DIR` が与えられたら、そのディレクトリの `user_code.cpp` と追加 `*.cpp` を `SRCS` に、ディレクトリを `INCLUDE_DIRS` に加える。未指定時のみ Lesson 0 からの初回生成を行う |
-| SILS ビルド | `simulator/sils/CMakeLists.txt` | `emu_workshop` のソース集合を同じ変数で切り替える。実行ファイル名は `emu_workshop` のまま、**ビルドディレクトリを app ごとに分ける**（`simulator/sils/build/apps/<name>/`）ことで成果物を分離する |
-| 重複の解消 | 上記 2 ファイル | Lesson 0 からの初回生成ロジックを 1 か所（`firmware/workshop/cmake/user_code.cmake` 等）にまとめ、両者から `include` する |
-| 動作確認 | 手動 | `cmake -DSF_USER_CODE_DIR=<lessons/lesson_08_pid>` で SILS がビルドでき、`workshop_acro` が PASS する |
-
-### Phase 2: sf CLI（1〜2 日）
+### Phase 1: vehicle 本体のフックと CMake（1.5〜2 日）
 
 | 作業 | 対象 | 内容 |
 |------|------|------|
-| `sf app new` | `app.py` | 既定 `--from` を新テンプレートに変更。複製後に `app.yaml` を書く。`--from 09/10` を選んだときは `sils: false` を記録 |
+| フック定義 | `firmware/vehicle/main/app_hooks.hpp`、`app_default.cpp` | 3 関数の宣言と既定実装。既定の `controller()` は現行 `PidController` の静的インスタンス、`estimator()` は現行 `createEstimator()` の移設 |
+| 呼び出し側 | `tasks/control_task.cpp`、`tasks/imu_task.cpp`、`main/main.cpp` | 63 行目と `createEstimator()` をフック呼び出しに置き換え、起動フェーズ末尾で `sf::app::start()` |
+| 実機ビルド | `firmware/vehicle/main/CMakeLists.txt` | `SF_APP_DIR` が与えられたら `${SF_APP_DIR}/*.cpp` を `SRCS` に、ディレクトリを `INCLUDE_DIRS` に加え、`app_default.cpp` を外す |
+| SILS ビルド | `simulator/sils/CMakeLists.txt` | `emu_vehicle` に同じ変数で同じ差し替え（`app_default.cpp` を `EXCLUDE REGEX`、`${SF_APP_DIR}/*.cpp` を追加）。`emu_workshop` は影響を受けないことを確認 |
+| 退行確認 | SILS 回帰全件 | app 無しで A/B 比較し退行ゼロ。`sf params check` も通す |
+
+### Phase 2: テンプレートと sf CLI（1.5〜2 日）
+
+| 作業 | 対象 | 内容 |
+|------|------|------|
+| テンプレート | `firmware/vehicle/examples/11_app_controller/`、`12_app_task_hello/` | `app.cpp` と README。README には「何を書き換えるか」「SILS で確認 → 実機」の順を書く |
+| `sf app new` | `app.py` | 既定 `--from` を 11 に。複製後に `app.yaml` を書く（09 / 10 からは `sils: false`） |
 | `sf app list` | `app.py` | 各 app に「実機: 可 / SILS: 可・不可（ベンチ）」を表示 |
-| `sf app build` / `flash` | `app.py`、`build.py` | `sils: true` の app は `sf build workshop` を `-DSF_USER_CODE_DIR=<abs path>` と app 専用ビルドディレクトリ（`idf.py -B`）で実行。`sils: false` の app は従来どおり独立プロジェクトとしてビルド |
-| `sf app sils` | 新設（`app.py` → `sils.py` の関数呼び出し） | `sf app sils <name> [--scenario <scn>] [--expect <file>] [--noise ...]`。内部は `run_scenario(target="workshop", user_code_dir=..., build_dir=...)` の薄い包み |
-| `sf sils scenario --target apps/<name>` | `sils.py` | `choices` を固定リストから「3 ターゲット + `apps/<存在するディレクトリ>`」を返す関数に変更。`sf sils build --target apps/<name>` も同様。実装は `sf app sils` と共有する |
-| ヘルプ・エラー文 | 両ファイル | `sils: false` の app に `sf app sils` を打ったときは「この app はベンチ例題の複製で SILS では飛べません。`sf app new --from 11_user_code_flight` を使ってください」と案内する |
+| `sf app build` / `flash` | `app.py`、`build.py`、`flash.py` | 組み込み型 app は `firmware/vehicle` を `idf.py -B build_apps_<name> -DSF_APP_DIR=<abs path>` でビルド・書き込み。ベンチ型は従来どおり独立プロジェクト |
+| `sf app sils` | `app.py` → `sils.py` | `sf app sils <name> [--scenario <scn>] [--expect <file>] [--noise ...]`。内部は `run_scenario(target="vehicle", app_dir=..., build_dir=simulator/sils/build/apps/<name>)` の薄い包み |
+| `sf sils --target apps/<name>` | `sils.py` | `choices` を「3 ターゲット + `apps/<存在するディレクトリ>`」を返す関数に変更し、`build` / `scenario` の両方で受ける。実装は `sf app sils` と共有 |
+| 案内文 | 両ファイル | ベンチ型 app に `sf app sils` を打ったら「この app は単独ベンチの複製で vehicle 本体には組み込めません。`sf app new --from 11_app_controller` を使ってください」 |
 
 ### Phase 3: テスト・CI・文書（1 日）
 
 | 作業 | 対象 | 内容 |
 |------|------|------|
-| シナリオ | `simulator/sils/scenarios/app_flight.scn` / `.expect` | `workshop_acro` を基に、テンプレート app 用の合格基準を用意する |
-| CI | `.github/workflows/sils-regression.yml` | `sf app new ci_app && sf app sils ci_app --scenario app_flight` のジョブを追加。`sf app new --from 10_custom_controller bench && sf app build bench` で従来経路の退行も確認 |
-| CLI テスト | `lib/sfcli/tests/` | `new → list → sils` の流れと、`sils: false` の app に対する案内文のテスト |
-| 文書 | `docs/commands/sf-app.md`、`firmware/apps/README.md`、`docs/next_step.md` §7・§8、`docs/events/stampfly_workshop/workshop_guide.md` | `sf app sils` の使い方、テンプレートの区分（飛ぶ / ベンチ）、`touch` 手順の廃止。README「何ができるのか？」の SILS 行の表現を最終確認 |
+| CI | `.github/workflows/sils-regression.yml` | `sf app new ci_app && sf app sils ci_app --scenario alt_flight` と、`--from 10_custom_controller` の従来経路ビルドを追加 |
+| CLI テスト | `lib/sfcli/tests/` | `new → list → sils` の流れと、ベンチ型への案内文 |
+| 文書 | `docs/guides/custom_program.md`（独自プログラム開発入門）、`docs/commands/sf-app.md`、`firmware/apps/README.md`、`docs/next_step.md` §8、`examples/10_custom_controller/README.md` §8 | 新しい流れ（new → SILS → 実機）、テンプレートの区分、手作業レシピの置き換え。README「何ができるのか？」の SILS 行の表現を最終確認 |
 
-### Phase 4（任意）: `sf lesson` の同方式への移行
+### Phase 4（別途設計）: 書き込み系 API
 
 | 作業 | 内容 |
 |------|------|
-| コピー方式の廃止 | `sf lesson switch` を「`SF_USER_CODE_DIR=lessons/lesson_NN` を記録する」方式に変え、`user_code.cpp` へのコピーと `touch` を無くす。`sf lesson build` / `sf sils --target workshop` はその記録を読む |
-| 骨格の改名 | `firmware/workshop` → 中立名（例: `firmware/user_code_runtime`）。参照箇所（CMake、sfcli、CI、文書、スライド）が多いため、単独の作業として影響範囲を洗い出してから判断 |
+| 範囲の決定 | ガイダンス目標の設定、モード要求、パラメータ読み書きのうち L1 に開放するもの。`architecture.md` の不変条件（状態機械・離着陸）と照合 |
+| 実装 | `sf::api::` に追加し、`12_app_task_hello` を「読む」から「読んで指示する」に拡張 |
 
 ## 5. リスクと未確認事項
 
 | 項目 | 内容 | 対処 |
 |------|------|------|
-| 骨格の飛行性能 | workshop 骨格は vehicle の `ControlTask` を `WorkshopControlTask` に置き換えており、高度ループは学習者コードが担う。テンプレートが実機で安全に離陸できるかは SILS の `workshop_acro` 相当の確認と、実機での確認が必要 | Phase 0 で lesson 8 解答の SILS 確認、Phase 3 後に実機確認 |
-| `idf.py` への変数受け渡し | `-D` と `-B`（ビルドディレクトリ）の組み合わせで sdkconfig の扱いが変わらないか | Phase 1 で `sf build workshop` の既存経路と差分比較 |
-| Windows のパス | CMake 変数に空白やバックスラッシュを含む絶対パスを渡す | 引用符付きで渡し、`windows-e2e.yml` に 1 ケース追加 |
-| 既存回帰への影響 | 変数未指定時の挙動を厳密に維持する | Phase 1 完了時に SILS 回帰全件を A/B 比較（退行ゼロ） |
-| 09 / 10 の位置づけ | 研究者が「制御則だけ差し替えたい」場合、`LearnerController` の形（角度制御の一段だけ）の方が書きやすい可能性 | Phase 2 でテンプレートに「`loop_400Hz` の中で `LearnerController` 相当を呼ぶ」書き方の例を含め、10 番からの移植手順を README に書く |
+| ESP-IDF の `-D` と `-B` | `idf.py -B <dir> -D SF_APP_DIR=...` で sdkconfig の扱いが従来ビルドと変わらないか | Phase 1 で app 無し・有りのビルドを比較 |
+| 400 Hz の予算 | ユーザーの `IController::compute()` が 400 Hz の周期を超えると制御が崩れる | テンプレート README に計測方法（`sf log wifi` の周期統計）と目安を書く。SILS では実時間より速く回るため実機で確認する旨を明記 |
+| 推定器差し替えの影響 | 自作推定器が発散した場合の安全装置（現行の ESKF 発散検知は ESKF 専用か） | Phase 0 で `imu_task.cpp` の発散検知の対象を確認し、`IEstimator` 共通の監視に寄せるか判断 |
+| Windows のパス | CMake 変数に空白・バックスラッシュを含む絶対パスを渡す | 引用符付きで渡し、`windows-e2e.yml` に 1 ケース追加 |
+| 例題の設計原則との整合 | 「単独ビルド可能」原則との例外を文書で明示しないと、後続の例題が再びベンチ路線に戻る | Phase 0 の設計文書更新を先に行う |
+| `firmware/my_drone` の遺物 | 現行構成でビルドできない可能性が高く、読者を混乱させる | 本計画とは別に、削除か `archive/` 移動を判断する |
 
 ## 6. 関連文書
 
 | 文書 | 関係 |
 |------|------|
+| `firmware/vehicle/docs/architecture.md` §2.5 | 4 階層アクセス（L0〜L3）の定義。本計画は L1 の入口を定める |
+| `firmware/vehicle/docs/coding_and_education.md` | 例題の設計原則と Level / Tier の分類 |
+| `firmware/vehicle/docs/topic_reference.md` | Topic 一覧と追加手順 |
+| `firmware/vehicle/examples/10_custom_controller/README.md` §8 | 現行の手作業による実機統合手順。本計画で正式な口に置き換える |
 | `docs/architecture/simulation-policy.md` | SILS の位置づけと忠実度目標 |
 | `firmware/vehicle/docs/development_roadmap.md` | Code / Param / Model Identity の 3 原則 |
-| `firmware/vehicle/docs/architecture.md` | アーキテクチャ不変条件（並列経路を作らない） |
-| `docs/events/stampfly_workshop/workshop_guide.md` | 「学習者コードを SILS で試す」の現行手順 |
-| `firmware/vehicle/examples/10_custom_controller/README.md` | 現行の手作業による実機統合手順（§8） |
+| `docs/guides/custom_program.md` | 独自プログラム開発入門（利用者向け。本計画の Phase 3 で新方式に更新） |

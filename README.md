@@ -23,7 +23,7 @@
 | **実機での飛行体験** | ファームウェアを書き込んだ StampFly を送信機で飛ばす。4 つの飛行モード（ACRO／STABILIZE／高度維持／位置保持）を搭載 |
 | **センサー値の取得** | IMU・気圧・ToF・オプティカルフローの値をリアルタイムに読み出し、表示・記録できる |
 | **コントローラからの指令の受信** | 送信機のスティック・ボタンの値を機体側で受け取り、自分のプログラムから使える |
-| **独自の飛行プログラムの作成** | `sf app new` で自分のプロジェクトを作り、制御則や飛行の振る舞いを自由に書ける |
+| **独自の飛行プログラムの作成** | `sf app new` で自分のプロジェクトを作り、制御則や推定器を自分で書ける（**→ [独自プログラム開発入門](docs/guides/custom_program.md)**） |
 | **飛行プログラムの SILS での検証** | 作成した飛行プログラムを SILS（Software In the Loop Simulation: ファームウェアそのものを PC 上で飛ばす試験）で、実機に書き込む前に確認できる |
 
 ---
@@ -361,6 +361,7 @@ stampfly_ecosystem/
 |---------|------|
 | [📖 次のステップ](docs/next_step.md) | シミュレータの使い方、飛行前の確認、飛行方法、開発者向け機能 |
 | [🎛️ 送信機の使い方](docs/guides/controller.md) | メニュー操作、通信モードの切替、ペアリング、ボタンの役割 |
+| [🧪 独自プログラム開発入門](docs/guides/custom_program.md) | 自分の制御則・推定器を書き、SILS で確認して実機で飛ばすまで |
 | [⌨️ sf コマンドリファレンス](docs/commands/README.md) | ビルド・書き込み・ログ取得など全コマンドの説明 |
 | [🛠️ セットアップガイド](docs/setup/README.md) | OS 別の導入手順の詳細とトラブル対応 |
 | [🌐 プロジェクト紹介](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | 実機3Dモデル付きランディングページ |
@@ -407,7 +408,7 @@ This ecosystem exists for you.
 | **Fly the real drone** | Flash the firmware and fly StampFly with the transmitter. Four flight modes included (ACRO / STABILIZE / Altitude Hold / Position Hold) |
 | **Read sensor values** | Read IMU, barometer, ToF and optical-flow values in real time, display and record them |
 | **Receive transmitter commands** | Receive stick and button values on the vehicle and use them from your own program |
-| **Write your own flight program** | Create your own project with `sf app new` and write the control law and flight behavior yourself |
+| **Write your own flight program** | Create your own project with `sf app new` and write your own control law or estimator (**→ [Custom Program Guide](docs/guides/custom_program.md)**) |
 | **Verify your flight program in SILS** | Check your flight program in SILS (Software In the Loop Simulation: the firmware itself flying on your PC) before flashing it to the real drone |
 
 ---
@@ -745,6 +746,7 @@ stampfly_ecosystem/
 |----------|-------------|
 | [📖 Next Steps](docs/next_step.md) | Using the simulator, pre-flight checks, how to fly, developer features |
 | [🎛️ Controller Guide](docs/guides/controller.md) | Menu operation, communication modes, pairing, what each button does |
+| [🧪 Custom Program Guide](docs/guides/custom_program.md) | Write your own controller or estimator, verify it in SILS, fly it on the real drone |
 | [⌨️ sf Command Reference](docs/commands/README.md) | Every command: build, flash, log capture, and more |
 | [🛠️ Setup Guide](docs/setup/README.md) | Detailed per-OS installation and troubleshooting |
 | [🌐 Project Landing Page](https://m5fly-kanazawa.github.io/stampfly_ecosystem/) | Landing page with a 3D model of the real drone |

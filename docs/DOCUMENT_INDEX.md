@@ -60,6 +60,7 @@
 | [guides/tools.md](guides/tools.md) | 開発ツール使用ガイド |
 | [guides/flight-log-viz.md](guides/flight-log-viz.md) | フライトログ可視化チュートリアル |
 | [guides/block_programming.md](guides/block_programming.md) | ブロックプログラミングガイド（`sf blocks`）|
+| [guides/custom_program.md](guides/custom_program.md) | 独自プログラム開発入門（`sf app`、L1 Topic API） |
 | [setup/wifi-sta.md](setup/wifi-sta.md) | WiFi STA モードセットアップ |
 | [architecture/tello-api-reference.md](architecture/tello-api-reference.md) | Tello 互換 API リファレンス |
 | [architecture/ros2-udp-debug.md](architecture/ros2-udp-debug.md) | ROS2 UDP 制御デバッグガイド |
@@ -288,6 +289,7 @@ POS_HOLD 位置制御の実機検証を機に `firmware/vehicle_new` が `firmwa
 | [guides/tools.md](guides/tools.md) | Development tools guide |
 | [guides/flight-log-viz.md](guides/flight-log-viz.md) | Flight log visualization tutorial |
 | [guides/block_programming.md](guides/block_programming.md) | Block programming guide (`sf blocks`) |
+| [guides/custom_program.md](guides/custom_program.md) | Custom program development guide (`sf app`, L1 Topic API) |
 | [setup/wifi-sta.md](setup/wifi-sta.md) | WiFi STA mode setup |
 | [architecture/tello-api-reference.md](architecture/tello-api-reference.md) | Tello-compatible API reference |
 | [architecture/ros2-udp-debug.md](architecture/ros2-udp-debug.md) | ROS2 UDP control debug guide |

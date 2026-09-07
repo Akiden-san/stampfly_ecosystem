@@ -312,6 +312,10 @@ python3 tools/stampfly_py/example_djitellopy.py
 参照してください。**送信機は安全装置として中立位置でONのまま保持してください**（スティックを動かせば
 いつでもパイロットが介入・停止できます）。
 
+### 自分の制御則・推定器を書く
+
+自分の制御則や推定器を vehicle 本体に組み込み、SILS で確認して実機で飛ばすまでの流れは [独自プログラム開発入門](guides/custom_program.md) を参照してください。
+
 ## 9. さらに学ぶ
 
 | リンク | 説明 |
@@ -634,6 +638,11 @@ python3 tools/stampfly_py/example_djitellopy.py
 See [`tools/stampfly_py/README.md`](../tools/stampfly_py/README.md) for the full command list
 and safety notes. **Keep the paired RC transmitter ON with neutral sticks as a safety device**
 — the pilot can intervene and stop the vehicle at any time by moving a stick.
+
+
+### Writing Your Own Controller or Estimator
+
+To build your own control law or estimator into the vehicle firmware, verify it in SILS and fly it on the real drone, see the [Custom Program Guide](guides/custom_program.md).
 
 ## 9. Learn More
 
