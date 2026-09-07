@@ -84,28 +84,22 @@
 % 削らない）。確認ステップ（setup_env → sf doctor）はS2「実習1」に残すため、
 % 本フレーム末尾の注記は「このあと」ではなく明示的にS2を指す。
 \begin{frame}[fragile]{開発環境の導入（先出し）: PC 側}
-  {\small まだ導入していない方は、Session 1 を聞きながら並行して進めてほしい}
-
-  \vspace{0.3em}
+  {\small 未導入の方は Session 1 を聞きながら並行して進めてほしい（Windows 主体で書く）}
 
   \begin{block}{方法①: GUI インストーラ「StampFly Setup」}
-    \footnotesize ターミナル操作なしで導入できる。GitHub の Releases ページから OS 別の実行ファイルをダウンロードして起動し、ウィザードに従うだけで \code{sf} CLI 一式（ESP-IDF: Espressif の ESP32 向け開発基盤を含む）が入る\\
+    \footnotesize Releases の \code{StampFlySetup\_windows-x64.exe}（macOS / Linux 版もあり）を起動し、ウィザードに従えば \code{sf} CLI 一式（ESP-IDF 込み）が入る。SmartScreen 警告は「詳細情報」$\to$「実行」\\
     \url{https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest}
   \end{block}
 
-  \vspace{0.15em}
-
-  \begin{exampleblock}{方法②: CLI インストーラ}
-    \begin{lstlisting}[style=sfbash, numbers=none]
+  \begin{exampleblock}{方法②: CLI インストーラ（CMD で）}
+    \begin{lstlisting}[style=sfbash, numbers=none, aboveskip=2pt, belowskip=0pt]
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem
 cd stampfly_ecosystem
-./install.sh          # Windows は install.bat
+install.bat           # macOS / Linux は ./install.sh
     \end{lstlisting}
   \end{exampleblock}
 
-  \vspace{0.15em}
-
-  {\scriptsize インストールには数分かかる。導入できたかの確認（\code{source setup\_env.sh} $\to$ \code{sf doctor}）は Session 2 の「実習1」で行う}
+  {\scriptsize どちらも Git が必要（未導入なら \url{https://git-scm.com/download/win}）。導入確認（\code{setup\_env.bat} $\to$ \code{sf doctor}、macOS / Linux は \code{source setup\_env.sh}）は Session 2 の「実習1」で行う}
 \end{frame}
 
 % ------------------------------------------------------------------

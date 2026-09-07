@@ -33,15 +33,15 @@
     </li><li> 学会チュートリアル（本日）
   </li></ul></div><footer class="slide-footer"><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">2 / 133</span></footer></section>
 <section class="slide content" id="s-003" data-title="開発環境の導入（先出し）: PC 側" data-session="オープニング"><header class="slide-header"><h2>開発環境の導入（先出し）: PC 側</h2></header><div class="slide-body"><p>
-  <span class="fs-small"> まだ導入していない方は、Session 1 を聞きながら並行して進めてほしい</span></p>
-<div class="block block"><h3 class="block-title">方法①: GUI インストーラ「StampFly Setup」</h3><div class="block-body"><div class="fs-footnotesize"><p> ターミナル操作なしで導入できる。GitHub の Releases ページから OS 別の実行ファイルをダウンロードして起動し、ウィザードに従うだけで <code class="tex-code">sf</code> CLI 一式（ESP-IDF: Espressif の ESP32 向け開発基盤を含む）が入る<br>
+  <span class="fs-small"> 未導入の方は Session 1 を聞きながら並行して進めてほしい（Windows 主体で書く）</span></p>
+<div class="block block"><h3 class="block-title">方法①: GUI インストーラ「StampFly Setup」</h3><div class="block-body"><div class="fs-footnotesize"><p> Releases の <code class="tex-code">StampFlySetup_windows-x64.exe</code>（macOS / Linux 版もあり）を起動し、ウィザードに従えば <code class="tex-code">sf</code> CLI 一式（ESP-IDF 込み）が入る。SmartScreen 警告は「詳細情報」<span class="math-inline">\(\to\)</span>「実行」<br>
     <a class="tex-url" href="https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest" target="_blank" rel="noopener">https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest</a>
   </p></div></div></div>
-<div class="block example"><h3 class="block-title">方法②: CLI インストーラ</h3><div class="block-body"><div class="code-block"><pre><code class="lang-bash">git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem
+<div class="block example"><h3 class="block-title">方法②: CLI インストーラ（CMD で）</h3><div class="block-body"><div class="code-block"><pre><code class="lang-bash">git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem
 cd stampfly_ecosystem
-./install.sh          # Windows は install.bat
+install.bat           # macOS / Linux は ./install.sh
     </code></pre></div></div></div>
-<p>  <span class="fs-scriptsize"> インストールには数分かかる。導入できたかの確認（<code class="tex-code">source setup_env.sh</code> <span class="math-inline">\(\to\)</span> <code class="tex-code">sf doctor</code>）は Session 2 の「実習1」で行う</span>
+<p>  <span class="fs-scriptsize"> どちらも Git が必要（未導入なら <a class="tex-url" href="https://git-scm.com/download/win" target="_blank" rel="noopener">https://git-scm.com/download/win</a>）。導入確認（<code class="tex-code">setup_env.bat</code> <span class="math-inline">\(\to\)</span> <code class="tex-code">sf doctor</code>、macOS / Linux は <code class="tex-code">source setup_env.sh</code>）は Session 2 の「実習1」で行う</span>
 </p></div><footer class="slide-footer"><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">3 / 133</span></footer></section>
 <section class="slide content" id="s-004" data-title="本日の進め方" data-session="オープニング"><header class="slide-header"><h2>本日の進め方</h2></header><div class="slide-body"><div class="block block"><h3 class="block-title">講義とデモのハイブリッド</h3><div class="block-body"><div class="fs-small"><p> 講師が実演しながら説明を進める。手元の環境構築でつまずいても、その場で全員を待たせることはしない
   </p></div></div></div>

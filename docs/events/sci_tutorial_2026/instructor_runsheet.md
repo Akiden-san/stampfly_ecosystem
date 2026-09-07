@@ -53,7 +53,7 @@
 
 全18フレーム中、実演・実習は3件（再構成で17→19→18フレームに推移。実習1・実習2それぞれに手順を明記した専用フレームが立った後、「開発環境の導入 (1/2): PC側」がオープニング（先出し）へ移動し1枚減った）。
 
-未導入の参加者への案内は、このセッション冒頭ではなくオープニングの「開発環境の導入（先出し）: PC側」で行う（GUIインストーラ／CLIインストーラの手順）。当セッションは導入済み前提でOS差異の参照とペアリング・実習1の確認から始まる。
+未導入の参加者への案内は、このセッション冒頭ではなくオープニングの「開発環境の導入（先出し）: PC側」で行う（GUIインストーラ／CLIインストーラの手順。参加者はWindowsが多い想定なので `install.bat` / `setup_env.bat` を主に書き、macOS/Linuxは括弧内）。当セッションは導入済み前提でOS差異の参照とペアリング・実習1の確認から始まる。
 
 新設の p.34「OSによる違いはここだけ」は macOS/Linux と Windows のコマンド差異（`./install.sh` 対 `install.bat`、`source setup_env.sh` 対 `setup_env.bat`、シリアルポート名）をまとめた参照フレームで、当日はデモしない。Windows参加者から質問が出た際の説明に使う。
 
@@ -293,7 +293,7 @@ Of 22 frames, 4 are demonstration or expected-result frames. S1's own content an
 
 Of 18 frames, 3 are demonstration/hands-on frames (this session went 17 -> 19 -> 18: Exercise 1 and Exercise 2 first got their own frames with explicit steps, then "Installing the Dev Environment (1/2): PC Side" moved to the opening, dropping the count by one).
 
-Guidance for attendees who haven't installed yet now lives in the opening frame "Installing the Dev Environment (moved earlier): PC Side" (GUI installer / CLI installer steps), not at the top of this session. This session now opens assuming the install is underway, starting from the OS-differences reference and pairing/Exercise-1 verification.
+Guidance for attendees who haven't installed yet now lives in the opening frame "Installing the Dev Environment (moved earlier): PC Side" (GUI installer / CLI installer steps; written Windows-first with `install.bat` / `setup_env.bat`, macOS/Linux in parentheses, since most attendees are expected on Windows), not at the top of this session. This session now opens assuming the install is underway, starting from the OS-differences reference and pairing/Exercise-1 verification.
 
 The new p.34 "OS-Specific Differences" is a reference frame summarizing macOS/Linux vs. Windows command differences (`./install.sh` vs. `install.bat`, `source setup_env.sh` vs. `setup_env.bat`, serial port names). It is not demoed on the day; use it if a Windows attendee has trouble.
 
