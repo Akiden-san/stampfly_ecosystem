@@ -19,45 +19,105 @@
 
 | できること | 内容 |
 |-----------|------|
-| **シミュレータで練習** | 実機なしでドローン操縦を体験。制御アルゴリズムの検証にも |
-| **すぐに飛ばせる** | ファームウェアをビルドして、実機で飛行 |
-| **WiFi経由で制御** | PC/スマホから高レベルコマンド（jump, takeoff, land, hover）を実行 |
-| **制御を自作できる** | 4つの制御モード（ACRO/STABILIZE/高度維持/位置保持）を搭載。カスケード制御を学び、カスタマイズ可能 |
-| **センサーデータを見れる** | IMU、気圧、ToF、オプティカルフロー等のリアルタイムデータをCLI/WiFiで取得 |
-| **実験データを解析できる** | ログを記録し、Pythonで解析・可視化 |
+| **シミュレータで練習** | 実機がなくても、PC 上の 3D シミュレータで送信機を使った操縦を体験できる |
+| **実機での飛行体験** | ファームウェアを書き込んだ StampFly を送信機で飛ばす。4 つの飛行モード（ACRO／STABILIZE／高度維持／位置保持）を搭載 |
+| **センサー値の取得** | IMU・気圧・ToF・オプティカルフローの値をリアルタイムに読み出し、表示・記録できる |
+| **コントローラからの指令の受信** | 送信機のスティック・ボタンの値を機体側で受け取り、自分のプログラムから使える |
+| **独自の飛行プログラムの作成** | `sf app new` で自分のプロジェクトを作り、制御則や飛行の振る舞いを自由に書ける |
+| **飛行プログラムの SILS での検証** | 作成した飛行プログラムを SILS（Software In the Loop Simulation: ファームウェアそのものを PC 上で飛ばす試験）で、実機に書き込む前に確認できる |
 
 ---
 
 ## 📦 インストール
 
-**ターミナルを使わない方法（推奨・初心者向け）:** お使いのOSの **StampFly Setup** を
-クリックするとダウンロードが始まります。実行するだけで、ウィザードが一式
-（sf CLI + ESP-IDF + 書き込みアプリ）を導入します。
+**コマンドライン（CLI）で導入してください。** GUI 版インストーラ「StampFly Setup」もありますが、
+まだ動作の安定性を確認できていないため、講習の事前準備では以下の CLI 手順で進めてください。
+GUI 版の説明は **[GUI インストーラガイド](docs/guides/gui-installer.md)** にあります。
 
-| OS | ダウンロード |
-|----|-------------|
-| Windows | [**StampFlySetup_windows-x64.exe**](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest/download/StampFlySetup_windows-x64.exe) |
-| macOS (Apple Silicon) | [**StampFlySetup_macos-arm64.zip**](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest/download/StampFlySetup_macos-arm64.zip) |
-| macOS (Intel) | [**StampFlySetup_macos-x64.zip**](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest/download/StampFlySetup_macos-x64.zip) |
-| Linux | [**StampFlySetup_linux-x64**](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest/download/StampFlySetup_linux-x64)（`chmod +x` してから実行） |
+手順はどの OS でも同じ 3 段階です。
 
-**→ [GUI インストーラガイド](docs/guides/gui-installer.md)**（macOS の初回起動・Windows SmartScreen の注意もこちら）
+| 段階 | 内容 |
+|------|------|
+| ① 前提ツール | Git と Python 3.10〜3.12（推奨 3.12）を入れる |
+| ② 取得と導入 | リポジトリを取得し、インストーラを実行する（ESP-IDF v5.5.2 も導入される） |
+| ③ 有効化と診断 | 開発環境を有効化し、`sf doctor` で確認する |
 
-コマンドラインで導入する場合:
+インストーラの途中で ESP-IDF の導入を尋ねられたら **1（Install ESP-IDF v5.5.2）** を選びます。
+ESP-IDF のダウンロードを含むため、時間に余裕のあるときに実行してください。
+
+### Windows
+
+コマンドプロンプト（CMD）で実行します。WSL は不要です。
+
+```cmd
+:: ① Git と Python 3.12（すでにあれば省略）。導入後は CMD を一度閉じて開き直す
+winget install Git.Git
+winget install Python.Python.3.12
+
+:: ② リポジトリの取得とインストーラ実行
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
+install.bat
+
+:: ③ 開発環境の有効化と診断（新しい CMD を開くたびに setup_env.bat を実行）
+setup_env.bat
+sf doctor
+```
+
+**→ [Windows セットアップ（詳細・トラブル対応）](docs/setup/windows.md)**
+
+### macOS
+
+ターミナルで実行します。Git は Xcode Command Line Tools に含まれます。
 
 ```bash
+# ① Xcode Command Line Tools・Homebrew・ビルドツール（すでにあれば省略）
+xcode-select --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install cmake ninja dfu-util ccache python@3.12
+
+# ② リポジトリの取得とインストーラ実行
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
 ./install.sh
+
+# ③ 開発環境の有効化と診断（新しいターミナルを開くたびに source setup_env.sh を実行）
+source setup_env.sh
+sf doctor
 ```
 
-これだけで sf CLI とシミュレータ依存がインストールされます。
-ESP-IDFが未インストールの場合は、インストーラが案内します。
+**→ [macOS セットアップ（詳細・トラブル対応）](docs/setup/macos.md)**
 
-**→ [セットアップガイド（詳細）](docs/setup/README.md)**
+### Ubuntu
 
-最新版に更新したいときは `sf upgrade` を実行するだけです（編集中のファイルは自動保護）。
-**→ [アップグレードガイド](docs/guides/upgrading.md)**
+ターミナルで実行します（Ubuntu 22.04 LTS 以降）。
+
+```bash
+# ① Git・Python・ビルドツール
+sudo apt update
+sudo apt install -y git wget flex bison gperf python3 python3-pip python3-venv \
+    cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+
+# ② リポジトリの取得とインストーラ実行
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
+./install.sh
+
+# ③ 開発環境の有効化と診断（新しいターミナルを開くたびに source setup_env.sh を実行）
+source setup_env.sh
+sf doctor
+```
+
+実機や送信機を USB で使うときは、シリアルポートの権限を一度だけ設定します。
+
+```bash
+sudo usermod -a -G dialout $USER   # 反映には再ログインが必要
+```
+
+**→ [Linux セットアップ（詳細・トラブル対応）](docs/setup/linux.md)**
+
+`sf doctor` が問題なしと表示すれば導入完了です。
+後で最新版に更新するときは `sf upgrade` を実行します（**→ [アップグレードガイド](docs/guides/upgrading.md)**）。
 
 ---
 
@@ -253,45 +313,105 @@ This ecosystem exists for you.
 
 | Capability | Description |
 |-----------|-------------|
-| **Practice in simulator** | Experience drone piloting without real hardware. Also for testing control algorithms |
-| **Fly immediately** | Build firmware and fly the real drone |
-| **Control via WiFi** | Send high-level commands (jump, takeoff, land, hover) from PC/smartphone |
-| **Build your own control** | 4 flight modes (ACRO/STABILIZE/Altitude Hold/Position Hold) included. Learn and customize cascade control |
-| **View sensor data** | Real-time IMU, barometer, ToF, optical flow data via CLI/WiFi |
-| **Analyze experiments** | Record flight logs and analyze with Python |
+| **Practice in the simulator** | Fly a 3D simulator on your PC with the transmitter, no real drone needed |
+| **Fly the real drone** | Flash the firmware and fly StampFly with the transmitter. Four flight modes included (ACRO / STABILIZE / Altitude Hold / Position Hold) |
+| **Read sensor values** | Read IMU, barometer, ToF and optical-flow values in real time, display and record them |
+| **Receive transmitter commands** | Receive stick and button values on the vehicle and use them from your own program |
+| **Write your own flight program** | Create your own project with `sf app new` and write the control law and flight behavior yourself |
+| **Verify your flight program in SILS** | Check your flight program in SILS (Software In the Loop Simulation: the firmware itself flying on your PC) before flashing it to the real drone |
 
 ---
 
 ## 📦 Installation
 
-**No-terminal path (recommended for beginners):** click the **StampFly Setup**
-for your OS — the download starts immediately. Run it and the wizard installs
-everything (sf CLI + ESP-IDF + the flashing app).
+**Install from the command line (CLI).** A GUI installer, "StampFly Setup", also exists,
+but its stability is not yet confirmed, so please follow the CLI steps below to prepare for the tutorial.
+The GUI installer is described in the **[GUI Installer Guide](docs/guides/gui-installer.md)**.
 
-| OS | Download |
-|----|----------|
-| Windows | [**StampFlySetup_windows-x64.exe**](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest/download/StampFlySetup_windows-x64.exe) |
-| macOS (Apple Silicon) | [**StampFlySetup_macos-arm64.zip**](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest/download/StampFlySetup_macos-arm64.zip) |
-| macOS (Intel) | [**StampFlySetup_macos-x64.zip**](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest/download/StampFlySetup_macos-x64.zip) |
-| Linux | [**StampFlySetup_linux-x64**](https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest/download/StampFlySetup_linux-x64) (run `chmod +x` first) |
+The procedure is the same three stages on every OS.
 
-**→ [GUI Installer Guide](docs/guides/gui-installer.md)** (first-launch notes for macOS Gatekeeper / Windows SmartScreen)
+| Stage | What you do |
+|-------|-------------|
+| 1. Prerequisites | Install Git and Python 3.10–3.12 (3.12 recommended) |
+| 2. Get and install | Clone the repository and run the installer (it also installs ESP-IDF v5.5.2) |
+| 3. Activate and check | Activate the development environment and run `sf doctor` |
 
-Command-line alternative:
+When the installer asks about ESP-IDF, choose **1 (Install ESP-IDF v5.5.2)**.
+It downloads ESP-IDF, so run it when you have some time.
+
+### Windows
+
+Run in Command Prompt (CMD). WSL is not required.
+
+```cmd
+:: 1. Git and Python 3.12 (skip if already installed). Close and reopen CMD afterwards
+winget install Git.Git
+winget install Python.Python.3.12
+
+:: 2. Clone the repository and run the installer
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
+install.bat
+
+:: 3. Activate the environment and check (run setup_env.bat in every new CMD window)
+setup_env.bat
+sf doctor
+```
+
+**→ [Windows Setup (details and troubleshooting)](docs/setup/windows.md)**
+
+### macOS
+
+Run in Terminal. Git is included in the Xcode Command Line Tools.
 
 ```bash
+# 1. Xcode Command Line Tools, Homebrew and build tools (skip if already installed)
+xcode-select --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install cmake ninja dfu-util ccache python@3.12
+
+# 2. Clone the repository and run the installer
 git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
 ./install.sh
+
+# 3. Activate the environment and check (run source setup_env.sh in every new terminal)
+source setup_env.sh
+sf doctor
 ```
 
-This installs sf CLI and simulator dependencies.
-If ESP-IDF is not installed, the installer will guide you.
+**→ [macOS Setup (details and troubleshooting)](docs/setup/macos.md)**
 
-**→ [Setup Guide (Details)](docs/setup/README.md)**
+### Ubuntu
 
-To update to the latest version later, just run `sf upgrade` (files you're editing are protected automatically).
-**→ [Upgrading Guide](docs/guides/upgrading.md)**
+Run in a terminal (Ubuntu 22.04 LTS or later).
+
+```bash
+# 1. Git, Python and build tools
+sudo apt update
+sudo apt install -y git wget flex bison gperf python3 python3-pip python3-venv \
+    cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+
+# 2. Clone the repository and run the installer
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
+./install.sh
+
+# 3. Activate the environment and check (run source setup_env.sh in every new terminal)
+source setup_env.sh
+sf doctor
+```
+
+To use the drone or transmitter over USB, grant serial-port permission once.
+
+```bash
+sudo usermod -a -G dialout $USER   # log out and back in to apply
+```
+
+**→ [Linux Setup (details and troubleshooting)](docs/setup/linux.md)**
+
+Installation is complete when `sf doctor` reports no problems.
+To update later, run `sf upgrade` (**→ [Upgrading Guide](docs/guides/upgrading.md)**).
 
 ---
 
