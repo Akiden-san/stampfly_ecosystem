@@ -36,7 +36,7 @@
 #include "topics.hpp"
 #include "tasks.hpp"
 #include "controller.hpp"
-#include "pid_controller.hpp"
+#include "app_hooks.hpp"
 #include "actuator.hpp"
 #include "flight_state.hpp"
 #include "config.hpp"
@@ -57,10 +57,6 @@ namespace tasks {
 TaskHandle_t control_handle() { return s_control_handle; }
 }  // namespace tasks
 }  // namespace sf
-
-/// Controller instance
-/// コントローラインスタンス
-static sf::PidController controller;
 
 /// Build and publish the 400Hz Data Stream record. ControlTask is the one place
 /// where the SAME cycle's IMU sample, state estimate, control setpoints and motor
@@ -180,9 +176,21 @@ void ControlTask(void* pvParameters)
     // ブロッキング前に実行。これが走るまで ImuTask は null ガードで待つ。
     s_control_handle = xTaskGetCurrentTaskHandle();
 
-    // Initialize controller and actuator (mixer + motor HAL)
-    // コントローラとアクチュエータ（ミキサー＋モーター HAL）を初期化
-    controller.init();
+    // Fetch the active controller from the app hook (L1 entry point,
+    // app_hooks.hpp). Already initialized by the hook — vehicle's default
+    // (app_default.cpp) returns the stock cascaded-PID controller; an
+    // application (SF_APP_DIR) may return its own IController implementation
+    // instead.
+    // アプリフック（L1 の入口、app_hooks.hpp）からアクティブなコントローラを
+    // 取得する。フック側で初期化済み — vehicle の既定（app_default.cpp）は
+    // 標準のカスケードPIDコントローラを返し、アプリ（SF_APP_DIR）があれば
+    // 自作の IController 実装を返せる。
+    sf::IController& controller = sf::app::controller();
+
+    // Initialize the actuator (mixer + motor HAL). The controller is
+    // initialized by the app hook above, not here.
+    // アクチュエータ（ミキサー＋モーター HAL）を初期化。コントローラは上の
+    // アプリフックで初期化済みのため、ここでは行わない。
     actuator.init();
 
     // Rate limiter for the IMU-stall warning (once per second at 400Hz)

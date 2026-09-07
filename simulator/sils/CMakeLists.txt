@@ -52,6 +52,7 @@ if(SILS_BUILD_CORES_SMOKE OR SILS_BUILD_RTOS_SMOKE)
     ${VN}/components/sf_estimator_eskf/eskf_core.cpp
     ${VN}/components/sf_estimator_complementary/complementary_estimator.cpp
     ${VN}/components/sf_controller_pid/pid_controller.cpp
+    ${VN}/components/sf_app_hooks/app_default.cpp              # sf::app::controller/estimator/start default (rtos_smoke/hover_smoke/rate_tune compile imu_task.cpp/control_task.cpp directly, below, and both now call the app hooks)
     ${VN}/components/sf_takeoff_landing/takeoff_landing.cpp   # ToF ground/airborne detect (imu_task)
     ${VN}/components/sf_calibration/calibration.cpp           # boot gyro/accel bias calib (imu_task)
     ${VN}/components/sf_failsafe/failsafe.cpp                 # ImuAnomalyDetector (imu_task, 400Hz impact/gyro)
@@ -85,6 +86,7 @@ if(SILS_BUILD_CORES_SMOKE OR SILS_BUILD_RTOS_SMOKE)
     ${VN}/components/sf_estimator_complementary/include
     ${VN}/components/sf_controller/include
     ${VN}/components/sf_controller_pid/include
+    ${VN}/components/sf_app_hooks/include      # app_hooks.hpp (sf::app::controller/estimator/start)
     ${VN}/components/sf_state/include
     ${VN}/components/sf_takeoff_landing/include
     ${VN}/components/sf_calibration/include
@@ -311,9 +313,27 @@ if(SILS_BUILD_EMU)
        ${VN}/main ${VN}/tasks
        ${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/common/protocol/include)  # shared protocol (sf_comm)
 
+  # Application sources (SF_APP_DIR, see docs/plans/sf-app-sils-plan.md Phase 1):
+  # copy EMU_FW_SRCS into EMU_VEHICLE_SRCS before substituting so EMU_WS_SRCS
+  # (emu_workshop, below) — derived from the ORIGINAL EMU_FW_SRCS — is unaffected;
+  # workshop always keeps the default app hooks.
+  # アプリソース（SF_APP_DIR）: EMU_FW_SRCS を EMU_VEHICLE_SRCS へコピーしてから
+  # 差し替える。下の EMU_WS_SRCS（emu_workshop）は「元の」EMU_FW_SRCS から作られる
+  # ため影響を受けない — workshop は常に既定のアプリフックを使う。
+  set(EMU_VEHICLE_SRCS ${EMU_FW_SRCS})
+  if(SF_APP_DIR)
+    list(FILTER EMU_VEHICLE_SRCS EXCLUDE REGEX "/sf_app_hooks/app_default\\.cpp$")
+    file(GLOB SF_APP_SRCS CONFIGURE_DEPENDS "${SF_APP_DIR}/*.cpp")
+    if(NOT SF_APP_SRCS)
+      message(FATAL_ERROR "SF_APP_DIR=${SF_APP_DIR} contains no *.cpp")
+    endif()
+    list(APPEND EMU_VEHICLE_SRCS ${SF_APP_SRCS})
+    message(STATUS "[emu_vehicle] Application sources from ${SF_APP_DIR}")
+  endif()
+
   add_executable(emu_vehicle
     ${CMAKE_CURRENT_SOURCE_DIR}/emu/emu_main.cpp
-    ${EMU_FW_SRCS}
+    ${EMU_VEHICLE_SRCS}
     ${CMAKE_CURRENT_SOURCE_DIR}/devices/vl53_platform_glue.c  # missing fw platform fn
     ${CMAKE_CURRENT_SOURCE_DIR}/devices/virtual_board.cpp     # E1: BMI270 + motors → Plant
     ${CMAKE_CURRENT_SOURCE_DIR}/devices/vl53_device.cpp       # E2: VL53L3CX ToF chip model
@@ -342,6 +362,9 @@ if(SILS_BUILD_EMU)
     ${CMAKE_CURRENT_SOURCE_DIR}/plant ${CMAKE_CURRENT_SOURCE_DIR}/frames
     ${CMAKE_CURRENT_SOURCE_DIR}/devices ${EMU_FW_INCS})
   target_link_libraries(emu_vehicle PRIVATE Threads::Threads mujoco)
+  if(SF_APP_DIR)
+    target_include_directories(emu_vehicle PRIVATE ${SF_APP_DIR})
+  endif()
 
   # ---------------------------------------------------------------------------
   # Second firmware: firmware/vehicle_old (LEGACY, 87 real flights, complete).

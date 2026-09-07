@@ -130,6 +130,10 @@ extern "C" void app_main() {
   // 16 タスクを優先度付きで生成、ImuTask が pipeline を駆動
   sf::tasks::start_all();
 
+  // ===== Phase 5: application (L1 app hook) =====
+  // 全標準タスク起動後にアプリの追加タスクを起動（既定は何もしない）
+  sf::app::start();
+
   ESP_LOGI(TAG, "=== boot complete ===");
 }
 ```
@@ -336,7 +340,7 @@ vehicle の Phase 2a で既に結合済みの IMU / Motor / ESP-NOW / UDP は、
 
 This document specifies:
 - Ownership of shared HW resources (I2C/SPI buses, esp_netif, event loop, NVS)
-- Initialization sequence (Phase 0 → Phase 4 in `app_main()`)
+- Initialization sequence (Phase 0 → Phase 5 in `app_main()`; Phase 5 = `sf::app::start()`, the L1 application hook)
 - Failure classification (Critical / Optional / Recoverable)
 - HAL connection contract (Config-based DI, 2-stage init)
 - Namespace boundaries for the 4-tier learner access (L0 / L1 / L2 / L3)

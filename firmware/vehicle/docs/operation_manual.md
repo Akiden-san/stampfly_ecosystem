@@ -20,7 +20,7 @@ CLI コマンド**をまとめた実機運用マニュアル。UI（LED/ブザ�
 
 ## 2. 起動シーケンス
 
-電源 ON 後、ファームは Phase 0〜4 を順に実行し、LED と音で状態を知らせる。
+電源 ON 後、ファームは Phase 0〜5 を順に実行し、LED と音で状態を知らせる。
 
 ### 起動フェーズと LED/音
 
@@ -31,6 +31,7 @@ CLI コマンド**をまとめた実機運用マニュアル。UI（LED/ブザ�
 | Phase 2 | Pub-Sub トピック初期化 | — | — |
 | Phase 3 | パラメータ読込（NVS or 既定） | — | — |
 | Phase 4 | 16 タスク起動 → NotifyTask 起動 | **白 常灯**（INIT） | **startTone**（ドミソ: C5→E5→G5）|
+| Phase 5 | アプリフック `sf::app::start()`（自作アプリの追加タスク起動。アプリ無しなら何もしない） | — | — |
 | — | INIT → IDLE_GROUND（IMU が有効値を出す）| 白 → 緑/マゼンタへ | — |
 | 校正 | 起動バイアス校正（静止確認済 2.5 秒分を平均。動かすとやり直し）| **マゼンタ 低速点滅** | （無音）|
 | 完了 | 校正完了 → ARM 可能 | **緑 常灯** | **readyTone**（ピッ×3）|
@@ -319,7 +320,7 @@ legacy vehicle firmware.
 
 ## 2. Boot Sequence
 
-After power-on the firmware runs Phase 0–4 in order, signalling state via LED and sound.
+After power-on the firmware runs Phase 0–5 in order, signalling state via LED and sound.
 
 | Stage | Action | StampS3 LED (state, GPIO21) | Sound |
 |-------|--------|------------------------------|-------|
@@ -328,6 +329,7 @@ After power-on the firmware runs Phase 0–4 in order, signalling state via LED 
 | Phase 2 | Pub-Sub topics | — | — |
 | Phase 3 | Parameters (NVS or defaults) | — | — |
 | Phase 4 | 16 tasks start → NotifyTask | **white solid** (INIT) | **startTone** (C5→E5→G5) |
+| Phase 5 | App hook `sf::app::start()` (starts the user application's extra tasks; does nothing without an app) | — | — |
 | — | INIT → IDLE_GROUND (IMU valid) | white → green/magenta | — |
 | Calib | Boot bias calibration (averages 2.5 s of VERIFIED-still samples; motion restarts it) | **magenta slow blink** | (silent) |
 | Ready | Calibration done → can ARM | **green solid** | **readyTone** (beep ×3) |

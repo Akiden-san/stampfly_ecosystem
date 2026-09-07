@@ -71,6 +71,7 @@ idf_component_register(
         sf_controller_pid
         sf_autotune
         sf_actuator
+        sf_app_hooks    # imu_task.cpp (shared from vehicle) calls sf::app::estimator()
         sf_comm
         sf_command
         sf_telemetry

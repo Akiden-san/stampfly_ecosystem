@@ -37,14 +37,16 @@
 #include "topics.hpp"
 #include "tasks.hpp"
 #include "estimator.hpp"
-#include "eskf_estimator.hpp"
-#include "complementary_estimator.hpp"
+#include "app_hooks.hpp"
 #include "takeoff_landing.hpp"
 #include "calibration.hpp"
 #include "failsafe.hpp"     // ImuAnomalyDetector (400Hz impact/gyro checks)
 #include "bmi270_wrapper.hpp"
 #include "config.hpp"
 #include "params.hpp"
+#include "sf_math.hpp"      // sf::math::kGravity/Quat/Vec3 (used directly below;
+                            // previously reached transitively via the removed
+                            // eskf_estimator.hpp -> eskf_core.hpp include chain)
 
 static const char* TAG = "ImuTask";
 
@@ -60,12 +62,15 @@ static constexpr uint32_t TEMPERATURE_READ_INTERVAL = 100;
 /// 読み取り失敗ログの抑制: N サイクルに 1 回まで警告
 static constexpr uint32_t READ_FAIL_LOG_INTERVAL = 400;
 
-/// Active estimator, selected by the estimator.type parameter via the factory
-/// below. Held as an IEstimator* so the implementation is swappable WITHOUT
-/// touching this task — the SILS bench picks ESKF or complementary via a param
-/// (RESET_PLAN P2: algorithm-independence).
-/// アクティブな推定器（下のファクトリが estimator.type で選ぶ）。実装を差し替え可能に
-/// するため IEstimator* で持つ。SILS ベンチは param で ESKF/相補を選ぶ（P2）。
+/// Active estimator, obtained from the app hook (sf::app::estimator(),
+/// app_hooks.hpp) at task start. Held as an IEstimator* so the implementation
+/// is swappable WITHOUT touching this task — vehicle's default hook picks
+/// ESKF or complementary via the estimator.type param (RESET_PLAN P2:
+/// algorithm-independence); an application (SF_APP_DIR) may supply its own.
+/// アクティブな推定器。タスク開始時にアプリフック（sf::app::estimator()、
+/// app_hooks.hpp）から取得する。実装を差し替え可能にするため IEstimator* で
+/// 持つ — vehicle の既定フックは estimator.type パラメータで ESKF/相補を選ぶ
+/// （P2）。アプリ（SF_APP_DIR）があれば自作の推定器を供給できる。
 static sf::IEstimator* g_estimator = nullptr;
 
 /// Takeoff/landing manager — derives the on-ground/airborne state from ToF altitude
@@ -106,27 +111,6 @@ static sf::CalibrationMgr g_calib;
 /// 地上から高度を錨付けする構成（eskf.use_tof=false）ではホールドは不要かつ有害（ToF 駆動の
 /// 空中検出が解除されない）なので無効化する。タスク開始時に eskf.use_tof から1回読む。
 static bool g_tof_vertical = true;
-
-/// Estimator factory: select by estimator.type (0 = ESKF, 1 = complementary),
-/// construct statically (no heap), initialize, and return via IEstimator. This is
-/// the only place that names the concrete types; everything else uses IEstimator.
-/// 推定器ファクトリ: estimator.type（0=ESKF, 1=相補）で選び、静的生成・初期化して
-/// IEstimator で返す。具象型を知るのはここだけ。
-static sf::IEstimator* createEstimator()
-{
-    static sf::EskfEstimator eskf;
-    static sf::ComplementaryEstimator comp;
-    int32_t type = 0;
-    sf::params::get_int("estimator.type", type);
-    if (type == 1) {
-        comp.init();
-        ESP_LOGI(TAG, "Estimator: complementary filter (attitude + rate)");
-        return &comp;
-    }
-    eskf.init();
-    ESP_LOGI(TAG, "Estimator: ESKF (15-state)");
-    return &eskf;
-}
 
 /// BMI270 IMU driver instance (file-scope, not exposed as global)
 /// BMI270 IMU ドライバインスタンス（ファイルスコープ、グローバル非公開）
@@ -705,9 +689,16 @@ void ImuTask(void* pvParameters)
     }
     ESP_LOGI(TAG, "BMI270 init OK (400Hz read loop starting)");
 
-    // Create + initialize the estimator selected by estimator.type.
-    // estimator.type で選ばれた推定器を生成・初期化。
-    g_estimator = createEstimator();
+    // Fetch the active estimator from the app hook (L1 entry point,
+    // app_hooks.hpp). Already initialized by the hook — vehicle's default
+    // (app_default.cpp) selects ESKF or complementary via estimator.type; an
+    // application (SF_APP_DIR) may return its own IEstimator implementation
+    // instead.
+    // アプリフック（L1 の入口、app_hooks.hpp）からアクティブな推定器を取得する。
+    // フック側で初期化済み — vehicle の既定（app_default.cpp）は estimator.type
+    // で ESKF/相補を選び、アプリ（SF_APP_DIR）があれば自作の IEstimator 実装を
+    // 返せる。
+    g_estimator = &sf::app::estimator();
 
     // Initialize the takeoff/landing manager (ToF-altitude ground/airborne detection).
     // 離着陸マネージャを初期化（ToF 高度で接地/空中を判定）。

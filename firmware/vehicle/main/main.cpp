@@ -11,18 +11,21 @@
  * @brief StampFly vehicle — Main Entry Point
  *        StampFly vehicle — メインエントリポイント
  *
- * Declarative boot: app_main only names the five boot phases (NVS → BSP →
- * topics → params → tasks). Each phase's "how" lives in its owning module
- * (sf_board::init, topics_init, params::init, tasks::start_all). There are no
- * extern task handles — the pipeline tasks register their own (R3).
+ * Declarative boot: app_main only names the six boot phases (NVS → BSP →
+ * topics → params → tasks → app). Each phase's "how" lives in its owning
+ * module (sf_board::init, topics_init, params::init, tasks::start_all,
+ * sf::app::start). There are no extern task handles — the pipeline tasks
+ * register their own (R3).
  *
- * 宣言的起動: app_main は 5 つの起動フェーズ（NVS → BSP → トピック → params →
- * タスク）を並べるだけ。各フェーズの「どう」は所有モジュールにある。extern タスク
- * ハンドルは持たない — パイプラインタスクが自分のハンドルを登録する（R3）。
+ * 宣言的起動: app_main は 6 つの起動フェーズ（NVS → BSP → トピック → params →
+ * タスク → アプリ）を並べるだけ。各フェーズの「どう」は所有モジュールにある。
+ * extern タスクハンドルは持たない — パイプラインタスクが自分のハンドルを
+ * 登録する（R3）。
  *
  * @design hardware_init.md §4 — 起動シーケンス (Phase 0..4)           [OK]
  * @design architecture.md §4 — State machine: INIT → IDLE             [OK]
  * @design detailed_design.md §3 — onEnter(IDLE): start calibration    [OK]
+ * @design app_hooks.hpp — Phase 5: sf::app::start() (L1 entry point)  [OK]
  */
 
 #include "esp_log.h"
@@ -32,6 +35,7 @@
 #include "params.hpp"
 #include "tasks.hpp"
 #include "sf_board.hpp"
+#include "app_hooks.hpp"
 
 static const char* TAG = "main";
 
@@ -87,4 +91,19 @@ extern "C" void app_main(void)
     // =========================================================================
     sf::tasks::start_all();
     ESP_LOGI(TAG, "=== Phase 4: tasks started — INIT complete ===");
+
+    // =========================================================================
+    // Phase 5: Application — the L1 app hook (app_hooks.hpp). Every standard
+    // task is running now, so an application may safely read Topics
+    // (sf::api::*) and start its own additional tasks. Default (no
+    // application present, app_default.cpp): does nothing.
+    //
+    // Phase 5: アプリケーション — L1 のアプリフック（app_hooks.hpp）。全標準
+    // タスクが起動済みのため、アプリは安全に Topic（sf::api::*）を読み、独自の
+    // 追加タスクを起動できる。既定（アプリ無し、app_default.cpp）: 何もしない。
+    //
+    // @design docs/plans/sf-app-sils-plan.md §2 — app_hooks: start()   [OK]
+    // =========================================================================
+    sf::app::start();
+    ESP_LOGI(TAG, "Phase 5: application started");
 }

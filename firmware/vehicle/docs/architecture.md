@@ -129,7 +129,7 @@
 | 3 | 状態管理 | `sf_state` | — |
 | 4 | フェイルセーフ | `sf_failsafe` | — |
 | 5 | 離着陸マネージャー | `sf_takeoff_landing` | — |
-| 6 | 制御 | `sf_controller`（インターフェース）, `sf_controller_pid`（PID実装） | 差替可能設計のため2層 |
+| 6 | 制御 | `sf_controller`（インターフェース）, `sf_controller_pid`（PID実装）, `sf_app_hooks`（L1 差し替え口: `sf::app::controller()` / `estimator()` / `start()` と既定実装） | 差替可能設計のため2層＋差し替え口 |
 | 7 | アクチュエーション | `sf_actuator`, `sf_hal_motor` | ロジック層 + ハード層 |
 | 8 | コマンド処理 | `sf_command` | — |
 | 9 | 通信 | `sf_comm` | — |
@@ -151,11 +151,24 @@ vehicle は **学習者がレベルに応じて入口を選べる** 並列 API �
 | 層 | 名前空間 | 典型ユーザー | できること |
 |----|---------|------------|----------|
 | **L0: Workshop API** | `ws::*` | Workshop 受講者・初心者 | `setup()` / `loop_400Hz(dt)`、`ws::motor_set_duty()`, `ws::gyro_x()` 等の 30+ 関数で完結。HW・タスク・Topic 知識ゼロでフライト制御まで体験 |
-| **L1: Topic API** | `sf::api::*` | 推定・制御・ガイダンス学習者 | Topic を subscribe / publish して自分の ESKF / PID / Navigator を実装。`IEstimator` / `IController` を実装して既存と差替え |
+| **L1: Topic API** | `sf::api::*` | 推定・制御・ガイダンス学習者 | Topic を subscribe / publish して自分の ESKF / PID / Navigator を実装。`IEstimator` / `IController` を実装して既存と差替え。**入口は `sf app`**（`firmware/apps/<name>`）: `sf_app_hooks` の `sf::app::controller()` / `estimator()` / `start()`（`app_hooks.hpp`）を実装し、ビルド変数 `SF_APP_DIR` で vehicle の main コンポーネントに組み込む（実機と SILS の `emu_vehicle` で同一ソース） |
 | **L2: HAL Direct** | `stampfly::*Wrapper` | HW 学習者 | `BMI270Wrapper.readSensorData()` 等を直接呼び、SPI / I2C / RMT / LEDC を理解。Topic を介さない経路 |
 | **L3: BSP Internal** | `sf::internal::board` | ファーム実装者・拡張者 | `sf_board` の getter で bus handle を取得、esp-idf 直叩き。起動順序や HW 資源管理を変更できる |
 
 各層は **並列に共存する** — Workshop 受講者は L0 だけ、PID 学習者は L1 だけ、BMI270 の SPI 通信を理解したい学生は L2 まで降りる。**HW を「隠す」のではなく「学べる」** よう、どの層も完成度高く整備する。
+
+#### L1 の入口（アプリフック）と不変条件の照合
+
+L1 の差し替え口は `sf_app_hooks`（`app_hooks.hpp`）の 3 関数だけである。`ControlTask` は起動時に `sf::app::controller()` から `IController` を、`ImuTask` は `sf::app::estimator()` から `IEstimator` を 1 回だけ受け取り、`app_main()` は全タスク起動後に `sf::app::start()` を呼ぶ（Phase 5）。アプリが無いときは `app_default.cpp` が既定（`PidController`、`estimator.type` による ESKF／相補の選択、何もしない `start()`）を供給し、既定挙動は変わらない。アプリは `firmware/apps/<name>/*.cpp` として main コンポーネントに直接コンパイルされる（弱シンボルや同名コンポーネントの上書きは使わない — 理由は `docs/plans/sf-app-sils-plan.md` §2）。
+
+| 不変条件 | 照合結果 |
+|---------|---------|
+| INV-1（単一の姿勢＋レートパイプライン） | フックは `IController` **全体**を差し替える。`compute()` の呼び出し位置・回数は変わらず、並列の姿勢則は生じない。**自作コントローラは鉛直フェーズ（Grounded / TakeoffClimb / Airborne / Landing）の扱いを自分の `compute()` 内で引き継ぐ責務を負う**（`onTakeoff()` / `onLanding()` 等の通知は従来どおり届く） |
+| INV-2（パイロットの姿勢操縦を奪わない） | フックは制御則の実装を替えるだけで、設定点の経路・リンク途絶判定（R16）には触れない。自作コントローラもこの規則を守ること |
+| INV-3（検出と判断の分離） | 検出層・`StateManager` は無変更。フックは制御器と推定器の「どう計算するか」だけを差し替える |
+| INV-4（状態機械の規範表） | 状態機械に変更なし |
+
+L0（`firmware/workshop`）は `ControlTask` を丸ごと `WorkshopControlTask` に置き換える別の入口であり、L1 のフックとは並列に共存する（本節冒頭の原則どおり）。workshop ビルドは vehicle の `ImuTask` を共有するため `sf_app_hooks` の既定実装を使う。
 
 #### HW 要素から見た入口マッピング
 
@@ -685,7 +698,7 @@ The 14 design responsibilities expand to ESP-IDF component granularity as follow
 | 3 | State Management | `sf_state` | — |
 | 4 | Failsafe | `sf_failsafe` | — |
 | 5 | Takeoff/Landing Mgr | `sf_takeoff_landing` | — |
-| 6 | Control | `sf_controller` (interface), `sf_controller_pid` (PID impl) | Two layers for replaceability |
+| 6 | Control | `sf_controller` (interface), `sf_controller_pid` (PID impl), `sf_app_hooks` (L1 swap-in point: `sf::app::controller()` / `estimator()` / `start()` with defaults) | Two layers plus a swap-in point for replaceability |
 | 7 | Actuation | `sf_actuator`, `sf_hal_motor` | Logic + hardware |
 | 8 | Command Processing | `sf_command` | — |
 | 9 | Communication | `sf_comm` | — |
