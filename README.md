@@ -31,7 +31,7 @@
 ## 📦 インストール
 
 **コマンドライン（CLI）で導入してください。** GUI 版インストーラ「StampFly Setup」もありますが、
-まだ動作の安定性を確認できていないため、講習の事前準備では以下の CLI 手順で進めてください。
+まだ動作の安定性を確認できていないため、以下の CLI 手順で進めてください。
 GUI 版の説明は **[GUI インストーラガイド](docs/guides/gui-installer.md)** にあります。
 
 手順はどの OS でも同じ 3 段階です。
@@ -325,7 +325,7 @@ This ecosystem exists for you.
 ## 📦 Installation
 
 **Install from the command line (CLI).** A GUI installer, "StampFly Setup", also exists,
-but its stability is not yet confirmed, so please follow the CLI steps below to prepare for the tutorial.
+but its stability is not yet confirmed, so please follow the CLI steps below.
 The GUI installer is described in the **[GUI Installer Guide](docs/guides/gui-installer.md)**.
 
 The procedure is the same three stages on every OS.
