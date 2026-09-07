@@ -155,7 +155,10 @@
 \begin{frame}{機体の軸定義}
   \vspace{-0.5em}
   \begin{center}
-    \resizebox{0.6\textwidth}{!}{\input{../../_shared/tikz/imu_axes}}
+    % Width and height both capped (BL10): the figure is a true 3D projection now,
+    % so its aspect ratio is no longer tied to the slide's
+    % 幅と高さの両方を上限で制限（BL10）。図は正しい 3D 投影になり縦横比が変わりうるため
+    \adjustbox{max width=0.62\textwidth, max height=0.52\textheight}{\input{../../_shared/tikz/imu_axes}}
   \end{center}
   \vspace{-0.5em}
   \begin{block}{}
@@ -245,6 +248,60 @@ void loop_400Hz(float dt) {
   \end{block}
 
   {\footnotesize 前ページまでの \code{sf lesson build \&\& sf lesson flash} 完了後、Teleplot 画面を見ながら機体を傾ける}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{WiFi でつなぐ: 有線と無線の使い分け}
+  \begin{exampleblock}{飛行中は USB を挿せない}
+    \footnotesize USB ケーブルは機体と PC を物理的につなぐため、実際に飛ばしながらは使えない。
+    その場でのゲイン変更や飛行中のデータ取得には WiFi 接続が要る
+  \end{exampleblock}
+
+  \vspace{0.3em}
+
+  \begin{table}
+    \centering\footnotesize
+    \begin{tabular}{lcc}
+      \hline
+       & \textbf{USB（有線）} & \textbf{WiFi（無線）} \\
+      \hline
+      ビルド・書き込み                   & \checkmark & --- \\
+      起動ログ確認（\code{sf monitor}）   & \checkmark & --- \\
+      50\,Hz テレメトリのライブ表示        & --- & \checkmark \\
+      飛行中の 400\,Hz 全データ記録        & --- & \checkmark \\
+      パラメータの即時変更（飛行中も反映） & --- & \checkmark \\
+      システム同定・ゲイン設計             & --- & \checkmark \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  {\footnotesize 右列は \code{sf telemetry}（UDP:5005）／\code{sf log wifi}（UDP:8890）／
+  \code{param set}（WiFi 経由の CLI，TCP:23）のいずれかを使う。次ページで接続方法を説明する}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{接続手順: 機体を WiFi 網に入れる}
+  \begin{block}{機体側: 初回だけ USB で設定する（以後は電源投入だけでよい）}
+    \footnotesize
+    \begin{enumerate}\setlength{\itemsep}{0pt}
+      \item USB 接続のまま \code{sf monitor} を開き CLI に入る（終了は \code{Ctrl+]}）
+      \item \code{param set wifi.mode 1}（\code{0}=STA が既定／\code{1}=SoftAP）
+      \item \code{param save} してから \code{reboot}
+    \end{enumerate}
+  \end{block}
+
+  \vspace{0.15em}
+
+  \begin{exampleblock}{PC 側: 機体の WiFi に接続する}
+    \footnotesize 機体が \texttt{StampFly-XXYY}（MAC 末尾から自動生成の SSID）を出す。
+    PC の WiFi 設定で選び，既定パスワード \texttt{stampfly} を入力。
+    IP は既定 \texttt{192.168.10.1}（DJI Tello 互換サブネット）
+  \end{exampleblock}
+
+  \vspace{0.15em}
+
+  {\scriptsize 疎通確認: \code{sf telemetry}（受信できれば OK，IP 指定不要）。
+  会場の WiFi ではなく機体自身が出す AP に繋ぐ（機体ごとに SSID が異なる）}
 \end{frame}
 
 % ------------------------------------------------------------------

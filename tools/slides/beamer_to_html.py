@@ -1468,6 +1468,10 @@ def build_slides(sci_dir: Path) -> list[Slide]:
 # ===========================================================================
 
 DECK_SHORT_TITLE = "StampFly Ecosystem"
+# Licence line on the title slide; keep in step with \sciLicense* in sci_tutorial.tex
+# 表紙のライセンス表示。sci_tutorial.tex の \sciLicense* と揃える
+LICENSE_TEXT = "この資料は CC BY 4.0（クリエイティブ・コモンズ 表示 4.0 国際）ライセンスで公開しています"
+LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/deed.ja"
 
 
 def render_slide_section(slide: Slide, index: int, total: int) -> str:
@@ -1501,7 +1505,9 @@ def render_title_slide_body(slide: Slide) -> str:
     return (f'<div class="title-content"><h1>{slide.title_html}</h1>'
             f'<p class="subtitle">{slide.subtitle_html}</p>'
             f'<p class="author">{slide.author_html}</p>'
-            f'<p class="date">{slide.date_html}</p></div>')
+            f'<p class="date">{slide.date_html}</p>'
+            f'<p class="license"><a href="{LICENSE_URL}" target="_blank" rel="noopener license">'
+            f'<img src="assets/img/cc-by.svg" alt="CC BY 4.0" class="license-icon"> {esc(LICENSE_TEXT)}</a></p></div>')
 
 
 def render_divider_slide_body(slide: Slide) -> str:

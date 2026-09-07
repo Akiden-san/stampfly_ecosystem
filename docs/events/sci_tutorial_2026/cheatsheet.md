@@ -46,6 +46,32 @@
 
 全コマンドは `lib/sfcli/commands/` に実装がある。
 
+### WiFi 接続（設定・疎通確認）
+
+`sf telemetry`／`sf log wifi`／`param set`（飛行中のライブなゲイン変更）／`sf sysid rate-fit`・`rate-tune` の入力ログなどは、いずれも WiFi 経由でしか取得・操作できない（飛行中は USB を挿せないため）。出荷時既定は `wifi.mode`=0（STA・資格情報未設定）でテレメトリが無効なので、最初に SoftAP（機体自身が出す WiFi）へ切り替える。
+
+| 項目 | 既定値 |
+|------|--------|
+| `wifi.mode` | `0`=STA（既定）／`1`=SoftAP |
+| SoftAP SSID | `StampFly-XXYY`（MACアドレス末尾から自動生成） |
+| SoftAP パスワード | `stampfly`（`wifi pass <secret>` で変更可） |
+| 機体 IP | `192.168.10.1`（DJI Tello 互換サブネット。`sf` の各種 `--ip` の既定値でもある） |
+| WiFi/ESP-NOW チャンネル | `wifi.channel`（既定 `1`、1〜13） |
+
+```bash
+# 機体側: USB接続のまま sf monitor でCLIに入り、SoftAPへ切り替える（初回のみ）
+param set wifi.mode 1
+param save
+reboot
+
+# PC側: WiFi設定でSSID `StampFly-XXYY` に接続（パスワードは既定 `stampfly`）
+
+# 疎通確認（IP指定不要、既定192.168.10.1で待ち受け）
+sf telemetry
+```
+
+会場の WiFi は使わない（不通の前提で運用する）。各自の StampFly ごとに SSID が異なる点に注意。
+
 ## 3. ws:: Workshop API（学習者コード用、`#include "workshop_api.hpp"`、全関数は `ws::` 名前空間）
 
 ### モータ制御
@@ -147,6 +173,33 @@ In `sf --help` display order.
 **About `sf sysid noise`'s input CSV:** the CSV from `sf log wifi -o file.csv` only has gyro/accel columns -- no baro/tof. For baro/tof noise characterization, capture with `sf log capture` (USB) and convert with `sf log convert` instead. Also add `--static-only` so the analysis only uses stationary segments.
 
 All commands are implemented under `lib/sfcli/commands/`.
+
+### Connecting Over WiFi (Setup and Connectivity Check)
+
+`sf telemetry`, `sf log wifi`, `param set` (live gain changes in flight), and the logs that feed `sf sysid rate-fit`/`rate-tune` are all only reachable over WiFi (you cannot plug in USB while flying). Out of the box, `wifi.mode` defaults to `0` (STA, no credentials configured), which leaves telemetry inert -- switch to SoftAP (the vehicle's own WiFi) first.
+
+| Item | Default |
+|------|---------|
+| `wifi.mode` | `0` = STA (default) / `1` = SoftAP |
+| SoftAP SSID | `StampFly-XXYY` (auto-generated from the MAC tail) |
+| SoftAP password | `stampfly` (change with `wifi pass <secret>`) |
+| Vehicle IP | `192.168.10.1` (DJI Tello-compatible subnet; also the default for every `sf` `--ip` flag) |
+| WiFi/ESP-NOW channel | `wifi.channel` (default `1`, 1-13) |
+
+```bash
+# Vehicle side: enter the CLI over the still-live USB link with sf monitor,
+# then switch to SoftAP (one-time only)
+param set wifi.mode 1
+param save
+reboot
+
+# PC side: join SSID `StampFly-XXYY` in WiFi settings (default password `stampfly`)
+
+# Connectivity check (no --ip needed; listens on the default 192.168.10.1)
+sf telemetry
+```
+
+Do not rely on venue WiFi (assume it is down). Each attendee's StampFly has a different SSID.
 
 ## 3. ws:: Workshop API (for learner code, `#include "workshop_api.hpp"`, all functions in the `ws::` namespace)
 

@@ -440,6 +440,9 @@ th, td { overflow-wrap: anywhere; word-break: break-word; }
 .title-content .subtitle { font-size: var(--fs-normal); margin: 0 0 26px; opacity: 0.92; }
 .title-content .author { font-size: var(--fs-small); margin: 0 0 10px; }
 .title-content .date { font-size: var(--fs-footnotesize); opacity: 0.85; line-height: 1.6; }
+.title-content .license { font-size: var(--fs-scriptsize, 0.8em); margin: 28px 0 0; opacity: 0.85; }
+.title-content .license a { color: inherit; text-decoration: none; }
+.title-content .license-icon { height: 1.6em; vertical-align: middle; margin-right: 6px; }
 
 /* ---- divider (session break) slides ---------------------------------------- */
 .slide.divider {

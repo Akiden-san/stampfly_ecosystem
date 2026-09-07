@@ -1,6 +1,15 @@
 \documentclass[aspectratio=169, 14pt]{beamer}
 \usepackage{stampfly_slides}
 \input{preamble}
+\usepackage{ccicons}   % Creative Commons icons for the title page / 表紙の CC アイコン
+
+% --- License notice on the title page ---------------------------------------
+% The deck is published under CC BY 4.0. Change the licence in this one place
+% (icon macro from ccicons: \ccby, \ccbysa, \ccbync, ...; text; URL).
+% 表紙のライセンス表示。種別を変えるときはこの 3 行だけを直す。
+\newcommand{\sciLicenseIcon}{\ccby}
+\newcommand{\sciLicenseText}{この資料は CC BY 4.0（クリエイティブ・コモンズ 表示 4.0 国際）で公開}
+\newcommand{\sciLicenseURL}{https://creativecommons.org/licenses/by/4.0/deed.ja}
 
 % --- "read later" badge for frame titles -----------------------------------
 % Marks frames the instructor skims live but participants should read later.
@@ -97,6 +106,7 @@
 \title{制御教育教材 StampFly Ecosystem の紹介}
 \subtitle{コーディングから飛行試験、データ取得まで}
 \author{伊藤 恒平（金沢工業大学）}
+\setbeamerfont{date}{size=\small}   % keep the two-line date from wrapping to three / 日付の 3 行折り返しを防ぐ
 \date{2026年9月10日（木）大阪大学中之島センター + Zoom\\ システム制御情報学会・計測自動制御学会 チュートリアル講座 2026}
 
 \begin{document}
@@ -105,6 +115,11 @@
 \begin{frame}
   \titlepage
   \sciTitleQR
+  \vspace{-1.5em}
+  \begin{center}
+    {\large\sciLicenseIcon}\enspace{\scriptsize\textcolor{sfgray}{\sciLicenseText}}\\[-1pt]
+    {\scriptsize\textcolor{sfgray}{\url{\sciLicenseURL}}}
+  \end{center}
 \end{frame}
 
 % === Opening: how this day works, participation levels, materials ===
