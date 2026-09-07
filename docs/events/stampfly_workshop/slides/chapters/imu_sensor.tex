@@ -18,7 +18,9 @@
 \begin{frame}{NED 座標系 / NED Coordinate System}
   \vspace{-0.5em}
   \begin{center}
-    \resizebox{0.65\textwidth}{!}{\input{../../_shared/tikz/imu_axes}}
+    % Width and height both capped: the figure is a true 3D projection now
+    % 幅と高さの両方を上限で制限（図は正しい 3D 投影になり縦横比が変わった）
+    \adjustbox{max width=0.65\textwidth, max height=0.6\textheight}{\input{../../_shared/tikz/imu_axes}}
   \end{center}
   \vspace{-0.5em}
   \begin{block}{}

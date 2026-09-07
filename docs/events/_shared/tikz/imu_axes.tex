@@ -17,123 +17,259 @@
     },
   ]
 
-  % Isometric unit vectors
-  \pgfmathsetmacro{\Xx}{-0.71}
-  \pgfmathsetmacro{\Xy}{0.50}
-  \pgfmathsetmacro{\Yx}{1.0}
-  \pgfmathsetmacro{\Yy}{0.0}
-  \pgfmathsetmacro{\Zx}{0.0}
-  \pgfmathsetmacro{\Zy}{-1.0}
+  % ============================================================
+  % True orthographic (parallel) projection of the FRD body frame
+  % X=forward, Y=right, Z=down (right-handed).
+  %
+  % Camera model: view the body from behind (-X side), from the
+  % right (+Y side), and from above (-Z side, since "up" in the
+  % real world is the -Z direction here). This is parametrised by
+  % an elevation angle ElevDeg (how far above the horizontal plane
+  % the camera sits) and an azimuth AzimDeg (how far around from
+  % "directly behind" toward "directly to the right" the camera
+  % sits).
+  %
+  % Camera view direction (unit vector, camera -> scene):
+  %   f = ( cos(el) cos(az), -cos(el) sin(az), sin(el) )
+  % World "up" reference (real-world up, since Z points down):
+  %   up_ref = (0, 0, -1)
+  % Screen-right and screen-up unit vectors (standard look-at
+  % construction, right = f x up_ref, up = right x f):
+  %   r_hat = ( sin(az), cos(az), 0 )
+  %   u_hat = ( cos(az) sin(el), -sin(az) sin(el), -cos(el) )
+  % These closed forms were derived and their orthonormality
+  % (r_hat . u_hat = 0, both unit length) verified numerically in
+  % Python (P P^T = I to 1e-17) before being hard-coded below as
+  % sin/cos of the two named angles -- no unexplained numbers.
+  %
+  % 正しい平行投影（直交投影）で FRD 機体座標系
+  % （X=前, Y=右, Z=下, 右手系）を描く。
+  %
+  % カメラは機体の「後ろ（-X側）・右（+Y側）・上（この座標系では
+  % 実世界の「上」は -Z 方向）」から見下ろす配置とし、仰角 ElevDeg
+  % （水平面からどれだけ上に見上げる/見下ろすか）と方位角 AzimDeg
+  % （「真後ろ」から「真右」に向けてどれだけ回り込むか）の2角で
+  % 表す。
+  %
+  % カメラ視線方向（カメラ→対象、単位ベクトル）:
+  %   f = ( cos(el) cos(az), -cos(el) sin(az), sin(el) )
+  % 実世界の「上」基準ベクトル（Zが下なので (0,0,-1)）:
+  %   up_ref = (0, 0, -1)
+  % 画面右方向・画面上方向の単位ベクトル（標準的なlook-at構成:
+  % right = f × up_ref, up = right × f）:
+  %   r_hat = ( sin(az), cos(az), 0 )
+  %   u_hat = ( cos(az) sin(el), -sin(az) sin(el), -cos(el) )
+  % これらの閉形式はPythonで導出し、正規直交性
+  % （r_hat・u_hat = 0、共に単位長）を P P^T = I (誤差1e-17) として
+  % 数値検証済み。以下ではその2角のsin/cosとして直接埋め込む
+  % （由来不明の数値は使わない）。
+  \pgfmathsetmacro{\ElevDeg}{30}   % camera elevation above horizontal / 仰角
+  \pgfmathsetmacro{\AzimDeg}{35}   % camera azimuth from "directly behind" / 方位角
 
-  % Body - isometric parallelogram
-  \fill[bodycolor!10]
-    ({1.1*\Xx+1.1*\Yx},{1.1*\Xy+1.1*\Yy}) --
-    ({1.1*\Xx-1.1*\Yx},{1.1*\Xy-1.1*\Yy}) --
-    ({-1.1*\Xx-1.1*\Yx},{-1.1*\Xy-1.1*\Yy}) --
-    ({-1.1*\Xx+1.1*\Yx},{-1.1*\Xy+1.1*\Yy}) -- cycle;
-  \draw[bodycolor, line width=1.5pt]
-    ({1.1*\Xx+1.1*\Yx},{1.1*\Xy+1.1*\Yy}) --
-    ({1.1*\Xx-1.1*\Yx},{1.1*\Xy-1.1*\Yy}) --
-    ({-1.1*\Xx-1.1*\Yx},{-1.1*\Xy-1.1*\Yy}) --
-    ({-1.1*\Xx+1.1*\Yx},{-1.1*\Xy+1.1*\Yy}) -- cycle;
+  % Screen-projected components of the three world unit vectors,
+  % i.e. the two rows of the 2x3 orthonormal projection matrix
+  % evaluated on X=(1,0,0), Y=(0,1,0), Z=(0,0,1).
+  % 世界座標系の3つの単位ベクトルを投影した画面上の成分
+  % （2×3正規直交投影行列を X=(1,0,0), Y=(0,1,0), Z=(0,0,1) に
+  % 適用した結果）。
+  \pgfmathsetmacro{\Xx}{sin(\AzimDeg)}
+  \pgfmathsetmacro{\Xy}{cos(\AzimDeg)*sin(\ElevDeg)}
+  \pgfmathsetmacro{\Yx}{cos(\AzimDeg)}
+  \pgfmathsetmacro{\Yy}{-sin(\AzimDeg)*sin(\ElevDeg)}
+  \pgfmathsetmacro{\Zx}{0}
+  \pgfmathsetmacro{\Zy}{-cos(\ElevDeg)}
 
-  % Axis length
-  \pgfmathsetmacro{\AL}{4.5}
+  % Because an orthographic projection is a LINEAR map, projecting
+  % any point built from linear combinations of X, Y, Z (body
+  % corners, rotor circles, rotation-arc parametrisations) can be
+  % done by taking the same linear combination of the already
+  % projected \Xx/\Xy, \Yx/\Yy, \Zx/\Zy vectors below -- there is
+  % no need to re-project every point from scratch.
+  % 直交投影は線形写像なので、X, Y, Z の線形結合で作られる点
+  % （機体コーナー、ローター円、回転円弧のパラメータ表示）は、
+  % 個別に再投影せず、上で求めた投影済みベクトル \Xx/\Xy 等を
+  % 同じ線形結合で使えばよい。
 
-  % X axis (Forward / North)
+  % Geometry constants (all named, no bare magic numbers)
+  % 幾何パラメータ（マジックナンバー無し、全て名前付き）
+  \pgfmathsetmacro{\AL}{4.5}          % axis arrow length / 軸矢印の長さ
+  \pgfmathsetmacro{\BodyHalf}{1.15}   % body plate half-diagonal / 機体プレート半対角長
+  \pgfmathsetmacro{\RotorR}{0.5}      % rotor disk radius / ローター円半径
+  \pgfmathsetmacro{\NoseLen}{0.4}     % front marker length beyond edge / 前方マーカーの突出量
+  \pgfmathsetmacro{\NoseHalfW}{0.4}   % front marker half width / 前方マーカーの半幅
+  % Rotation-arc placement was chosen, and verified numerically in
+  % Python, so that the 270-degree circle (radius ArcR, centered at
+  % ArcCenterDist along the axis) stays clear of all four rotor
+  % disks (closest approach margin > 0.15 world units at these
+  % values) -- an earlier smaller ArcCenterDist made the Roll arc
+  % overlap the front-right rotor disk.
+  % 回転円弧の配置は、270°の円（半径ArcR、軸上ArcCenterDistの位置が
+  % 中心）が4つのローター円盤すべてから離れて見えるようPythonで
+  % 数値検証して決定（この値で最近接マージン0.15ワールド単位超）。
+  % 以前の小さいArcCenterDistではRoll弧が右前方ローターと重なっていた。
+  \pgfmathsetmacro{\ArcCenterDist}{3.2} % rotation-arc center distance along axis / 回転円弧中心の軸上距離
+  \pgfmathsetmacro{\ArcR}{0.65}        % rotation-arc radius / 回転円弧の半径
+
+  % ---- Body plate: square in the XY (horizontal) plane, corners
+  % at world coordinates (+-BodyHalf, +-BodyHalf, 0). FR/FL/RL/RR
+  % name the four corners (Front/Rear, Right/Left).
+  % ---- 機体プレート: XY平面（水平面）上の正方形。コーナーは世界
+  % 座標で (±BodyHalf, ±BodyHalf, 0)。FR/FL/RL/RRは前後左右のコーナー名。
+  \pgfmathsetmacro{\FRx}{\BodyHalf*\Xx+\BodyHalf*\Yx}
+  \pgfmathsetmacro{\FRy}{\BodyHalf*\Xy+\BodyHalf*\Yy}
+  \pgfmathsetmacro{\FLx}{\BodyHalf*\Xx-\BodyHalf*\Yx}
+  \pgfmathsetmacro{\FLy}{\BodyHalf*\Xy-\BodyHalf*\Yy}
+  \pgfmathsetmacro{\RLx}{-\BodyHalf*\Xx-\BodyHalf*\Yx}
+  \pgfmathsetmacro{\RLy}{-\BodyHalf*\Xy-\BodyHalf*\Yy}
+  \pgfmathsetmacro{\RRx}{-\BodyHalf*\Xx+\BodyHalf*\Yx}
+  \pgfmathsetmacro{\RRy}{-\BodyHalf*\Xy+\BodyHalf*\Yy}
+
+  \fill[bodycolor!10] (\FRx,\FRy) -- (\FLx,\FLy) -- (\RLx,\RLy) -- (\RRx,\RRy) -- cycle;
+  \draw[bodycolor, line width=1.2pt] (\FRx,\FRy) -- (\FLx,\FLy) -- (\RLx,\RLy) -- (\RRx,\RRy) -- cycle;
+
+  % ---- Rotor disks: true circles of radius RotorR lying in the XY
+  % plane, centered on each body corner. Parametrised in 3D as
+  % corner + RotorR*(cos(t) X + sin(t) Y) and projected by taking
+  % the same combination of the projected \Xx/\Xy, \Yx/\Yy vectors
+  % -- the projection is an ellipse, exactly as a circle on a
+  % tilted plane appears under parallel projection.
+  % ---- ローター円盤: XY平面上にある半径RotorRの真円。各機体コーナー
+  % を中心とする。3D では corner + RotorR*(cos(t) X + sin(t) Y) と
+  % パラメータ表示し、投影済みの \Xx/\Xy, \Yx/\Yy を同じ組み合わせで
+  % 使って投影する（平行投影された傾いた平面上の円は楕円になる）。
+  \foreach \Ccx/\Ccy in {\FRx/\FRy, \FLx/\FLy, \RLx/\RLy, \RRx/\RRy} {
+    \draw[bodycolor, thin, fill=bodycolor!8]
+      ({\Ccx+\RotorR*\Xx*cos(0)+\RotorR*\Yx*sin(0)},
+       {\Ccy+\RotorR*\Xy*cos(0)+\RotorR*\Yy*sin(0)})
+      \foreach \a in {6,12,...,360} {
+        -- ({\Ccx+\RotorR*\Xx*cos(\a)+\RotorR*\Yx*sin(\a)},
+            {\Ccy+\RotorR*\Xy*cos(\a)+\RotorR*\Yy*sin(\a)})
+      } -- cycle;
+  }
+
+  % ---- Three body axes, drawn from the origin (body center) ----
+
+  % X axis (Forward)
   \draw[axis, axisX] (0,0) -- ({\AL*\Xx},{\AL*\Xy});
-
-  % Front marker triangle -- drawn AFTER the X axis line so its opaque fill
-  % paints over the line where it would otherwise cross the marker,
-  % keeping the marker readable as one solid shape (its base midpoint sits
-  % exactly on the X-axis line, which used to bisect it when drawn first).
-  % 前方マーカーの三角形。X軸の線より後に描く（三角形の塗りが不透明なため、
-  % そのままだと線が三角形を貫通する箇所を上塗りし、マーカーが1つの
-  % 塗りつぶし形状として読めるようにする）。三角形の底辺の中点はちょうど
-  % X軸の直線上にあり、先に描くと三角形が線で分断されて見えていた。
-  \fill[axisX!50]
-    ({1.1*\Xx-0.35},{1.1*\Xy}) --
-    ({1.1*\Xx+0.35},{1.1*\Xy}) --
-    ({1.1*\Xx},{1.1*\Xy+0.3}) -- cycle;
-
-  \node[font=\Large\bfseries, axisX, above left]
+  \node[font=\Large\bfseries, axisX, above right, inner sep=2pt]
     at ({\AL*\Xx},{\AL*\Xy}) {X (Forward)};
 
-  % Y axis (Right / East)
+  % Y axis (Right)
   \draw[axis, axisY] (0,0) -- ({\AL*\Yx},{\AL*\Yy});
-  \node[font=\Large\bfseries, axisY, above right]
+  \node[font=\Large\bfseries, axisY, below right, inner sep=2pt]
     at ({\AL*\Yx},{\AL*\Yy}) {Y (Right)};
 
   % Z axis (Down)
   \draw[axis, axisZ] (0,0) -- ({\AL*\Zx},{\AL*\Zy});
-  \node[font=\Large\bfseries, axisZ, right]
+  \node[font=\Large\bfseries, axisZ, right, inner sep=2pt]
     at ({\AL*\Zx},{\AL*\Zy}) {Z (Down)};
 
-  % === Rotation arrows (elliptical arcs wrapping around each axis) ===
+  % ---- Front marker: small triangle on the front edge (FR-FL),
+  % base at world (BodyHalf, +-NoseHalfW, 0), apex projecting
+  % further forward at world (BodyHalf+NoseLen, 0, 0). Its base
+  % midpoint sits exactly on the X-axis line (both are points along
+  % world +X), so it is drawn AFTER the X axis: the marker's opaque
+  % fill then paints over the line at that crossing, keeping the
+  % marker readable as one solid shape instead of being bisected by
+  % the axis stroke.
+  % ---- 前方マーカー: 前縁(FR-FL)上の小さな三角形。底辺は世界座標で
+  % (BodyHalf, ±NoseHalfW, 0)、頂点はさらに前方の
+  % (BodyHalf+NoseLen, 0, 0) に投影される。底辺の中点はちょうど
+  % X軸の直線上にある（どちらも世界+X上の点のため）ので、X軸を
+  % 描いた後に描く。マーカーの不透明な塗りがその交点で線の上を
+  % 上塗りし、軸線でマーカーが分断されずに1つの塗りつぶし形状として
+  % 読めるようにする。
+  \fill[axisX!75]
+    ({\BodyHalf*\Xx-\NoseHalfW*\Yx}, {\BodyHalf*\Xy-\NoseHalfW*\Yy}) --
+    ({\BodyHalf*\Xx+\NoseHalfW*\Yx}, {\BodyHalf*\Xy+\NoseHalfW*\Yy}) --
+    ({(\BodyHalf+\NoseLen)*\Xx}, {(\BodyHalf+\NoseLen)*\Xy}) -- cycle;
 
-  % Roll - rotation around X axis
-  % Arc lies in the Y-Z plane, centered on X axis
-  % Projected semi-axes: Y direction (1,0) and Z direction (0,-1)
-  \pgfmathsetmacro{\Rcx}{2.6*\Xx}  % center on X axis
-  \pgfmathsetmacro{\Rcy}{2.6*\Xy}
-  \pgfmathsetmacro{\Rr}{0.9}        % arc radius
-  \draw[rotarrow, axisX!70!black]
-    ({\Rcx+\Rr*\Yx*cos(200)+\Rr*\Zx*sin(200)},
-     {\Rcy+\Rr*\Yy*cos(200)+\Rr*\Zy*sin(200)})
-    \foreach \a in {200,210,...,490} {
-      -- ({\Rcx+\Rr*\Yx*cos(\a)+\Rr*\Zx*sin(\a)},
-          {\Rcy+\Rr*\Yy*cos(\a)+\Rr*\Zy*sin(\a)})
-    };
-  \node[font=\normalsize\bfseries, axisX!70!black, above]
-    at ({\Rcx},{\Rcy+\Rr+0.15}) {Roll};
-
-  % Pitch - rotation around Y axis
-  % Arc lies in the X-Z plane, centered on Y axis
-  % Projected semi-axes: X direction (-0.71,0.5) and Z direction (0,-1)
+  % === Rotation arrows =========================================
+  % Each is a true 3D circle of radius ArcR, centered at
+  % ArcCenterDist along the rotation axis, lying in the plane
+  % perpendicular to that axis (spanned by the other two axes).
+  % Parametrisation follows the cyclic right-hand rule
+  % X -> Y -> Z -> X: for axis A with remaining axes (B, C) in that
+  % cyclic order, a positive (right-hand) rotation about A is drawn
+  % as center + ArcR*(cos(t) B + sin(t) C) for increasing t.
+  % Each arc spans 270 degrees, leaving a 90 degree gap, and is
+  % projected by taking the same linear combination of the already
+  % projected axis vectors (valid because projection is linear).
   %
-  % Right-hand cyclic rule for a positive rotation about axis A: the arc
-  % must be parametrised as (first-of-remaining-pair)*cos + (second)*sin
-  % following the cyclic order X->Y->Z->X. Roll (about X) uses Y*cos+Z*sin
-  % and yaw (about Z) uses X*cos+Y*sin, so pitch (about Y) must use
-  % Z*cos+X*sin -- NOT X*cos+Z*sin, which would reverse the sense.
-  % 右手系の巡回則: 軸Aまわりの正回転の円弧は、X->Y->Z->Xの巡回順で
-  % 「（残り2軸のうち先の軸）*cos + （後の軸）*sin」としてパラメータ化する。
-  % ロール（X軸まわり）はY*cos+Z*sin、ヨー（Z軸まわり）はX*cos+Y*sinを
-  % 使うので、ピッチ（Y軸まわり）はZ*cos+X*sinでなければならない
-  % （X*cos+Z*sinでは回転の向きが逆になる）。
-  \pgfmathsetmacro{\Pcx}{2.6*\Yx}
-  \pgfmathsetmacro{\Pcy}{2.6*\Yy}
-  \pgfmathsetmacro{\Pr}{0.9}
-  \draw[rotarrow, axisY!70!black]
-    ({\Pcx+\Pr*\Zx*cos(200)+\Pr*\Xx*sin(200)},
-     {\Pcy+\Pr*\Zy*cos(200)+\Pr*\Xy*sin(200)})
-    \foreach \a in {200,210,...,490} {
-      -- ({\Pcx+\Pr*\Zx*cos(\a)+\Pr*\Xx*sin(\a)},
-          {\Pcy+\Pr*\Zy*cos(\a)+\Pr*\Xy*sin(\a)})
-    };
-  \node[font=\normalsize\bfseries, axisY!70!black, above right]
-    at ({\Pcx+\Pr*0.3},{\Pcy+\Pr*0.7}) {Pitch};
+  % 各回転矢印は、回転軸に垂直な平面（残り2軸が張る面）内にある、
+  % 軸上の点（原点からArcCenterDist）を中心とする半径ArcRの真円。
+  % 巡回則 X→Y→Z→X に従い、軸Aの正（右手則）回転は、残り2軸を
+  % (B, C) として center + ArcR*(cos(t) B + sin(t) C) （tは増加方向）
+  % で描く。各弧は270°（90°の隙間を残す）。投影済みの軸ベクトルを
+  % 同じ線形結合で使って投影する（投影が線形写像であるため妥当）。
 
-  % Yaw - rotation around Z axis
-  % Arc lies in the X-Y plane, centered on Z axis
-  % Projected semi-axes: X direction (-0.71,0.5) and Y direction (1,0)
-  \pgfmathsetmacro{\Wcx}{2.6*\Zx}
-  \pgfmathsetmacro{\Wcy}{2.6*\Zy}
-  \pgfmathsetmacro{\Wr}{0.9}
-  \draw[rotarrow, axisZ!70!black]
-    ({\Wcx+\Wr*\Xx*cos(160)+\Wr*\Yx*sin(160)},
-     {\Wcy+\Wr*\Xy*cos(160)+\Wr*\Yy*sin(160)})
-    \foreach \a in {160,170,...,450} {
-      -- ({\Wcx+\Wr*\Xx*cos(\a)+\Wr*\Yx*sin(\a)},
-          {\Wcy+\Wr*\Xy*cos(\a)+\Wr*\Yy*sin(\a)})
+  % Label placement rule (applies to all three arcs below): each
+  % label is anchored at a point that is (ArcR + LabelGap) from the
+  % arc center, in the radial direction of the arc's own MIDPOINT
+  % angle (halfway between Start and End). This keeps every label
+  % outside the stroke by a fixed clearance and roughly centered
+  % over the visible (drawn) part of the arc, regardless of which
+  % way that arc's ellipse happens to be oriented on screen.
+  % ラベル配置規則（以下の3つの弧すべてに適用）: 各ラベルは、弧の
+  % 中心から見て弧の中間角度（StartとEndの中間）の動径方向に
+  % (ArcR + LabelGap) だけ離れた点に配置する。弧の楕円が画面上で
+  % どの向きになっていても、線から一定の余白を保ちつつ、見えている
+  % 弧のほぼ真上にラベルが来るようにするため。
+  \pgfmathsetmacro{\LabelGap}{0.45}
+
+  % ---- Roll: rotation about X axis, arc in the Y-Z plane (B=Y, C=Z)
+  % ---- ロール: X軸まわりの回転、弧はYZ平面内 (B=Y, C=Z)
+  \pgfmathsetmacro{\RollCx}{\ArcCenterDist*\Xx}
+  \pgfmathsetmacro{\RollCy}{\ArcCenterDist*\Xy}
+  \pgfmathsetmacro{\RollStart}{200}
+  \pgfmathsetmacro{\RollEnd}{470}
+  \pgfmathsetmacro{\RollMid}{(\RollStart+\RollEnd)/2}
+  \draw[rotarrow, axisX!70!black]
+    ({\RollCx+\ArcR*\Yx*cos(\RollStart)+\ArcR*\Zx*sin(\RollStart)},
+     {\RollCy+\ArcR*\Yy*cos(\RollStart)+\ArcR*\Zy*sin(\RollStart)})
+    \foreach \a in {206,212,...,470} {
+      -- ({\RollCx+\ArcR*\Yx*cos(\a)+\ArcR*\Zx*sin(\a)},
+          {\RollCy+\ArcR*\Yy*cos(\a)+\ArcR*\Zy*sin(\a)})
     };
-  % Label pushed further outside the loop than the 0.8/0.3 multipliers
-  % originally used (found by visual review to have its "w" overlapped
-  % by the arc stroke).
-  % ラベルを元の0.8/0.3倍率より外側へ押し出す（目視レビューで"w"の文字に
-  % 弧の線が重なっていたのを修正）。
-  \node[font=\normalsize\bfseries, axisZ!70!black, above left]
-    at ({\Wcx-\Wr*1.4},{\Wcy+\Wr*0.55}) {Yaw};
+  \node[font=\normalsize\bfseries, axisX!70!black, inner sep=2pt]
+    at ({\RollCx+(\ArcR+\LabelGap)*\Yx*cos(\RollMid)+(\ArcR+\LabelGap)*\Zx*sin(\RollMid)},
+        {\RollCy+(\ArcR+\LabelGap)*\Yy*cos(\RollMid)+(\ArcR+\LabelGap)*\Zy*sin(\RollMid)}) {Roll};
+
+  % ---- Pitch: rotation about Y axis, arc in the Z-X plane (B=Z, C=X)
+  % ---- ピッチ: Y軸まわりの回転、弧はZX平面内 (B=Z, C=X)
+  \pgfmathsetmacro{\PitchCx}{\ArcCenterDist*\Yx}
+  \pgfmathsetmacro{\PitchCy}{\ArcCenterDist*\Yy}
+  \pgfmathsetmacro{\PitchStart}{200}
+  \pgfmathsetmacro{\PitchEnd}{470}
+  \pgfmathsetmacro{\PitchMid}{(\PitchStart+\PitchEnd)/2}
+  \draw[rotarrow, axisY!70!black]
+    ({\PitchCx+\ArcR*\Zx*cos(\PitchStart)+\ArcR*\Xx*sin(\PitchStart)},
+     {\PitchCy+\ArcR*\Zy*cos(\PitchStart)+\ArcR*\Xy*sin(\PitchStart)})
+    \foreach \a in {206,212,...,470} {
+      -- ({\PitchCx+\ArcR*\Zx*cos(\a)+\ArcR*\Xx*sin(\a)},
+          {\PitchCy+\ArcR*\Zy*cos(\a)+\ArcR*\Xy*sin(\a)})
+    };
+  \node[font=\normalsize\bfseries, axisY!70!black, inner sep=2pt]
+    at ({\PitchCx+(\ArcR+\LabelGap)*\Zx*cos(\PitchMid)+(\ArcR+\LabelGap)*\Xx*sin(\PitchMid)},
+        {\PitchCy+(\ArcR+\LabelGap)*\Zy*cos(\PitchMid)+(\ArcR+\LabelGap)*\Xy*sin(\PitchMid)}) {Pitch};
+
+  % ---- Yaw: rotation about Z axis, arc in the X-Y plane (B=X, C=Y)
+  % ---- ヨー: Z軸まわりの回転、弧はXY平面内 (B=X, C=Y)
+  \pgfmathsetmacro{\YawCx}{\ArcCenterDist*\Zx}
+  \pgfmathsetmacro{\YawCy}{\ArcCenterDist*\Zy}
+  \pgfmathsetmacro{\YawStart}{160}
+  \pgfmathsetmacro{\YawEnd}{430}
+  \pgfmathsetmacro{\YawMid}{(\YawStart+\YawEnd)/2}
+  \draw[rotarrow, axisZ!70!black]
+    ({\YawCx+\ArcR*\Xx*cos(\YawStart)+\ArcR*\Yx*sin(\YawStart)},
+     {\YawCy+\ArcR*\Xy*cos(\YawStart)+\ArcR*\Yy*sin(\YawStart)})
+    \foreach \a in {166,172,...,430} {
+      -- ({\YawCx+\ArcR*\Xx*cos(\a)+\ArcR*\Yx*sin(\a)},
+          {\YawCy+\ArcR*\Xy*cos(\a)+\ArcR*\Yy*sin(\a)})
+    };
+  \node[font=\normalsize\bfseries, axisZ!70!black, inner sep=2pt]
+    at ({\YawCx+(\ArcR+\LabelGap)*\Xx*cos(\YawMid)+(\ArcR+\LabelGap)*\Yx*sin(\YawMid)},
+        {\YawCy+(\ArcR+\LabelGap)*\Xy*cos(\YawMid)+(\ArcR+\LabelGap)*\Yy*sin(\YawMid)}) {Yaw};
 
 \end{tikzpicture}
 \end{document}
