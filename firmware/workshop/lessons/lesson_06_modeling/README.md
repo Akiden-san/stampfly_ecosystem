@@ -60,7 +60,7 @@ Kp = 1 / (4·ζ²·K·τ_m)
 |-----------|------|------|-------|-----|------|
 | 慣性モーメント | I | 9.16e-6 | 13.3e-6 | 20.4e-6 | kg·m² |
 | モータ時定数 | τ_m | 0.02 | 0.02 | 0.02† | s |
-| 実効プラントゲイン | K | ~102 | ~70 | ~19 | rad/s² |
+| 実効プラントゲイン | K | ~102 | ~70 | ~8.0 | rad/s² |
 
 > **【確定 2026-07-15】** τ_m = 0.02 s は一連の実測で**裏付けが取れた**。
 > コーストダウン試験（J/C_Q = 335 s·rad の直接測定）、プロペラ上面写真の画素直接積分
@@ -80,13 +80,13 @@ Kp = 1 / (4·ζ²·K·τ_m)
 |---|---|-----------|-----------|-----------|
 | Roll | 102 | 0.50 | 0.25 | 0.12 |
 | Pitch | 70 | 0.60 | 0.36 | 0.18 |
-| Yaw | 19 | 1.15 | 1.34 | 0.66 |
+| Yaw | 8.0 | 1.77 | 3.19 | 1.56 |
 
 ### なぜ軸ごとに Kp を変えるべきか
 
 - Roll: `Kp=0.5` → `ζ=0.50`（やや振動的、~16% オーバーシュート）
 - Pitch: `Kp=0.5` → `ζ=0.60`（適度なオーバーシュート）
-- Yaw: `Kp=0.5` → `ζ=1.15`（過減衰、応答が遅い）
+- Yaw: `Kp=0.5` → `ζ=1.77`（過減衰、応答が遅い）
 
 全軸同じ Kp では最適な応答が得られない。モデルベースの設計で軸ごとに調整する。
 
@@ -218,7 +218,7 @@ Kp = 1 / (4·ζ²·K·τ_m)
 |-----------|--------|------|-------|-----|------|
 | Moment of inertia | I | 9.16e-6 | 13.3e-6 | 20.4e-6 | kg·m² |
 | Motor time constant | τ_m | 0.02 | 0.02 | 0.02† | s |
-| Effective plant gain | K | ~102 | ~70 | ~19 | rad/s² |
+| Effective plant gain | K | ~102 | ~70 | ~8.0 | rad/s² |
 
 > **[Confirmed 2026-07-15]** τ_m = 0.02 s is now backed by measurement: the coast-down test
 > (direct J/C_Q = 335 s·rad), pixel-integration of the propeller photo (J_prop = 1.03e-8),
@@ -238,13 +238,13 @@ Kp = 1 / (4·ζ²·K·τ_m)
 |------|---|-------------|-------------|-------------|
 | Roll | 102 | 0.50 | 0.25 | 0.12 |
 | Pitch | 70 | 0.60 | 0.36 | 0.18 |
-| Yaw | 19 | 1.15 | 1.34 | 0.66 |
+| Yaw | 8.0 | 1.77 | 3.19 | 1.56 |
 
 ### Why Per-Axis Kp Matters
 
 - Roll: `Kp=0.5` → `ζ=0.50` (slightly oscillatory, ~16% overshoot)
 - Pitch: `Kp=0.5` → `ζ=0.60` (moderate overshoot)
-- Yaw: `Kp=0.5` → `ζ=1.15` (overdamped, sluggish response)
+- Yaw: `Kp=0.5` → `ζ=1.77` (overdamped, sluggish response)
 
 A single Kp for all axes cannot achieve optimal response. Model-based design enables per-axis tuning.
 

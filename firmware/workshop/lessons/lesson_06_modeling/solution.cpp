@@ -10,7 +10,7 @@
 static const float tau_m = 0.02f;    // Motor time constant [s] / モータ時定数
 static const float K_roll  = 102.0f; // Effective plant gain (roll) / 実効プラントゲイン
 static const float K_pitch =  70.0f; // Effective plant gain (pitch)
-static const float K_yaw   =  19.0f; // Effective plant gain (yaw)
+static const float K_yaw   =   8.0f; // Effective plant gain (yaw)
 
 // Rate limits / レート制限
 static const float rate_max_rp  = 1.0f;   // [rad/s]
@@ -74,7 +74,7 @@ void loop_400Hz(float dt)
     // 期待値 (zeta = 0.7):
     //   Kp_roll  = 1/(4*0.49*102*0.02) = 0.25
     //   Kp_pitch = 1/(4*0.49*70*0.02)  = 0.36
-    //   Kp_yaw   = 1/(4*0.49*19*0.02)  = 1.34
+    //   Kp_yaw   = 1/(4*0.49*8.0*0.02) = 3.19
 
     // P control with per-axis gains
     // 軸ごとのゲインで P 制御

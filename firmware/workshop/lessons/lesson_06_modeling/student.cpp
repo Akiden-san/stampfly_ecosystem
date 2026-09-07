@@ -28,7 +28,7 @@
 static const float tau_m = 0.02f;    // Motor time constant [s] / モータ時定数
 static const float K_roll  = 102.0f; // Effective plant gain (roll) / 実効プラントゲイン
 static const float K_pitch =  70.0f; // Effective plant gain (pitch)
-static const float K_yaw   =  19.0f; // Effective plant gain (yaw)
+static const float K_yaw   =   8.0f; // Effective plant gain (yaw)
 
 // Rate limits
 // レート制限
