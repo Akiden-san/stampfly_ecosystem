@@ -79,12 +79,10 @@ sf flash vehicle -m    # 書き込み後にモニタを開く
 | `sf blocks` | ブロックプログラミングWeb UI（Blockly、--demo でデモモード）|
 
 ### Genesis Simulator
-Genesis物理シミュレータはvenv仮想環境にインストールされている:
+Genesis物理シミュレータはオプション。`sf setup genesis` で sf CLI の Python に導入し、`sf sim run genesis` で起動する（`simulator/genesis/venv` を手動で作った場合はそちらが優先される）:
 ```bash
-cd simulator/genesis
-source venv/bin/activate
-cd scripts
-python <script_name>.py
+sf setup genesis
+sf sim run genesis
 ```
 
 ## Writing Conventions

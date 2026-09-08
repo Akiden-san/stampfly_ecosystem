@@ -16,7 +16,16 @@ Genesis物理エンジンを使用したStampFlyシミュレータ環境です�
 
 ## 2. セットアップ
 
-### 仮想環境の作成
+### 推奨: sf CLI から導入
+
+```bash
+sf setup genesis
+sf sim run genesis
+```
+
+`sf setup genesis` は sf CLI 自身の Python に genesis-world / torch / pygame を入れる（約 2 GB）。`sf sim run genesis` はこの Python を使う。以下の venv は、隔離したい場合の任意手順（venv があればそちらが優先される）。
+
+### 仮想環境の作成（任意）
 
 ```bash
 cd simulator/genesis
@@ -112,7 +121,16 @@ StampFly simulator environment using Genesis physics engine. Implements physical
 
 ## 2. Setup
 
-### Create virtual environment
+### Recommended: install through the sf CLI
+
+```bash
+sf setup genesis
+sf sim run genesis
+```
+
+`sf setup genesis` installs genesis-world / torch / pygame into the sf CLI's own Python (about 2 GB); `sf sim run genesis` then uses that interpreter. The venv below is optional, for isolation only (when it exists it takes precedence).
+
+### Create virtual environment (optional)
 
 ```bash
 cd simulator/genesis

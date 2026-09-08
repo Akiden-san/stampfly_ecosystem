@@ -35,10 +35,63 @@ BACKENDS = {
         "description": "Genesis physics engine (2000Hz physics, 400Hz control, 30Hz render)",
         "script": "simulator/genesis/scripts/run_genesis_sim.py",
         "headless_script": "simulator/genesis/scripts/run_genesis_headless.py",
+        # Genesis runs from EITHER the dedicated venv below (if it exists) OR
+        # the sf CLI's own interpreter when `sf setup genesis` installed the
+        # packages there (that command pip-installs into sys.executable).
+        # `probe_module` is what we import to tell whether an interpreter
+        # actually has Genesis. Previously only the venv was accepted, so
+        # `sf setup genesis` followed by `sf sim run genesis` failed with
+        # "Venv not found" even though Genesis was installed.
+        # Genesis は専用 venv（存在すれば）か、`sf setup genesis` が導入した
+        # sf CLI 自身のインタプリタ（同コマンドは sys.executable に pip install
+        # する）のどちらでも動かす。`probe_module` は Genesis の有無を判定する
+        # ために import するモジュール名。以前は venv しか受け付けず、
+        # `sf setup genesis` 直後の `sf sim run genesis` が「Venv not found」で
+        # 失敗していた。
         "requires_venv": True,
         "venv_path": "simulator/genesis/venv",
+        "probe_module": "genesis",
     },
 }
+
+
+def _venv_python(backend: dict) -> Optional[Path]:
+    """Path to the backend's dedicated venv interpreter, or None if the venv
+    does not exist. バックエンド専用 venv のインタプリタ。無ければ None。"""
+    venv_path = paths.root() / backend["venv_path"]
+    if sys.platform == "win32":
+        python_path = venv_path / "Scripts" / "python.exe"
+    else:
+        python_path = venv_path / "bin" / "python"
+    return python_path if python_path.exists() else None
+
+
+def _current_interpreter_has(module: str) -> bool:
+    """True if the interpreter running sf can import `module` (spec lookup
+    only -- importing Genesis itself pulls in torch and takes seconds).
+    sf を実行中のインタプリタで `module` が見つかるか（spec 検索のみ。
+    Genesis 本体の import は torch を伴い数秒かかるため行わない）。"""
+    import importlib.util
+    try:
+        return importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def _resolve_venv_backend_python(backend: dict) -> Optional[str]:
+    """Interpreter for a venv-capable backend: the dedicated venv wins when it
+    exists, otherwise the current interpreter if `sf setup <backend>` put the
+    packages there. None when neither has the backend installed.
+    venv 対応バックエンドのインタプリタ: 専用 venv があればそれを優先し、
+    無ければ `sf setup <backend>` で導入済みの現在のインタプリタ。どちらにも
+    無ければ None。"""
+    venv_python = _venv_python(backend)
+    if venv_python is not None:
+        return str(venv_python)
+    module = backend.get("probe_module")
+    if module and _current_interpreter_has(module):
+        return sys.executable
+    return None
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
@@ -168,11 +221,15 @@ def run_list(args: argparse.Namespace) -> int:
         # 初めて使用可能。以前は script の有無しか見ておらず、venv が無くても
         # "[OK]"と表示されていた（実際は`sf sim run genesis`が即失敗する）。
         venv_exists = None
+        interpreter = None
         if backend.get("requires_venv"):
             venv_path = paths.root() / backend["venv_path"]
             venv_exists = venv_path.exists()
+            interpreter = _resolve_venv_backend_python(backend)
 
-        available = script_exists and (venv_exists is not False)
+        available = script_exists and (
+            interpreter is not None if backend.get("requires_venv") else True
+        )
 
         status = "[OK]" if available else "[NOT FOUND]"
         status_color = "green" if available else "red"
@@ -184,19 +241,17 @@ def run_list(args: argparse.Namespace) -> int:
         if venv_exists is not None:
             venv_status = "exists" if venv_exists else "not found"
             console.print(f"               Venv: {backend['venv_path']} ({venv_status})")
+            if interpreter is not None:
+                console.print(f"               Python: {interpreter}")
 
         console.print(f"               Status: {status}")
 
-        # One-line hint on how to create the missing venv (see
-        # simulator/genesis/README.md §2 セットアップ for the full steps).
-        # 不足しているvenvの作成手順を一言で表示
-        # (詳細は simulator/genesis/README.md §2 セットアップ参照)。
-        if venv_exists is False:
-            venv_parent = Path(backend["venv_path"]).parent
-            console.print(
-                f"               Fix: cd {venv_parent} && python3 -m venv venv "
-                f"&& source venv/bin/activate && pip install -r requirements.txt"
-            )
+        # One-line hint when the backend is installed nowhere: `sf setup
+        # <backend>` installs into the sf CLI's interpreter, which is enough.
+        # どこにも導入されていない場合の一言ヒント: `sf setup <backend>` で
+        # sf CLI のインタプリタに入れれば十分。
+        if backend.get("requires_venv") and interpreter is None:
+            console.print(f"               Fix: sf setup {backend_id}")
 
         console.print()
 
@@ -493,29 +548,32 @@ def _check_hidapi_available(python_cmd: str) -> bool:
 def _get_python_cmd(backend: dict) -> Optional[str]:
     """Get Python command for backend"""
     if backend.get("requires_venv"):
-        # Use venv Python
-        # Windows uses Scripts/python.exe, Unix uses bin/python
-        # WindowsはScripts/python.exe、Unixはbin/pythonを使用
-        venv_path = paths.root() / backend["venv_path"]
-        if sys.platform == "win32":
-            python_path = venv_path / "Scripts" / "python.exe"
-        else:
-            python_path = venv_path / "bin" / "python"
-
-        if not python_path.exists():
-            console.error(f"Venv not found: {venv_path}")
-            console.print("  To create the venv:")
+        # Dedicated venv if present, else the sf CLI's own interpreter when
+        # `sf setup <backend>` installed the packages there.
+        # 専用 venv があればそれ、無ければ `sf setup <backend>` で導入済みの
+        # sf CLI 自身のインタプリタ。
+        python_cmd = _resolve_venv_backend_python(backend)
+        if python_cmd is None:
+            module = backend.get("probe_module", backend["name"].lower())
+            venv_path = paths.root() / backend["venv_path"]
+            console.error(
+                f"{backend['name']} is not installed: neither the venv "
+                f"{venv_path} nor the current Python ({sys.executable}) has "
+                f"'{module}'"
+            )
+            console.print("  Install it into the sf CLI's Python (recommended):")
+            console.print(f"    sf setup {module}")
+            console.print("  Or keep it in a separate venv:")
             console.print(f"    cd {venv_path.parent}")
             if sys.platform == "win32":
-                console.print(f"    python -m venv venv")
-                console.print(f"    venv\\Scripts\\activate")
+                console.print("    python -m venv venv")
+                console.print("    venv\\Scripts\\activate")
             else:
-                console.print(f"    python3 -m venv venv")
-                console.print(f"    source venv/bin/activate")
-            console.print(f"    pip install genesis-world pygame")
+                console.print("    python3 -m venv venv")
+                console.print("    source venv/bin/activate")
+            console.print("    pip install -r requirements.txt pygame")
             return None
-
-        return str(python_path)
+        return python_cmd
     else:
         # For vpython, check if it's available
         backend_id = backend.get("script", "")

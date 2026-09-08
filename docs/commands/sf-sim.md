@@ -27,7 +27,7 @@ sf sim list
 | バックエンド | 説明 | 環境 |
 |-------------|------|------|
 | `vpython` | VPython 3D可視化 | システムPython |
-| `genesis` | Genesis物理エンジン | 専用venv |
+| `genesis` | Genesis物理エンジン | `sf setup genesis` で sf CLI の Python に導入（`simulator/genesis/venv` があればそちらを優先） |
 
 ## 4. sf sim run
 
@@ -94,11 +94,20 @@ sf sim headless -o log.csv   # 結果をファイル出力
 
 ### Genesis 環境セットアップ
 
+標準のインストールには含まれない。使うときだけ次で追加する（PyTorch を含み約 2 GB、GPU 推奨）。
+
 ```bash
-cd simulator/sandbox/genesis_sim
+sf setup genesis
+sf sim run genesis
+```
+
+`sf sim run genesis` は、`simulator/genesis/venv` があればその Python を、無ければ `sf setup genesis` が導入した sf CLI 自身の Python を使う。どちらにも Genesis が無いときは `sf setup genesis` を案内して終了する。別の venv に隔離したい場合だけ手動で作る:
+
+```bash
+cd simulator/genesis
 python3 -m venv venv
 source venv/bin/activate
-pip install genesis-world pygame
+pip install -r requirements.txt pygame
 ```
 
 ---
