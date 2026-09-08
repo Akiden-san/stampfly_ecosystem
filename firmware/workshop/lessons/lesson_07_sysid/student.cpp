@@ -49,10 +49,6 @@ static float clamp(float val, float lim)
 void setup()
 {
     ws::print("Lesson 7: System Identification");
-
-    // TODO: Set your WiFi channel (1, 6, or 11)
-    // TODO: 自分のWiFiチャンネルを設定する（1, 6, 11のいずれか）
-    // ws::set_channel(1);
 }
 
 void loop_400Hz(float dt)

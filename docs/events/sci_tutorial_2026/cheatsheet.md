@@ -58,12 +58,19 @@
 | 機体 IP | `192.168.10.1`（DJI Tello 互換サブネット。`sf` の各種 `--ip` の既定値でもある） |
 | WiFi/ESP-NOW チャンネル | `wifi.channel`（既定 `1`、1〜13） |
 
-機体側: USB接続のまま `sf monitor` でCLIに入り、SoftAPへ切り替える（初回のみ）。PC側: WiFi設定でSSID `StampFly-XXYY` に接続（パスワードは既定 `stampfly`）。疎通確認は `sf telemetry`（IP指定不要、既定192.168.10.1で待ち受け）。
+機体側の初期設定（実習 1 (2/2)、機体ごとに 1 回）: `sf flash vehicle -m` の直後、USB 接続のままモニタの CLI で次を順に打つ。`N` は講師が指定するチャンネル（1 / 6 / 11 のどれか）。
 
-```bash
+```
+param reset
 param set wifi.mode 1
+param set wifi.channel N
 param save
 reboot
+```
+
+続けてコントローラとペアリングする（コントローラの LCD パネルボタンを押しながら電源投入 → 機体のボタンを 3 秒以上押し続け、双方のビープで離す。5 秒以上押し続けるとシステムリセット）。PC側: WiFi設定でSSID `StampFly-XXYY` に接続（パスワードは既定 `stampfly`）。疎通確認は `sf telemetry`（IP指定不要、既定192.168.10.1で待ち受け）。
+
+```
 sf telemetry
 ```
 
@@ -135,7 +142,7 @@ sf telemetry
 | `millis()` | 起動からの経過時間 [ms] |
 | `battery_voltage()` | バッテリー電圧 [V] |
 | `print(fmt, ...)` | printf 形式のデバッグ出力（Teleplot は `>name:value` 形式） |
-| `set_channel(ch)` | WiFi チャネル設定（1, 6, 11） |
+| `set_channel(ch)` | WiFi チャンネル設定（1, 6, 11）。通常は使わない。チャンネルは初期設定の `param set wifi.channel` で保存済みで、呼ぶと上書きして再起動する |
 
 ---
 
@@ -197,12 +204,19 @@ All commands are implemented under `lib/sfcli/commands/`.
 | Vehicle IP | `192.168.10.1` (DJI Tello-compatible subnet; also the default for every `sf` `--ip` flag) |
 | WiFi/ESP-NOW channel | `wifi.channel` (default `1`, 1-13) |
 
-Vehicle side: enter the CLI over the still-live USB link with `sf monitor`, then switch to SoftAP (one-time only). PC side: join SSID `StampFly-XXYY` in WiFi settings (default password `stampfly`). Connectivity check: `sf telemetry` (no `--ip` needed; listens on the default 192.168.10.1).
+Vehicle-side one-time setup (Exercise 1 (2/2), once per vehicle): right after `sf flash vehicle -m`, with USB still connected, type the following in the monitor CLI. `N` is the channel the instructor assigns you (1, 6 or 11).
 
-```bash
+```
+param reset
 param set wifi.mode 1
+param set wifi.channel N
 param save
 reboot
+```
+
+Then pair the controller (hold the controller's LCD panel button while powering on, then hold the vehicle button for 3 s or more and release at the double beep; holding 5 s or more triggers a system reset). PC side: join SSID `StampFly-XXYY` in WiFi settings (default password `stampfly`). Connectivity check: `sf telemetry` (no `--ip` needed; listens on the default 192.168.10.1).
+
+```
 sf telemetry
 ```
 
@@ -274,4 +288,4 @@ Do not rely on venue WiFi (assume it is down). Each attendee's StampFly has a di
 | `millis()` | Elapsed time since boot [ms] |
 | `battery_voltage()` | Battery voltage [V] |
 | `print(fmt, ...)` | printf-style debug output (Teleplot format: `>name:value`) |
-| `set_channel(ch)` | Set the WiFi channel (1, 6, 11) |
+| `set_channel(ch)` | Set the WiFi channel (1, 6, 11). Normally unused: the channel is saved by `param set wifi.channel` in the one-time setup, and calling this overwrites it and reboots |

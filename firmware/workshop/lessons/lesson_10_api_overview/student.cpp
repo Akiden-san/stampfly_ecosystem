@@ -8,10 +8,6 @@ static uint32_t tick = 0;
 void setup()
 {
     ws::print("Lesson 10: API Overview & App Development");
-
-    // TODO: Set your WiFi channel (1, 6, or 11)
-    // TODO: 自分のWiFiチャンネルを設定する（1, 6, 11のいずれか）
-    // ws::set_channel(1);
 }
 
 void loop_400Hz(float dt)

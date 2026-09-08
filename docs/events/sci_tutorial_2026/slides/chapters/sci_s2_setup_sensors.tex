@@ -69,14 +69,14 @@
     \footnotesize
     \begin{enumerate}\setlength{\itemsep}{2pt}
       \item コントローラの LCD パネルボタンを押しながら電源を入れる
-      \item StampFly 本体のボタンを2秒長押しする
+      \item StampFly 本体のボタンを \warn{3 秒以上}押し続け、ビープが鳴ったら離す（5 秒以上押し続けるとシステムリセット）
       \item 双方がビープしたらペアリング完了。以降は電源を入れるだけで自動再接続する
     \end{enumerate}
   \end{exampleblock}
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{実習 1: 環境確認とビルド}
+\begin{frame}[fragile]{実習 1 (1/2): 環境確認とビルド}
   \vspace{0.15em}
   {\small 見るだけ ｜ \textcolor{sfblue}{\textbf{一緒に打つ}} ｜ 帰宅後に再現}
 
@@ -94,6 +94,31 @@
   \end{exampleblock}
 
   {\footnotesize \code{sf doctor} が全て OK にならなくても心配は不要。このあとは「見るだけ」で参加し、復習パス（本セッション末尾）に沿って会場外で環境を整えてほしい}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{実習 1 (2/2): 機体の初期設定を一度に済ませる}
+  \vspace{0.2em}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \begin{block}{USB をつないだまま、モニタ（CLI）で順に打つ}
+        \footnotesize 機体ごとに 1 回。N は講師が指定（1 / 6 / 11）
+        \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{sf monitor の CLI}
+param reset
+param set wifi.mode 1
+param set wifi.channel N
+param save
+reboot
+        \end{sflisting}
+      \end{block}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{exampleblock}{続けてコントローラとペアリング}
+        \footnotesize コントローラの LCD パネルボタンを押しながら電源を入れ、機体のボタンを \warn{3 秒以上}押し続ける。双方がビープしたら離す（\warn{5 秒以上}押し続けるとシステムリセット）。以降は電源投入だけで自動再接続
+      \end{exampleblock}
+      {\footnotesize \code{wifi.mode 1}: 機体が自分の WiFi を出す（後半で使う）。\code{wifi.channel}: 混信を避ける機体ごとのチャンネル。コントローラはペアリング時に自動で合わせる}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -167,7 +192,7 @@
     \centering\small
     BMI270 --- 6軸（3軸ジャイロ + 3軸加速度）400\,Hz \quad|\quad \mbox{Body FRD（前方-右-下）座標系}
   \end{block}
-  {\footnotesize StampFly では IMU の軸をそのまま機体の Body 座標系として採用している}
+  {\footnotesize 機体の Body 座標系（前方-右-下）を先に決め、IMU の軸はそれに一致するように扱っている}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -283,13 +308,8 @@ void loop_400Hz(float dt) {
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{接続手順: 機体を WiFi 網に入れる}
-  \begin{block}{機体側: 初回だけ USB で設定する（以後は電源投入だけでよい）}
-    \footnotesize
-    \begin{enumerate}\setlength{\itemsep}{0pt}
-      \item USB 接続のまま \code{sf monitor} を開き CLI に入る（終了は \code{Ctrl+]}）
-      \item \code{param set wifi.mode 1}（\code{0}=STA が既定／\code{1}=SoftAP）
-      \item \code{param save} してから \code{reboot}
-    \end{enumerate}
+  \begin{block}{機体側: 実習 1 (2/2) の初期設定で済んでいる}
+    \footnotesize \code{wifi.mode 1}（機体が自分の WiFi を出す設定）は初期設定で保存済み。未設定の機体だけ、USB 接続のまま \code{sf monitor} の CLI で \code{param set wifi.mode 1} $\to$ \code{param save} $\to$ \code{reboot}
   \end{block}
 
   \vspace{0.15em}

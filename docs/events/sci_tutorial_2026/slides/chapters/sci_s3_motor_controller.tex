@@ -167,13 +167,13 @@ void loop_400Hz(float dt) {
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{ペアリングとチャンネル}
   \begin{block}{ペアリング}
-    \footnotesize コントローラの M5 ボタン（LCD パネル）を押しながら電源ON $\to$ StampFly のボタンを約2秒長押し $\to$ 両方のビープで完了。次回以降は自動接続
+    \footnotesize コントローラの M5 ボタン（LCD パネル）を押しながら電源ON $\to$ StampFly のボタンを \warn{3 秒以上}押し続け、両方のビープで離す（5 秒以上でシステムリセット）。次回以降は自動接続
   \end{block}
 
   \vspace{0.3em}
 
   \begin{alertblock}{チャンネル設定}
-    \footnotesize 教室内で複数機体が同時に飛ぶと混信する。\api{ws::set\_channel(ch)} を \code{setup()} で呼んで機体のチャンネルを 1/6/11 のいずれかにし、再ペアリングする。コントローラはペアリング時に機体のチャンネルへ自動追従する
+    \footnotesize 教室内で複数機体が同時に飛ぶと混信する。チャンネルは実習 1 (2/2) の初期設定で \code{param set wifi.channel N}（1/6/11、講師が指定）として保存済み。実習コードの中では変更しない。コントローラはペアリング時に機体のチャンネルへ自動追従する
   \end{alertblock}
 
   \vspace{0.3em}

@@ -42,10 +42,6 @@ static float clamp(float val, float lim)
 void setup()
 {
     ws::print("Lesson 13: Precision Landing Competition - Reference");
-
-    // Set WiFi channel (use 1, 6, or 11 to avoid interference)
-    // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
-    ws::set_channel(1);
 }
 // @@end-snippet: setup
 
@@ -101,6 +97,5 @@ void loop_400Hz(float dt)
 
     // Apply / モーターに適用
     ws::motor_mixer(throttle, roll_output, pitch_output, yaw_output);
-
 }
 // @@end-snippet: loop

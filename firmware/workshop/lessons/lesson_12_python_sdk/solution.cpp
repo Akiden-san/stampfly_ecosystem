@@ -10,10 +10,6 @@ static float roll_prev = 0, pitch_prev = 0, yaw_prev = 0;
 void setup()
 {
     ws::print("Lesson 12: Python SDK - Stable flight mode (Solution)");
-
-    // Set WiFi channel (use 1, 6, or 11 to avoid interference)
-    // WiFiチャンネルを設定（混信を避けるため1, 6, 11のいずれかを使用）
-    ws::set_channel(1);
 }
 // @@end-snippet: setup
 

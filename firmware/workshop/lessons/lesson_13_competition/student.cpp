@@ -59,10 +59,6 @@ void setup()
     ws::print("Lesson 13: Precision Landing Competition");
     ws::print("Tune your PID gains for precision landing!");
     // ゲインを調整して、精密着陸を目指そう！
-
-    // TODO: Set your WiFi channel (1, 6, or 11)
-    // TODO: 自分のWiFiチャンネルを設定する（1, 6, 11のいずれか）
-    // ws::set_channel(1);
 }
 
 void loop_400Hz(float dt)
@@ -141,5 +137,4 @@ void loop_400Hz(float dt)
     // Apply to motors / モーターに適用
     // =================================================================
     ws::motor_mixer(throttle, roll_output, pitch_output, yaw_output);
-
 }

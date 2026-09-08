@@ -20,10 +20,6 @@ void setup()
     // Disable system LED updates so your led_color() works
     // システムLED更新を無効化して led_color() が反映されるようにする
     ws::disable_led_task();
-
-    // TODO: Set your WiFi channel (1, 6, or 11)
-    // TODO: 自分のWiFiチャンネルを設定する（1, 6, 11のいずれか）
-    // ws::set_channel(1);
 }
 
 void loop_400Hz(float dt)
