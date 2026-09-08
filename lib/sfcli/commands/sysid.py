@@ -319,40 +319,62 @@ def _register_fit(subparsers):
         help="Fit plant model to flight data",
         description=(
             "Identify open-loop plant parameters G_p(s) = K/(s*(tau_m*s+1)) "
-            "from closed-loop P-control flight data. Requires --kp (the P "
-            "gain used during flight). The input CSV format is auto-detected: "
-            "the current 400Hz Data Stream (`sf log wifi -o *.csv`, columns "
-            "rate_ref_roll/pitch/yaw + gyro_x/y/z -- shared by vehicle and "
-            "workshop, --rate-max is ignored since rate_ref is already rad/s) "
-            "or the legacy analysis CSV (ctrl_roll/pitch/yaw + "
-            "gyro_corrected_x/y/z, --rate-max required). "
-            "Run --selftest to verify the whole pipeline against a synthetic "
-            "known plant."
+            "from closed-loop P-control flight data. The plant INPUT is "
+            "reconstructed one of two ways, selected by --input (default "
+            "auto): 'duty' reads the actual motor duty (400Hz, needs "
+            "firmware sending the kPktDuty400 wire entry) and inverts the "
+            "X-quad mixer to recover the differential duty command -- no "
+            "--kp needed, and correct even if Kp changed mid-flight or the "
+            "duty saturated; 'kp' reconstructs u_plant = Kp*(rate_ref-gyro) "
+            "from a known, constant P gain (--kp required). 'auto' uses "
+            "'duty' when the CSV has motor_duty_FR/RR/RL/FL columns and "
+            "--kp was not given, else falls back to 'kp'. The input CSV "
+            "format is auto-detected: the current 400Hz Data Stream "
+            "(`sf log wifi -o *.csv`, columns rate_ref_roll/pitch/yaw + "
+            "gyro_x/y/z -- shared by vehicle and workshop, --rate-max is "
+            "ignored since rate_ref is already rad/s) or the legacy "
+            "analysis CSV (ctrl_roll/pitch/yaw + gyro_corrected_x/y/z, "
+            "--rate-max required, 'kp' mode only). "
+            "Run --selftest to verify the whole pipeline (both input modes) "
+            "against a synthetic known plant."
         ),
         epilog=(
             "Examples:\n"
-            "  sf sysid fit flight.csv --kp 0.5 --plot\n"
-            "      --kp is the roll/pitch rate P gain written in user_code.cpp for\n"
-            "      the tutorial (実習 7). Kp gains must match what actually flew.\n"
-            "      --kp には実習7のuser_code.cppに書いたロール/ピッチのレートP制御\n"
-            "      ゲインを指定する（実際に飛行させた値と一致させること）。\n"
+            "  sf sysid fit flight.csv --plot\n"
+            "      Auto-selects the 'duty' input mode when flight.csv has\n"
+            "      400Hz motor duty columns (firmware sending kPktDuty400) --\n"
+            "      no --kp needed, and correct even if Kp changed mid-flight.\n"
+            "      flight.csv に400Hzモータduty列があれば（kPktDuty400を送る\n"
+            "      ファーム）'duty' 入力モードを自動選択する -- --kp 不要、\n"
+            "      Kp が飛行中に変わっていても正しい。\n"
             "\n"
-            "  sf sysid fit flight.csv --axis roll --kp 0.5 -o fit.yaml\n"
+            "  sf sysid fit flight.csv --kp 0.5 --plot\n"
+            "      Fallback for OLD logs without the 400Hz duty columns:\n"
+            "      --kp is the roll/pitch rate P gain written in user_code.cpp\n"
+            "      for the tutorial (実習 7). Must match what actually flew.\n"
+            "      400Hzduty列の無い旧ログ向けフォールバック: --kp には実習7の\n"
+            "      user_code.cppに書いたロール/ピッチのレートP制御ゲインを指定\n"
+            "      する（実際に飛行させた値と一致させること）。\n"
+            "\n"
+            "  sf sysid fit flight.csv --axis roll -o fit.yaml\n"
             "      Identify roll only and save the result to a YAML file.\n"
             "      roll軸のみ同定し、結果をYAMLファイルに保存する。\n"
             "\n"
             "  sf sysid fit --selftest\n"
-            "      Verify the whole pipeline against a synthetic known plant.\n"
-            "      既知の合成プラントに対してパイプライン全体を自己検証する。\n"
+            "      Verify the whole pipeline (duty AND kp input modes)\n"
+            "      against a synthetic known plant.\n"
+            "      既知の合成プラントに対してパイプライン全体（duty/kp両方の\n"
+            "      入力モード）を自己検証する。\n"
             "\n"
             "Output:\n"
             "  Prints K [1/s] and tau_m [s] per axis, each compared against a\n"
             "  reference: K vs. REFERENCE_PLANT_GAINS (theoretical gain from the\n"
             "  vehicle's mechanical parameters) and tau_m vs. the firmware's\n"
-            "  default tau_m, with the percent error for both.\n"
+            "  default tau_m, with the percent error for both, plus which input\n"
+            "  mode ('duty' or 'kp') was actually used.\n"
             "  軸ごとにK[1/s]とtau_m[s]を表示し、機体の機械パラメータから求めた\n"
             "  理論値（REFERENCE_PLANT_GAINS）およびファーム既定のtau_mとの誤差\n"
-            "  [%]を併記する。\n"
+            "  [%]を併記する。実際に使った入力モード（'duty'/'kp'）も表示する。\n"
             "\n"
             "Capture the input data with:\n"
             "  sf log wifi -d 30 -o flight.csv\n"
@@ -372,18 +394,31 @@ def _register_fit(subparsers):
         help="Axis to identify (default: all)",
     )
     parser.add_argument(
+        "--input",
+        dest="input_mode",
+        choices=["auto", "duty", "kp"],
+        default="auto",
+        help="Plant-input reconstruction mode (default: auto). 'duty' = "
+             "mixer-inverse of the 400Hz motor_duty_FR/RR/RL/FL columns "
+             "(no --kp needed); 'kp' = legacy Kp*(target-gyro) "
+             "reconstruction (--kp required); 'auto' = 'duty' when the "
+             "columns exist and --kp was not given, else 'kp'.",
+    )
+    parser.add_argument(
         "--kp",
         type=float,
-        help="P gain used during flight (must match firmware value; "
-             "required unless --selftest)",
+        help="P gain used during flight (must match firmware value). "
+             "Fallback for logs without the 400Hz motor-duty columns "
+             "(--input kp, or --input auto without them); ignored/not "
+             "needed in --input duty mode.",
     )
     parser.add_argument(
         "--rate-max",
         type=float,
         default=1.0,
         help="Maximum angular rate [rad/s] (default: 1.0, yaw typically 5.0). "
-             "Ignored for Data Stream CSVs -- rate_ref is already an absolute "
-             "rad/s target, only the legacy ctrl*rate_max path uses this.",
+             "Only used by the 'kp' input mode's legacy ctrl*rate_max path -- "
+             "ignored for Data Stream CSVs and the 'duty' input mode.",
     )
     parser.add_argument(
         "--time-range",
@@ -458,7 +493,7 @@ def run_help(args: argparse.Namespace) -> int:
     console.print()
     console.print("Examples:")
     console.print("  sf sysid noise static.csv --sensor all --plot")
-    console.print("  sf sysid fit flight.csv --kp 0.5 --plot")
+    console.print("  sf sysid fit flight.csv --plot")
     console.print("  sf sysid inertia roll_step.csv --axis roll -o result.yaml")
     console.print("  sf sysid params show")
     console.print("  sf sysid validate identified.yaml --ref defaults.yaml")
@@ -489,9 +524,17 @@ def run_fit(args: argparse.Namespace) -> int:
     if not args.input:
         console.error("input CSV required (or --selftest)")
         return 1
-    if args.kp is None:
-        console.error("--kp is required (or --selftest)")
-        return 1
+    # NOTE: --kp is NOT required here unconditionally -- with --input auto
+    # (default) or --input duty, fit_plant() reads the plant input from the
+    # 400Hz motor-duty columns instead. fit_plant() raises a clear ValueError
+    # (caught per-axis below) when the resolved mode is 'kp' and --kp is
+    # missing, or when 'duty' is requested/resolved but the CSV lacks the
+    # motor_duty_* columns.
+    # 注意: --kp はここで無条件必須にしない -- --input auto（既定）や
+    # --input duty では fit_plant() が 400Hz モータduty列からプラント入力を
+    # 読む。解決したモードが 'kp' で --kp が無い場合、または 'duty' が
+    # 指定/解決されたのに CSV に motor_duty_* 列が無い場合は、fit_plant() が
+    # 明確な ValueError を出す（下の軸ごとの try/except で捕捉）。
 
     # Check input file
     if not Path(args.input).exists():
@@ -523,6 +566,7 @@ def run_fit(args: argparse.Namespace) -> int:
                 kp=args.kp,
                 rate_max=rate_max,
                 time_range=tuple(args.time_range) if args.time_range else None,
+                input_mode=args.input_mode,
             )
             results[axis] = result
         except ValueError as e:
@@ -554,6 +598,14 @@ def run_fit(args: argparse.Namespace) -> int:
             f"[{r.n_segments} segs]"
         )
         console.print(line)
+        if r.input_mode == 'duty':
+            mode_desc = "motor duty (mixer-inverse of motor_duty_FR/RR/RL/FL, 400Hz)"
+        else:
+            mode_desc = f"Kp reconstruction (Kp={r.kp_used})"
+        console.print(f"         input: {mode_desc}  "
+                       f"units: K [rad/s^2 per differential duty]")
+        if r.duty_reason:
+            console.print(f"         duty check: {r.duty_reason}")
 
     # Design Kp (zeta=0.7)
     console.print()

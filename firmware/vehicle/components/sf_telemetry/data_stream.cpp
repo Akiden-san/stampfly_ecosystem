@@ -269,6 +269,27 @@ void DataStream::countDrop(bool added)
 // -----------------------------------------------------------------------------
 void DataStream::appendEntries(datastream::UnifiedPacketBuilder& builder)
 {
+    // 400Hz motor duty — the actual PLANT INPUT the mixer sent this control
+    // cycle (all 8 samples of the batch, paired by index with the
+    // ImuEskf/RateRef blocks begin() already wrote). Added FIRST so it is
+    // the last entry ever rejected by addEntry()'s size cap: rate-loop
+    // system identification (`sf sysid fit`) needs the real duty, not a
+    // Kp-reconstructed guess, and losing it silently would quietly degrade
+    // every future fit without anyone noticing (see countDrop()).
+    // 400Hz モータduty — この制御周期でミキサが実際に送った「プラント入力」
+    // （バッチ8サンプル全て、begin() が既に書いた ImuEskf/RateRef ブロックと
+    // 同じ index で対応）。addEntry() のサイズ上限で最後まで拒否されないよう
+    // 先頭に追加する — レートループ同定（`sf sysid fit`）には Kp から推測した
+    // 値でなく実際の duty が要る。黙って失うと誰も気づかないまま将来の同定
+    // 精度がじわじわ落ちる（countDrop() 参照）。
+    datastream::WireDuty400 duty400[datastream::kSamplesPerPacket] = {};
+    for (int i = 0; i < datastream::kSamplesPerPacket; ++i) {
+        for (int m = 0; m < 4; ++m) {
+            duty400[i].duty[m] = datastream::quantizeDuty(batch_[i].duty[m]);
+        }
+    }
+    countDrop(builder.addEntry(datastream::kPktDuty400, duty400, sizeof(duty400)));
+
     // Pilot input (50Hz cadence — one per packet, like the old vehicle).
     // パイロット入力（50Hz — 旧 vehicle と同じくパケットあたり 1 件）。
     const CommandSetpoint setpoint = command_setpoint.latest();

@@ -104,6 +104,9 @@ sf log viz logs/flight_001.csv --time-range 5 15
 （ESKF: 拡張カルマンフィルタ）に、内側ループのレート指令・外側ループの角度
 指令・推力・モータduty・flight_modeをマージした形式）を書き出します。
 `sf log viz flight.csv` はこの形式を自動判別し、7段のパネルで表示します。
+`motor_duty_FR/RR/RL/FL` 列は、400Hz duty エントリ（kPktDuty400）を送る
+ファームでは400Hz実測、送らない旧ファームでは従来通り50Hz指令の前方補完です
+（列名・列数は同じ）。
 
 | パネル | 内容 | 単位 |
 |-------|------|------|

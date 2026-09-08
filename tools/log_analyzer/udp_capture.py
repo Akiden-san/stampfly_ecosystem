@@ -15,6 +15,9 @@ Packet IDs:
     0x44  ToF (30Hz, batch 4)
     0x45  Barometer (50Hz, batch 4)
     0x46  Magnetometer (25Hz, batch 4)
+    0x49  ESKF P-diagonal (reserved, not sent by any current firmware)
+    0x4A  Motor duty (400Hz, unified-packet entry, 8 samples/entry --
+          plant input for `sf sysid fit`, see data_stream_wire.hpp kPktDuty400)
     0x4F  Status / Heartbeat (1Hz)
 
 Usage:
@@ -52,6 +55,7 @@ PKT_BARO      = 0x45
 PKT_MAG       = 0x46
 PKT_CTRL_REF  = 0x48
 PKT_ESKF_PDIAG = 0x49
+PKT_DUTY400   = 0x4A  # 400Hz motor duty (unified-packet entry, 8 samples/entry)
 PKT_RATE_REF  = 0x99  # virtual ID for 400Hz rate_ref (fixed part of unified packet)
 PKT_STATUS    = 0x4F
 
@@ -116,6 +120,12 @@ assert struct.calcsize(FMT_ESKF_PDIAG) == 64
 #   rate_ref_roll(h) + rate_ref_pitch(h) + rate_ref_yaw(h)
 FMT_RATE_REF = '<3h'
 assert struct.calcsize(FMT_RATE_REF) == 6
+
+# Duty400Sample: 8 bytes (one of 8 packed into a 64B kPktDuty400 entry) --
+# mirrors WireDuty400 in data_stream_wire.hpp. Each value = duty(0..1) x 65535.
+#   duty_FR(H) + duty_RR(H) + duty_RL(H) + duty_FL(H)
+FMT_DUTY400 = '<4H'
+assert struct.calcsize(FMT_DUTY400) == 8
 
 # Header: 4 bytes
 FMT_HEADER = '<B H B'
@@ -272,7 +282,22 @@ def parse_packet(data: bytes) -> list:
             data_size = data[offset + 1]
             offset += 2
 
-            if sensor_id in SAMPLE_INFO and offset + data_size <= len(data) - 1:
+            # Motor duty (0x4A): NOT in SAMPLE_INFO -- one entry packs 8
+            # sub-samples (like the RateRef fixed block), each paired by
+            # index with the same unified packet's IMU timestamp.
+            # モータduty（0x4A）: SAMPLE_INFO には無い特殊形式 -- 1エントリに
+            # サブサンプル8件（RateRef固定ブロックと同様）、同一統合パケットの
+            # IMU タイムスタンプと index で対応させる。
+            if (sensor_id == PKT_DUTY400 and data_size == 64
+                    and offset + data_size <= len(data) - 1):
+                for j in range(8):
+                    fr, rr, rl, fl = struct.unpack_from(FMT_DUTY400, data, offset + j * 8)
+                    results.append((PKT_DUTY400, {
+                        'timestamp_us': imu_timestamps[j],
+                        'duty_FR': fr / 65535.0, 'duty_RR': rr / 65535.0,
+                        'duty_RL': rl / 65535.0, 'duty_FL': fl / 65535.0,
+                    }))
+            elif sensor_id in SAMPLE_INFO and offset + data_size <= len(data) - 1:
                 _, fmt, sample_size = SAMPLE_INFO[sensor_id]
                 if data_size == sample_size:
                     columns = CSV_COLUMNS[sensor_id]
@@ -599,6 +624,21 @@ class UDPTelemetryCapture:
                         '', f'{total_loss:.1f}%', total_gaps))
         print()
 
+        # 400Hz motor duty entry (0x4A) presence -- plant input for
+        # `sf sysid fit`. Old firmware without it falls back to the 50Hz
+        # CtrlRef forward-fill in save_stream_csv() and needs --kp for the fit.
+        # 400Hz モータduty エントリ（0x4A）の有無 -- `sf sysid fit` のプラント
+        # 入力。無い旧ファームは save_stream_csv() で 50Hz CtrlRef の前方補完に
+        # フォールバックし、フィットには --kp が必要になる。
+        duty_samples = self.sample_count.get(PKT_DUTY400, 0)
+        if duty_samples > 0:
+            print(f"  400Hz motor duty (0x4A): present ({duty_samples} samples) "
+                  f"-- `sf sysid fit` can use --input duty")
+        else:
+            print("  400Hz motor duty (0x4A): NOT present -- "
+                  "`sf sysid fit` falls back to --kp reconstruction")
+        print()
+
     def save_jsonl(self, filepath: str):
         """Save captured data as JSONLines (1 line = 1 sensor sample).
         JSONLines形式で保存（1行 = 1センササンプル）。
@@ -700,6 +740,12 @@ class UDPTelemetryCapture:
                 'ts': s['timestamp_us'],
                 'rate_ref': [s['rate_ref_roll'] / 1000.0, s['rate_ref_pitch'] / 1000.0, s['rate_ref_yaw'] / 1000.0],
             },
+            PKT_DUTY400: lambda s: {
+                'id': 'duty400',
+                'ts': s['timestamp_us'],
+                'duty': [round(s['duty_FR'], 4), round(s['duty_RR'], 4),
+                         round(s['duty_RL'], 4), round(s['duty_FL'], 4)],
+            },
             PKT_STATUS: lambda s: {
                 'id': 'status',
                 'ts': s['timestamp_us'],
@@ -761,6 +807,17 @@ class UDPTelemetryCapture:
         `sf sysid fit` (tools/sysid/plant_fit.py _detect_csv_format) reads as
         the "stream" format: timestamp_us, gyro_x/y/z, rate_ref_roll/pitch/
         yaw, plus total_thrust for flight-segment detection.
+
+        When the firmware also sent the 400Hz duty entry (kPktDuty400/0x4A),
+        motor_duty_FR/RR/RL/FL are filled from IT instead (same column names,
+        just 400Hz-accurate instead of 50Hz-forward-filled) -- this is the
+        actual plant input `sf sysid fit --input duty` uses for rate-loop
+        system identification. Firmware without the entry keeps the 50Hz
+        forward-fill. A trailing `duty_rate_hz` column (400 or 50, appended
+        AFTER the existing 28 columns so old readers are unaffected) records
+        which one actually happened, so `sf sysid fit --input auto` can tell
+        real 400Hz duty from a 50Hz-forward-filled staircase and never
+        silently identifies off the coarser signal.
         save_jsonl()（センサ種別ごとにグループ化した1行1サンプル）と異なり、
         400Hz の IMU+ESKF と RateRef ブロックを周期内の共有インデックスで結合
         し（両方とも統合パケット1個につき8件ずつ、ロックステップで追加される
@@ -771,6 +828,15 @@ class UDPTelemetryCapture:
         して読む列構成: timestamp_us, gyro_x/y/z, rate_ref_roll/pitch/yaw、
         および飛行区間検出用の total_thrust。
 
+        ファームが 400Hz duty エントリ（kPktDuty400/0x4A）も送っていれば、
+        motor_duty_FR/RR/RL/FL はそちらから埋める（列名は同じ、50Hz前方補完
+        でなく 400Hz の実測になる）— これが `sf sysid fit --input duty` の
+        レートループ同定に使う実際のプラント入力。無いファームは従来通り
+        50Hz 前方補完のまま。末尾の `duty_rate_hz` 列（400 か 50。既存28列の
+        後ろに追記するため旧リーダに影響しない）にどちらだったかを記録し、
+        `sf sysid fit --input auto` が本物の400Hz duty と50Hz前方補完の階段
+        状データを区別し、粗い信号で黙って誤同定しないようにする。
+
         Raises:
             ValueError: no IMU+ESKF samples were captured.
         """
@@ -778,6 +844,7 @@ class UDPTelemetryCapture:
         rate_ref = self.samples.get(PKT_RATE_REF, [])
         ctrl_ref = sorted(self.samples.get(PKT_CTRL_REF, []),
                           key=lambda s: s['timestamp_us'])
+        duty400 = self.samples.get(PKT_DUTY400, [])
 
         if not imu:
             raise ValueError("no IMU+ESKF samples captured -- nothing to save")
@@ -794,6 +861,28 @@ class UDPTelemetryCapture:
             print(f"  Warning: IMU samples ({len(imu)}) != rate_ref samples "
                   f"({len(rate_ref)}) -- truncating merged CSV to {n} rows")
 
+        if duty400 and len(duty400) != len(imu):
+            # Same defensive truncation reasoning as rate_ref above -- fall
+            # back to the 50Hz forward-fill rather than misalign rows.
+            # 上の rate_ref と同じ理由で安全側に倒す -- 50Hz 前方補完へ
+            # フォールバックし、行のズレを避ける。
+            print(f"  Warning: IMU samples ({len(imu)}) != duty400 samples "
+                  f"({len(duty400)}) -- ignoring 400Hz duty, using 50Hz "
+                  f"CtrlRef forward-fill instead")
+            duty400 = []
+
+        # duty_rate_hz (400 or 50) is APPENDED at the end -- the existing 28
+        # columns/order are unchanged so old readers (is_stream_csv() checks
+        # a required subset, not an exact set) keep working. It tells a
+        # reader (`sf sysid fit --input auto`) whether motor_duty_* is real
+        # 400Hz data or a 50Hz-forward-filled staircase, so auto-mode doesn't
+        # silently identify off a stale/quantized signal.
+        # duty_rate_hz（400 か 50）は末尾に追記する -- 既存28列・順序は不変
+        # （is_stream_csv() は必須列の部分集合を見るだけで完全一致ではないため
+        # 旧リーダも動き続ける）。motor_duty_* が本物の400Hzデータか50Hz前方
+        # 補完の階段状データかを読み手（`sf sysid fit --input auto`）に伝え、
+        # 自動モードが古い/粗い信号で黙って誤同定しないようにする。
+        duty_rate_hz = 400 if duty400 else 50
         fieldnames = [
             'timestamp_us',
             'gyro_x', 'gyro_y', 'gyro_z',
@@ -805,6 +894,7 @@ class UDPTelemetryCapture:
             'angle_ref_roll', 'angle_ref_pitch', 'total_thrust',
             'motor_duty_FR', 'motor_duty_RR', 'motor_duty_RL', 'motor_duty_FL',
             'flight_mode',
+            'duty_rate_hz',
         ]
 
         ctrl_idx = 0
@@ -845,9 +935,25 @@ class UDPTelemetryCapture:
                         row[f'motor_duty_{m}'] = 0.0
                     row['flight_mode'] = 0
 
+                # 400Hz duty overrides the 50Hz forward-filled value when
+                # present (motor_duty_* column NAMES stay the same either
+                # way -- duty_rate_hz below is what tells a reader which
+                # rate the data actually came from).
+                # 400Hz duty があれば 50Hz 前方補完値を上書きする
+                # （motor_duty_* の列名自体はどちらでも同じ -- 実際どちらの
+                # レートで来たかは下の duty_rate_hz が伝える）。
+                if duty400:
+                    d = duty400[i]
+                    row['motor_duty_FR'] = d['duty_FR']
+                    row['motor_duty_RR'] = d['duty_RR']
+                    row['motor_duty_RL'] = d['duty_RL']
+                    row['motor_duty_FL'] = d['duty_FL']
+                row['duty_rate_hz'] = duty_rate_hz
+
                 writer.writerow({k: row.get(k, '') for k in fieldnames})
 
-        print(f"  Saved: {filepath} ({n} rows)")
+        duty_src = "400Hz duty entry (0x4A)" if duty400 else "50Hz CtrlRef forward-fill"
+        print(f"  Saved: {filepath} ({n} rows, motor_duty_* from {duty_src})")
 
 
 # =============================================================================

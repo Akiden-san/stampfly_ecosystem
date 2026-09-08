@@ -65,6 +65,18 @@ inline constexpr uint8_t kPktTofBottom = 0x44;
 inline constexpr uint8_t kPktBaro      = 0x45;
 inline constexpr uint8_t kPktMag       = 0x46;
 inline constexpr uint8_t kPktCtrlRef   = 0x48;  // outer-loop refs + duty (50Hz entry)
+// NOTE: 0x49 is NOT free -- tools/log_analyzer/udp_capture.py already reserves
+// it as PKT_ESKF_PDIAG (64B ESKF P-diagonal, unimplemented by any firmware
+// today but present in its SAMPLE_INFO decode table). Using 0x49 here would
+// make an old/new udp_capture.py silently mis-decode this 64B duty payload as
+// P-diagonal covariance floats (both entries happen to be 64B). 0x4A is the
+// next free id after the existing 0x40-0x49/0x4F block.
+// 注意: 0x49 は空きではない -- udp_capture.py が PKT_ESKF_PDIAG（64B ESKF
+// P対角、現行ファームは未実装だが SAMPLE_INFO デコード表には存在）として
+// 既に予約済み。ここで 0x49 を使うと udp_capture.py がこの 64B duty
+// ペイロードを P対角共分散として誤デコードしてしまう（両方たまたま64B）。
+// 0x4A は既存の 0x40-0x49/0x4F ブロックの次に空いている id。
+inline constexpr uint8_t kPktDuty400   = 0x4A;  // 400Hz motor duty (8 samples/entry)
 inline constexpr uint8_t kPktStatus    = 0x4F;  // standalone 1Hz packet
 inline constexpr uint8_t kPktUnified   = 0x50;  // 50Hz batched packet
 
@@ -79,19 +91,30 @@ inline constexpr int    kSamplesPerPacket = 8;
 /// Datagram size cap. The legacy firmware used 1024, but delivering EVERY flow
 /// sample (2 entries/packet at 100Hz) pushed the typical payload to ~1040B and
 /// the LAST entry (mag, 18B) was silently rejected on every packet — measured
-/// on hardware as "Mag: 0 samples". 1200 leaves ~160B of entry headroom and
-/// stays well inside the WiFi MTU (1472) and the PC capture buffer (2048).
+/// on hardware as "Mag: 0 samples". 1200 left ~160B of entry headroom.
+/// Raised to 1300 when the 400Hz duty entry (kPktDuty400) was added: fixed
+/// part 916B (header+ImuEskf+PosVel+RateRef blocks) + entry_count 1B + duty
+/// entry 66B (2B [id][size] + 64B payload) = 983B, leaving ~130B for the
+/// other sensor entries (control 22B, ctrl_ref 32B, flow/tof/baro/mag ~70B
+/// combined) that used to fit in the old 1200B cap — and still ~170B of
+/// headroom under the WiFi MTU (1472) and the PC capture buffer (2048).
 /// データグラム上限。旧ファームは 1024 だったが、フロー全量配送（100Hz で 1 パケット
 /// 2 エントリ）で典型ペイロードが ~1040B となり、最後に積む mag（18B）が毎パケット
-/// 黙って弾かれた — 実機計測で「Mag: 0 サンプル」。1200 ならエントリ余白 ~160B を
-/// 確保しつつ WiFi MTU（1472）と PC 受信バッファ（2048）に余裕で収まる。
-inline constexpr size_t kUnifiedMaxSize   = 1200;
+/// 黙って弾かれた — 実機計測で「Mag: 0 サンプル」。1200 でエントリ余白 ~160B。
+/// 400Hz duty エントリ（kPktDuty400）追加に伴い 1300 へ引き上げ: 固定部 916B
+/// （ヘッダ+ImuEskf+PosVel+RateRefブロック）+ entry_count 1B + duty エントリ
+/// 66B（[id][size] 2B + payload 64B）= 983B、旧 1200B 上限に収まっていた
+/// 他のセンサエントリ（control 22B、ctrl_ref 32B、flow/tof/baro/mag 計 ~70B）用に
+/// ~130B、さらに WiFi MTU（1472）・PC 受信バッファ（2048）に対して ~170B の
+/// 余白を残す。
+inline constexpr size_t kUnifiedMaxSize   = 1300;
 
 // Quantization scales (PC side divides by these to restore physical units)
 // 量子化スケール（PC 側はこれで割って物理量に復元する）
 inline constexpr float kBiasScale    = 10000.0f;  // int16 = value × 10000
 inline constexpr float kRateRefScale = 1000.0f;   // int16 = value × 1000
 inline constexpr float kAngleRefScale = 10000.0f; // int16 = value × 10000
+inline constexpr float kDutyScale     = 65535.0f; // uint16 = duty(0..1) × 65535
 
 // =============================================================================
 // Wire structs (packed; little-endian on both ESP32 and the host PC)
@@ -139,6 +162,35 @@ struct WireRateRef {
     int16_t rate_ref[3];   // value × 1000 [rad/s] R,P,Y
 };
 static_assert(sizeof(WireRateRef) == 6, "wire drift");
+
+/// 400Hz motor duty sample — the actual PLANT INPUT for rate-loop system
+/// identification (`sf sysid fit`). One kPktDuty400 ENTRY carries
+/// kSamplesPerPacket (8) of these (64B total payload), paired by INDEX with
+/// the same-cycle ImuEskf/RateRef samples above — exactly like WireRateRef,
+/// but appended via UnifiedPacketBuilder::addEntry() (variable, [id][size]
+/// framed) rather than written unconditionally by begin(), because unlike
+/// rate_ref this entry did not exist on older firmware. Recording the real
+/// duty means `sf sysid fit` no longer has to reconstruct the plant input as
+/// Kp*(rate_ref-gyro) from an assumed/typed-in Kp — it reads what the mixer
+/// actually sent, correct even if Kp was mistyped, changed mid-flight
+/// (autotune/gain-schedule), or the duty saturated. A parser that does not
+/// know entry id 0x4A simply skips it via the [id][size] framing (see
+/// udp_capture.py parse_packet()) and falls back to the Kp reconstruction.
+/// 400Hz モータduty サンプル — レートループ同定（`sf sysid fit`）の「実際の
+/// プラント入力」。kPktDuty400 の1エントリに kSamplesPerPacket（8）個分
+/// （payload計64B）を積み、上の ImuEskf/RateRef と同じ index で対応させる
+/// （WireRateRef と同じ考え方）。ただし rate_ref と違い旧ファームには存在し
+/// なかったため、begin() が無条件で書く固定ブロックではなく
+/// UnifiedPacketBuilder::addEntry()（[id][size] 可変枠）で追加する。実際の
+/// duty を記録すれば、`sf sysid fit` は Kp*(rate_ref−gyro) という「仮定した
+/// Kp からの再構成」に頼らずに済む — Kp の入力ミス・飛行中のゲイン変更
+/// （自動チューニング・ゲインスケジューリング）・duty の飽和があっても
+/// 正しい。0x4A を知らないパーサは [id][size] 枠組みで単純にスキップし
+/// （udp_capture.py の parse_packet() 参照）、Kp再構成にフォールバックする。
+struct WireDuty400 {
+    uint16_t duty[4];   // FR, RR, RL, FL — value × kDutyScale (duty 0..1)
+};
+static_assert(sizeof(WireDuty400) == 8, "wire drift");
 
 /// 50Hz pilot input entry — FMT_CONTROL '<I 4f' (20B)
 struct WireControl {
@@ -237,6 +289,22 @@ inline int16_t quantize(float value, float scale)
     if (scaled >=  32767.0f) return  32767;
     if (scaled <= -32767.0f) return -32767;
     return static_cast<int16_t>(scaled >= 0.0f ? scaled + 0.5f : scaled - 0.5f);
+}
+
+/// Quantize a 0..1 duty to uint16: round to nearest, clamp to [0, kDutyScale].
+/// A separate function from quantize() (signed, symmetric saturation for
+/// biases/rates) because duty is never negative — a shared signed helper
+/// would carry a low-clamp branch this caller can never hit.
+/// duty(0..1) を uint16 へ量子化: 四捨五入、[0, kDutyScale] にクランプ。
+/// duty は負にならないため quantize()（バイアス/レート用の符号付き対称
+/// 飽和）とは別関数にした — 共用すると絶対に発火しない下側クランプ分岐を
+/// 抱えることになる。
+inline uint16_t quantizeDuty(float duty)
+{
+    const float scaled = duty * kDutyScale;
+    if (scaled <= 0.0f) return 0;
+    if (scaled >= kDutyScale) return static_cast<uint16_t>(kDutyScale);
+    return static_cast<uint16_t>(scaled + 0.5f);
 }
 
 /// XOR checksum over a byte range — matches udp_capture.py's verifier.

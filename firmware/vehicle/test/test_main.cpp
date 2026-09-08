@@ -725,6 +725,70 @@ TEST(wire_quantize_saturation)
     ASSERT_TRUE(quantize(0.5f, 1000.0f) == 500);
 }
 
+// kPktDuty400 (0x4A) — 400Hz motor duty entry, the plant-input record for
+// `sf sysid fit`. Mirrors DataStream::appendEntries()'s FIRST entry (which
+// this test cannot call directly: data_stream.cpp pulls in ESP-IDF sockets
+// and is not host-buildable), built here straight from the wire-layout
+// helpers so a firmware-side wire change is caught before it reaches
+// udp_capture.py.
+// kPktDuty400（0x4A）— 400Hz モータduty エントリ（`sf sysid fit` のプラント
+// 入力記録）。DataStream::appendEntries() の先頭エントリを模す（data_stream.cpp
+// は ESP-IDF ソケットに依存しホストビルド不可のため直接は呼べない）。
+// 電文レイアウトのヘルパから直接組み立て、ファーム側の電文変更を
+// udp_capture.py に届く前に検出する。
+TEST(wire_duty400_entry)
+{
+    using namespace sf::datastream;
+
+    sf::LogStreamSample samples[kSamplesPerPacket] = {};
+    for (int i = 0; i < kSamplesPerPacket; ++i) {
+        for (int m = 0; m < 4; ++m) {
+            samples[i].duty[m] = 0.1f * static_cast<float>(i + 1)
+                                + 0.01f * static_cast<float>(m);
+        }
+    }
+
+    UnifiedPacketBuilder builder;
+    builder.begin(0, samples);
+
+    WireDuty400 duty400[kSamplesPerPacket] = {};
+    for (int i = 0; i < kSamplesPerPacket; ++i) {
+        for (int m = 0; m < 4; ++m) {
+            duty400[i].duty[m] = quantizeDuty(samples[i].duty[m]);
+        }
+    }
+    static_assert(sizeof(duty400) == 64, "wire drift");
+    ASSERT_TRUE(builder.addEntry(kPktDuty400, duty400, sizeof(duty400)));
+
+    const size_t length = builder.finish();
+    const uint8_t* buf = builder.buffer();
+
+    // entry_count = 1; the duty400 entry is FIRST, right after it (offset 916/917).
+    ASSERT_TRUE(buf[916] == 1);
+    ASSERT_TRUE(buf[917] == kPktDuty400 && buf[918] == 64);
+
+    // Sample 0, motor FR (m=0): duty = 0.1*1 + 0 = 0.10.
+    uint16_t d0_fr;
+    memcpy(&d0_fr, &buf[919], 2);
+    ASSERT_TRUE(d0_fr == quantizeDuty(samples[0].duty[0]));
+
+    // Sample 7 (last), motor FL (m=3): offset 919 + 7*8 + 3*2.
+    uint16_t d7_fl;
+    memcpy(&d7_fl, &buf[919 + 7 * 8 + 3 * 2], 2);
+    ASSERT_TRUE(d7_fl == quantizeDuty(samples[7].duty[3]));
+
+    ASSERT_TRUE(length == 917 + 2 + 64 + 1);
+    ASSERT_TRUE(xorChecksum(buf, length - 1) == buf[length - 1]);
+}
+
+TEST(wire_quantize_duty_saturation)
+{
+    using namespace sf::datastream;
+    ASSERT_TRUE(quantizeDuty(-0.5f) == 0);        // duty never negative -> clamp low
+    ASSERT_TRUE(quantizeDuty(1.5f) == 65535);     // clamp high
+    ASSERT_TRUE(quantizeDuty(0.5f) == 32768);     // round(0.5*65535=32767.5)
+}
+
 // =============================================================================
 // TakeoffLandingMgr tests — touchdown detection (firm ground + stalled descent)
 // 離着陸マネージャ — 接地検出（確実な接地＋降下停滞）
@@ -884,6 +948,8 @@ int main()
     run_wire_unified_entries();
     run_wire_status_packet();
     run_wire_quantize_saturation();
+    run_wire_duty400_entry();
+    run_wire_quantize_duty_saturation();
 
     printf("\n[Tello state]\n");
     run_tello_state_all_keys_present();
