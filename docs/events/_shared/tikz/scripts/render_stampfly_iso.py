@@ -246,7 +246,7 @@ BODY_HALF_UNITS = 1.15
 # 変えず（下のHALF_EXTENT_UNITSは不変）、mm_per_unitも実寸の（縮小前の）
 # ジオメトリから算出したまま。そのため、DEBUG位置合わせ確認用の軸には
 # 適用してはならない（imu_axes.tex の実寸のAL長と一致させる必要がある）。
-MODEL_SCALE = 0.8
+MODEL_SCALE = 0.7
 
 # Approximate per-part masses in grams, named per the instructor's figures
 # (total ~= 37 g), used only to weight each part's own volume centroid --
@@ -478,6 +478,28 @@ BLADE_COLOR_RGB = (0.85, 0.15, 0.15)
 BLADE_ALPHA = 0.45
 BLADE_OUTLINE_SAMPLES = 14  # points per bezier segment / ベジェ曲線1区間あたりの点数
 
+# Hub cylinder (instructor fix, round 4, item 2): the propellers had no
+# hub. Dimensions reused verbatim from landing/index.html:
+#   `const hubGeo = new THREE.CylinderGeometry(hubR, hubR*0.9, 2.6, 24);`
+# (top radius hubR, bottom radius hubR*0.9, height 2.6mm, 24 sides).
+# landing also adds a small dome sphere above the cylinder; the
+# instructor asked only for "top face and side wall" (a plain cylinder),
+# so the dome is not reproduced here.
+# ハブ円柱（講師修正指示・第4弾・項目2）: プロペラにハブが無かった。
+# 寸法は landing/index.html の
+# `const hubGeo = new THREE.CylinderGeometry(hubR, hubR*0.9, 2.6, 24);`
+# をそのまま流用（上面半径hubR、底面半径hubR*0.9、高さ2.6mm、24分割）。
+# landing は円柱の上にドーム状の半球も追加しているが、講師指示は
+# 「上面と側面」（単純な円柱）のみなので、ドームはここでは再現しない。
+HUB_TOP_RADIUS_MM = HUB_RADIUS_MM
+HUB_BOTTOM_RADIUS_MM = HUB_RADIUS_MM * 0.9
+HUB_HEIGHT_MM = 2.6
+HUB_SIDES = 24
+# Same red family as the blades, but closer to opaque (instructor spec).
+# 羽根と同系の赤だが、より不透明寄り（講師指示）。
+HUB_COLOR_RGB = BLADE_COLOR_RGB
+HUB_ALPHA = 0.9
+
 
 def _sample_cubic_bezier(p0, p1, p2, p3, n: int) -> np.ndarray:
     """n points along a cubic Bezier curve, from p0 (t=0) to p3 (t=1).
@@ -537,6 +559,25 @@ def build_blade_outline_mm() -> np.ndarray:
     return np.concatenate([seg1, seg2, seg3, seg4], axis=0)
 
 
+def _motor_hub_point_frd_units(part: Part, units_per_mm: float) -> np.ndarray:
+    """The propeller mounting point for one motor part: that motor's own
+    (X, Z) center in the horizontal FRD plane, at the shared
+    PROP_MOUNT_Y_LANDING_RAW_MM height, converted to FRD TikZ units. Used
+    by both the blades and the hub cylinder so they share one definition
+    of "where this motor's propeller is centered."
+    1つのモータ部品に対するプロペラ取付点: そのモータ自身の水平FRD面内
+    (X, Z)中心を、共通のPROP_MOUNT_Y_LANDING_RAW_MM高さで、FRD TikZ単位に
+    変換したもの。羽根とハブ円柱の両方で使い、「このモータのプロペラは
+    どこが中心か」の定義を1箇所にまとめる。
+    """
+    verts_landing = part.triangles_mm_landing.reshape(-1, 3)
+    motor_center_landing = 0.5 * (verts_landing.min(axis=0) + verts_landing.max(axis=0))
+    hub_point_landing = np.array(
+        [motor_center_landing[0], PROP_MOUNT_Y_LANDING_RAW_MM, motor_center_landing[2]]
+    )
+    return landing_to_frd(hub_point_landing[None, :])[0] * units_per_mm
+
+
 def build_propeller_polygons_frd_units(
     parts: list[Part], units_per_mm: float
 ) -> tuple[list[np.ndarray], list[tuple[float, float, float, float]]]:
@@ -558,12 +599,7 @@ def build_propeller_polygons_frd_units(
     polygons: list[np.ndarray] = []
     colors: list[tuple[float, float, float, float]] = []
     for motor_name in MOTOR_NAMES:
-        verts_landing = by_name[motor_name].triangles_mm_landing.reshape(-1, 3)
-        motor_center_landing = 0.5 * (verts_landing.min(axis=0) + verts_landing.max(axis=0))
-        hub_point_landing = np.array(
-            [motor_center_landing[0], PROP_MOUNT_Y_LANDING_RAW_MM, motor_center_landing[2]]
-        )
-        hub_point_frd_units = landing_to_frd(hub_point_landing[None, :])[0] * units_per_mm
+        hub_point_frd_units = _motor_hub_point_frd_units(by_name[motor_name], units_per_mm)
 
         for blade_index in range(BLADE_COUNT):
             angle = 2.0 * np.pi * blade_index / BLADE_COUNT
@@ -579,6 +615,75 @@ def build_propeller_polygons_frd_units(
             blade_z_units = np.full((blade_xy_units.shape[0], 1), hub_point_frd_units[2])
             polygons.append(np.concatenate([blade_xy_units, blade_z_units], axis=1))
             colors.append((*BLADE_COLOR_RGB, BLADE_ALPHA))
+    return polygons, colors
+
+
+def build_hub_polygons_frd_units(
+    parts: list[Part], units_per_mm: float
+) -> tuple[list[np.ndarray], list[tuple[float, float, float, float]]]:
+    """Build the 4 hub cylinders (one per motor: HUB_SIDES side-wall
+    quads + 1 top cap n-gon each), as FRD-unit polygons with shaded RGBA
+    colors (two-sided |normal . light|, same lighting model as the rest
+    of the render, so the hub reads as a solid cylinder rather than a
+    flat red disk).
+    4個のハブ円柱（モータ1個につきHUB_SIDES枚の側面クアッド + 上面の
+    n角形1枚）を、FRD単位のポリゴンとしてシェーディング済みRGBA色
+    付きで構築する（両面|法線・光源|、本レンダリングの他部分と同じ
+    照明モデルを使うため、ハブは平らな赤い円ではなく立体的な円柱として
+    見える）。
+    """
+    by_name = {p.name: p for p in parts}
+    half_height_units = (HUB_HEIGHT_MM / 2.0) * units_per_mm
+    top_radius_units = HUB_TOP_RADIUS_MM * units_per_mm
+    bottom_radius_units = HUB_BOTTOM_RADIUS_MM * units_per_mm
+    angles = np.linspace(0.0, 2.0 * np.pi, HUB_SIDES, endpoint=False)
+    cos_a, sin_a = np.cos(angles), np.sin(angles)
+
+    def shade(normal_frd: np.ndarray) -> tuple[float, float, float, float]:
+        brightness = float(np.clip(AMBIENT + DIFFUSE * abs(normal_frd @ LIGHT_DIR), 0.0, 1.0))
+        rgb = np.clip(np.array(HUB_COLOR_RGB) * brightness, 0.0, 1.0)
+        return (*rgb, HUB_ALPHA)
+
+    polygons: list[np.ndarray] = []
+    colors: list[tuple[float, float, float, float]] = []
+    for motor_name in MOTOR_NAMES:
+        hub_center_frd_units = _motor_hub_point_frd_units(by_name[motor_name], units_per_mm)
+        # "Up" (toward the top face/dome, away from the motor can) is the
+        # -Z_frd direction, since Z_frd = -y_landing (down positive).
+        # 「上」（上面・ドーム側、モータ缶と反対側）は -Z_frd 方向
+        # （Z_frd = -y_landing、下が正のため）。
+        top_z = hub_center_frd_units[2] - half_height_units
+        bottom_z = hub_center_frd_units[2] + half_height_units
+
+        top_ring = np.stack(
+            [
+                hub_center_frd_units[0] + top_radius_units * cos_a,
+                hub_center_frd_units[1] + top_radius_units * sin_a,
+                np.full(HUB_SIDES, top_z),
+            ],
+            axis=1,
+        )
+        bottom_ring = np.stack(
+            [
+                hub_center_frd_units[0] + bottom_radius_units * cos_a,
+                hub_center_frd_units[1] + bottom_radius_units * sin_a,
+                np.full(HUB_SIDES, bottom_z),
+            ],
+            axis=1,
+        )
+
+        polygons.append(top_ring)
+        colors.append(shade(np.array([0.0, 0.0, -1.0])))  # flat horizontal cap, normal along -Z (up) / 水平な上面、法線は-Z(上)方向
+
+        for i in range(HUB_SIDES):
+            j = (i + 1) % HUB_SIDES
+            quad = np.stack([top_ring[i], top_ring[j], bottom_ring[j], bottom_ring[i]], axis=0)
+            normal = np.cross(quad[1] - quad[0], quad[2] - quad[0])
+            norm_len = np.linalg.norm(normal)
+            if norm_len > 0:
+                normal = normal / norm_len
+            polygons.append(quad)
+            colors.append(shade(normal))
     return polygons, colors
 
 
@@ -706,17 +811,33 @@ def main() -> None:
     # 下のメッシュ三角形と同じ深度ソート（画家アルゴリズム）の描画リストへ
     # 統合する。
     blade_polygons_units, blade_colors_rgba = build_propeller_polygons_frd_units(parts, units_per_mm)
-    blade_depth = np.array([poly[:, :3] @ F_HAT for poly in blade_polygons_units]).mean(axis=1)
+    blade_depth = np.array([(poly[:, :3] @ F_HAT).mean() for poly in blade_polygons_units])
 
-    # ---- Merge mesh triangles + propeller blades into one draw list,
-    # then paint far-to-near (painter's algorithm) in a single pass so
-    # blades correctly occlude/get-occluded-by the body mesh.
-    # ---- メッシュ三角形とプロペラ羽根を1つの描画リストへ統合し、遠い順
-    # （画家アルゴリズム）で1回のパスとして描く。これにより羽根と機体
-    # メッシュの前後関係が正しく処理される。
-    all_polygons_3d: list[np.ndarray] = list(triangles_units) + blade_polygons_units
-    all_colors_rgba = np.concatenate([mesh_colors_rgba, np.array(blade_colors_rgba)], axis=0)
-    all_depth = np.concatenate([mesh_depth, blade_depth])
+    # ---- Hub cylinders (instructor fix, round 4, item 2): same
+    # depth-sorted merge treatment as the blades above.
+    # ---- ハブ円柱（講師修正指示・第4弾・項目2）: 上の羽根と同様に
+    # 深度ソートした描画リストへ統合する。
+    hub_polygons_units, hub_colors_rgba = build_hub_polygons_frd_units(parts, units_per_mm)
+    # Per-polygon mean depth, computed one polygon at a time (not a single
+    # vectorized (N, K) array): the top-cap n-gon (HUB_SIDES vertices) and
+    # the side-wall quads (4 vertices) have different vertex counts.
+    # ポリゴンごとに平均深度を1枚ずつ計算する（単一の(N, K)配列で一括処理
+    # しない）: 上面のn角形（HUB_SIDES頂点）と側面のクアッド（4頂点）で
+    # 頂点数が異なるため。
+    hub_depth = np.array([(poly[:, :3] @ F_HAT).mean() for poly in hub_polygons_units])
+
+    # ---- Merge mesh triangles + propeller blades + hubs into one draw
+    # list, then paint far-to-near (painter's algorithm) in a single pass
+    # so they correctly occlude/get-occluded-by each other and the body
+    # mesh.
+    # ---- メッシュ三角形・プロペラ羽根・ハブを1つの描画リストへ統合し、
+    # 遠い順（画家アルゴリズム）で1回のパスとして描く。これにより互いと
+    # 機体メッシュの前後関係が正しく処理される。
+    all_polygons_3d: list[np.ndarray] = list(triangles_units) + blade_polygons_units + hub_polygons_units
+    all_colors_rgba = np.concatenate(
+        [mesh_colors_rgba, np.array(blade_colors_rgba), np.array(hub_colors_rgba)], axis=0
+    )
+    all_depth = np.concatenate([mesh_depth, blade_depth, hub_depth])
 
     # ---- Shrink the drawn body/propellers around the origin (instructor
     # fix, round 3, item 2) -- depth (for sort order) and shading were
@@ -748,13 +869,23 @@ def main() -> None:
     ax.set_aspect("equal", adjustable="box")
     ax.axis("off")
 
-    edge_colors = colors_sorted.copy()
-    edge_colors[:, :3] *= 0.85
+    # No visible triangle-edge/wireframe lines (instructor fix, round 4,
+    # item 1): edgecolor = facecolor (not darkened), at a hairline width
+    # just wide enough to paper over the sub-pixel anti-aliasing gap
+    # between adjacent filled triangles -- a darker or thicker edge would
+    # itself draw a visible wireframe, which is exactly what we are
+    # removing (translucent blade/hub faces made it especially visible).
+    # 三角形の縁線・ワイヤーフレームを見せない（講師修正指示・第4弾・
+    # 項目1）: edgecolorをfacecolorと同じ（暗くしない）にし、隣接する
+    # 塗りつぶし三角形間のサブピクセルのアンチエイリアス隙間を埋める
+    # だけの極細幅にする -- 縁を暗く/太くするとそれ自体がワイヤーフレーム
+    # として見えてしまう（半透明の羽根・ハブ面では特に目立っていた）。
+    EDGE_LINEWIDTH_HAIRLINE = 0.25
     poly = PolyCollection(
         screen_sorted,
         facecolors=colors_sorted,
-        edgecolors=edge_colors,
-        linewidths=0.15,
+        edgecolors=colors_sorted,
+        linewidths=EDGE_LINEWIDTH_HAIRLINE,
         antialiased=True,
     )
     ax.add_collection(poly)

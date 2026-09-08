@@ -278,5 +278,20 @@
     at ({\YawCx+(\ArcR+\LabelGap)*\Xx*cos(\YawMid)+(\ArcR+\LabelGap)*\Yx*sin(\YawMid)},
         {\YawCy+(\ArcR+\LabelGap)*\Xy*cos(\YawMid)+(\ArcR+\LabelGap)*\Yy*sin(\YawMid)}) {Yaw};
 
+
+  % Make the bounding box symmetric about the body origin (x = 0) so the
+  % vehicle sits at the horizontal centre when the figure is centred on a
+  % slide; the arrows and labels only extend to the right and below, which
+  % otherwise pushes the vehicle to the left of the slide centre.
+  % 境界枠を機体原点 (x = 0) に対して左右対称にし、スライド中央に置いたとき
+  % 機体が横方向の中央に来るようにする。矢印とラベルは右と下にしか伸びない
+  % ため、そのままでは機体がスライド中央より左に寄って見える。
+  \makeatletter
+  \pgfextractx{\pgf@xa}{\pgfpointanchor{current bounding box}{west}}
+  \pgfextractx{\pgf@xb}{\pgfpointanchor{current bounding box}{east}}
+  \pgfmathsetlengthmacro{\HalfW}{max(abs(\pgf@xa),abs(\pgf@xb))}
+  \makeatother
+  \path[use as bounding box] ({-\HalfW},0 |- current bounding box.south)
+    rectangle ({\HalfW},0 |- current bounding box.north);
 \end{tikzpicture}
 \end{document}
