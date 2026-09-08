@@ -724,7 +724,7 @@ ws::motor_mixer(ws::rc_throttle(),
 <p>  <span class="fs-footnotesize"> 実習8のD項は理想微分（誤差の後退差分）のまま。不完全微分・D-on-M
   は vehicle 実装が追加する改良点</span>
 </p></div><footer class="slide-footer"><span class="footer-session">Session 4: PID 姿勢安定化</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">101 / 156</span></footer></section>
-<section class="slide content later" id="s-102" data-title="アンチワインドアップ: クランプ vs 条件付き積分" data-session="S4"><header class="slide-header"><h2>アンチワインドアップ: クランプ vs 条件付き積分</h2><span class="later-badge">あとで読む</span></header><div class="slide-body"><div class="columns"><div class="column" style="flex:0.48 1 0"><div class="block block"><h3 class="block-title">積分クランプ</h3><div class="block-body"><div class="fs-footnotesize"><div class="math-display">\[
+<section class="slide content later" id="s-102" data-title="アンチワインドアップ: クランプ vs 条件付き積分" data-session="S4"><header class="slide-header"><h2>アンチワインドアップ: クランプ vs 条件付き積分</h2><span class="later-badge">あとで読む</span></header><div class="slide-body"><div class="columns"><div class="column" style="flex:0.48 1 0"><div class="block block"><h3 class="block-title">実習 8 実装: 積分クランプ</h3><div class="block-body"><div class="fs-footnotesize"><div class="math-display">\[
           \begin{array}{l}
             \texttt{I}\;{+}{=}\;e\cdot dt \\
             \texttt{I} \leftarrow \operatorname{clamp}(\texttt{I},\,\pm0.5)
