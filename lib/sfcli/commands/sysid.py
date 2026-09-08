@@ -329,6 +329,36 @@ def _register_fit(subparsers):
             "Run --selftest to verify the whole pipeline against a synthetic "
             "known plant."
         ),
+        epilog=(
+            "Examples:\n"
+            "  sf sysid fit flight.csv --kp 0.5 --plot\n"
+            "      --kp is the roll/pitch rate P gain written in user_code.cpp for\n"
+            "      the tutorial (実習 7). Kp gains must match what actually flew.\n"
+            "      --kp には実習7のuser_code.cppに書いたロール/ピッチのレートP制御\n"
+            "      ゲインを指定する（実際に飛行させた値と一致させること）。\n"
+            "\n"
+            "  sf sysid fit flight.csv --axis roll --kp 0.5 -o fit.yaml\n"
+            "      Identify roll only and save the result to a YAML file.\n"
+            "      roll軸のみ同定し、結果をYAMLファイルに保存する。\n"
+            "\n"
+            "  sf sysid fit --selftest\n"
+            "      Verify the whole pipeline against a synthetic known plant.\n"
+            "      既知の合成プラントに対してパイプライン全体を自己検証する。\n"
+            "\n"
+            "Output:\n"
+            "  Prints K [1/s] and tau_m [s] per axis, each compared against a\n"
+            "  reference: K vs. REFERENCE_PLANT_GAINS (theoretical gain from the\n"
+            "  vehicle's mechanical parameters) and tau_m vs. the firmware's\n"
+            "  default tau_m, with the percent error for both.\n"
+            "  軸ごとにK[1/s]とtau_m[s]を表示し、機体の機械パラメータから求めた\n"
+            "  理論値（REFERENCE_PLANT_GAINS）およびファーム既定のtau_mとの誤差\n"
+            "  [%]を併記する。\n"
+            "\n"
+            "Capture the input data with:\n"
+            "  sf log wifi -d 30 -o flight.csv\n"
+            "  入力データは上記コマンドで取得する（-dは秒数、-oは出力ファイル名）。\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "input",
@@ -420,6 +450,9 @@ def run_help(args: argparse.Namespace) -> int:
     console.print("  params     Parameter management")
     console.print("  validate   Validation and consistency checks")
     console.print("  plan       Flight test plan generation")
+    console.print("  rate-fit   Identify rate-loop plant G(s)=b*e^(-Ls)/(s(Ts+1)) (ETFE + fit)")
+    console.print("  rate-tune  Auto-tune rate PID for a gain-crossover + phase-margin spec")
+    console.print("  rate-excite Fly rate-loop excitation (chirp/doublet) via the API")
     console.print()
     console.print("Run 'sf sysid <subcommand> --help' for details.")
     console.print()
@@ -429,6 +462,9 @@ def run_help(args: argparse.Namespace) -> int:
     console.print("  sf sysid inertia roll_step.csv --axis roll -o result.yaml")
     console.print("  sf sysid params show")
     console.print("  sf sysid validate identified.yaml --ref defaults.yaml")
+    console.print("  sf sysid rate-fit flight.csv --axis roll --kp 0.5 --plot")
+    console.print("  sf sysid rate-tune --fit fit.json --wc 25 --pm 60")
+    console.print("  sf sysid rate-excite --axis roll --takeoff --land")
     return 0
 
 
@@ -1192,7 +1228,8 @@ def _register_rate_fit(subparsers):
             "verify the whole pipeline against a synthetic known plant."),
     )
     parser.add_argument("input", nargs="?", help="Data Stream CSV (sf log convert output)")
-    parser.add_argument("--axis", choices=["roll", "pitch", "yaw"], default="roll")
+    parser.add_argument("--axis", choices=["roll", "pitch", "yaw"], default="roll",
+                        help="axis to identify (default: roll)")
     parser.add_argument("--kp", type=float, help="rate Kp that flew (default: firmware default)")
     parser.add_argument("--ti", type=float, help="rate Ti that flew")
     parser.add_argument("--td", type=float, help="rate Td that flew")
@@ -1316,8 +1353,10 @@ def _register_rate_excite(subparsers):
             "to capture the 400Hz rate_ref/gyro data the fit needs."),
     )
     parser.add_argument("--ip", default="192.168.10.1", help="vehicle IP")
-    parser.add_argument("--axis", choices=["roll", "pitch", "yaw"], default="roll")
-    parser.add_argument("--waveform", choices=["chirp", "doublet"], default="chirp")
+    parser.add_argument("--axis", choices=["roll", "pitch", "yaw"], default="roll",
+                        help="axis to excite (default: roll)")
+    parser.add_argument("--waveform", choices=["chirp", "doublet"], default="chirp",
+                        help="excitation waveform (default: chirp)")
     parser.add_argument("--amp", type=float, default=25.0, help="amplitude [deg/s] (default 25)")
     parser.add_argument("--dur", type=float, default=5.0, help="duration [s] (default 5)")
     parser.add_argument("--takeoff", action="store_true", help="take off first (POS_HOLD)")
