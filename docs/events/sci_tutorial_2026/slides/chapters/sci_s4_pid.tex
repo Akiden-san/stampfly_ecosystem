@@ -132,7 +132,7 @@
 
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
     \item \code{sf lesson switch sci2026:5}
-    \item \code{user\_code.cpp} の TODO を埋める（\api{ws::gyro\_x/y/z()}，\api{ws::rc\_roll/pitch/yaw()}）
+    \item \code{sf lesson edit} で TODO を埋めて保存（\api{ws::gyro\_x/y/z()}，\api{ws::rc\_roll/pitch/yaw()}）
     \item \code{sf lesson build}
     \item \code{sf lesson flash}
     \item 確認: 講師が完成コード（$K_p=0.5$）で飛ばす。スティック追従とわずかな振動を見る
@@ -520,7 +520,7 @@ ws::motor_mixer(ws::rc_throttle(),
 
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
     \item \code{sf lesson switch sci2026:6}
-    \item \code{Kp\_roll/pitch/yaw} を設計式で計算するコードを書く
+    \item \code{sf lesson edit} で \code{Kp\_roll/pitch/yaw} を設計式で計算するコードを書いて保存
     \item \code{sf lesson build}
     \item \code{sf lesson flash}
     \item 確認: $\zeta$ を変えた3種類の飛行の違いを見る
@@ -614,7 +614,7 @@ ws::motor_mixer(ws::rc_throttle(),
 
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
     \item \code{sf lesson switch sci2026:7}
-    \item $K_p$ を設定し \api{ws::set\_rate\_target} を呼ぶ
+    \item \code{sf lesson edit} で $K_p$ を設定し \api{ws::set\_rate\_target} を呼ぶコードにして保存
     \item \code{sf lesson build}
     \item \code{sf lesson flash}
     \item 飛行しながら \code{sf log wifi -o flight.csv}
@@ -748,7 +748,7 @@ sf sysid fit flight.csv --kp 0.5 --plot
 
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
     \item \code{sf lesson switch sci2026:8}
-    \item 軸ごとに I 項・D 項・アンチワインドアップを追加
+    \item \code{sf lesson edit} で軸ごとに I 項・D 項・アンチワインドアップを追加して保存
     \item \code{sf lesson build}
     \item \code{sf lesson flash}
     \item 確認: 実習 5（P のみ）と比べて定常偏差とオーバーシュートの変化を見る
@@ -965,7 +965,7 @@ sf sysid fit flight.csv --kp 0.5 --plot
 
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
     \item \code{sf lesson switch sci2026:9}
-    \item 相補フィルタを実装
+    \item \code{sf lesson edit} で相補フィルタを実装して保存
     \item \code{sf lesson build}
     \item \code{sf lesson flash}
     \item \code{sf monitor} + Teleplot で \code{cf\_roll} と \code{eskf\_roll} を比較

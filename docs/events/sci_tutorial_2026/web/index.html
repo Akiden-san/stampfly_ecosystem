@@ -230,7 +230,7 @@ reboot
   </p></div></div></div></div><footer class="slide-footer"><span class="footer-session">Session 2: 環境構築とセンサ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">40 / 155</span></footer></section>
 <section class="slide content" id="s-041" data-title="実習 2: IMU の値を見る" data-session="S2"><header class="slide-header"><h2>実習 2: IMU の値を見る</h2></header><div class="slide-body"><div class="stage-pills"><span class="pill">見るだけ</span><span class="pill active"><span><strong>一緒に打つ</strong></span></span><span class="pill">帰宅後に再現</span></div>
 <div class="block block"><h3 class="block-title">手順</h3><div class="block-body"><ol class="fs-footnotesize"><li> <code class="tex-code">sf lesson switch sci2026:2</code>
-      </li><li> <code class="tex-code">sf lesson edit</code> で <code class="tex-code">user_code.cpp</code> を開き、次ページのコードを書く
+      </li><li> <code class="tex-code">sf lesson edit</code> で <code class="tex-code">user_code.cpp</code> を開き、次ページのコードを書いて保存
       </li><li> <code class="tex-code">sf lesson build</code>
       </li><li> <code class="tex-code">sf lesson flash</code>
       </li><li> <code class="tex-code">sf lesson monitor</code>（<code class="tex-code">sf lesson flash</code> 直後はそのまま開く）
@@ -332,7 +332,7 @@ sf log viz flight.csv
   </li></ul></div><footer class="slide-footer"><span class="footer-session">Session 3: モータとコントローラ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">57 / 155</span></footer></section>
 <section class="slide content" id="s-058" data-title="実習 3: Duty をハードコードして回す" data-session="S3"><header class="slide-header"><h2>実習 3: Duty をハードコードして回す</h2></header><div class="slide-body"><div class="stage-pills"><span class="pill">見るだけ</span><span class="pill active"><span><strong>一緒に打つ</strong></span></span><span class="pill">帰宅後に再現</span></div>
 <div class="columns"><div class="column" style="flex:0.44 1 0"><div class="fs-footnotesize"><ol><li> <code class="tex-code">sf lesson switch sci2026:3</code>
-        </li><li> 右のコードに書き換える
+        </li><li> <code class="tex-code">sf lesson edit</code> で右のコードにして保存
         </li><li> <code class="tex-code">sf lesson build</code>
         </li><li> <code class="tex-code">sf lesson flash</code>
         </li><li> 機体ボタンを1回クリックして ARM
@@ -370,7 +370,7 @@ sf log viz flight.csv
 <section class="slide content" id="s-065" data-title="実習 4: スティックでモータを回す" data-session="S3"><header class="slide-header"><h2>実習 4: スティックでモータを回す</h2></header><div class="slide-body"><div class="stage-pills"><span class="pill">見るだけ</span><span class="pill active"><span><strong>一緒に打つ</strong></span></span><span class="pill">帰宅後に再現</span></div>
 <div class="columns"><div class="column" style="flex:0.44 1 0"><div class="fs-footnotesize"><ol><li> <code class="tex-code">sf lesson switch sci2026:4</code>
         </li><li> コントローラとペアリング
-        </li><li> <code class="tex-api">ws::motor_mixer(T,R,P,Y)</code> を書く
+        </li><li> <code class="tex-code">sf lesson edit</code> で右のコードにして保存
         </li><li> <code class="tex-code">sf lesson build</code>
         </li><li> <code class="tex-code">sf lesson flash</code>
         </li><li> 確認: スティックで回転差が出る
@@ -453,7 +453,7 @@ sf log viz flight.csv
     （実習 7 のシステム同定で使う）
   </p></div></div></div>
 <ol class="fs-footnotesize"><li> <code class="tex-code">sf lesson switch sci2026:5</code>
-    </li><li> <code class="tex-code">user_code.cpp</code> の TODO を埋める（<code class="tex-api">ws::gyro_x/y/z()</code>，<code class="tex-api">ws::rc_roll/pitch/yaw()</code>）
+    </li><li> <code class="tex-code">sf lesson edit</code> で TODO を埋めて保存（<code class="tex-api">ws::gyro_x/y/z()</code>，<code class="tex-api">ws::rc_roll/pitch/yaw()</code>）
     </li><li> <code class="tex-code">sf lesson build</code>
     </li><li> <code class="tex-code">sf lesson flash</code>
     </li><li> 確認: 講師が完成コード（<span class="math-inline">\(K_p=0.5\)</span>）で飛ばす。スティック追従とわずかな振動を見る
@@ -594,7 +594,7 @@ ws::motor_mixer(ws::rc_throttle(),
     <span class="math-inline">\(\zeta=0.7\to0.5\to1.0\)</span> の順に変えて飛行し，違いを体感する
   </p></div></div></div>
 <ol class="fs-footnotesize"><li> <code class="tex-code">sf lesson switch sci2026:6</code>
-    </li><li> <code class="tex-code">Kp_roll/pitch/yaw</code> を設計式で計算するコードを書く
+    </li><li> <code class="tex-code">sf lesson edit</code> で <code class="tex-code">Kp_roll/pitch/yaw</code> を設計式で計算するコードを書いて保存
     </li><li> <code class="tex-code">sf lesson build</code>
     </li><li> <code class="tex-code">sf lesson flash</code>
     </li><li> 確認: <span class="math-inline">\(\zeta\)</span> を変えた3種類の飛行の違いを見る
@@ -643,7 +643,7 @@ ws::motor_mixer(ws::rc_throttle(),
     追加する（角速度目標を Data Stream に記録するだけで，制御自体には無関係）
   </p></div></div></div>
 <ol class="fs-footnotesize"><li> <code class="tex-code">sf lesson switch sci2026:7</code>
-    </li><li> <span class="math-inline">\(K_p\)</span> を設定し <code class="tex-api">ws::set_rate_target</code> を呼ぶ
+    </li><li> <code class="tex-code">sf lesson edit</code> で <span class="math-inline">\(K_p\)</span> を設定し <code class="tex-api">ws::set_rate_target</code> を呼ぶコードにして保存
     </li><li> <code class="tex-code">sf lesson build</code>
     </li><li> <code class="tex-code">sf lesson flash</code>
     </li><li> 飛行しながら <code class="tex-code">sf log wifi -o flight.csv</code>
@@ -688,7 +688,7 @@ ws::motor_mixer(ws::rc_throttle(),
     <code class="tex-code">integral</code>/<code class="tex-code">prev_error</code> を 0 にリセットする
   </p></div></div></div>
 <ol class="fs-footnotesize"><li> <code class="tex-code">sf lesson switch sci2026:8</code>
-    </li><li> 軸ごとに I 項・D 項・アンチワインドアップを追加
+    </li><li> <code class="tex-code">sf lesson edit</code> で軸ごとに I 項・D 項・アンチワインドアップを追加して保存
     </li><li> <code class="tex-code">sf lesson build</code>
     </li><li> <code class="tex-code">sf lesson flash</code>
     </li><li> 確認: 実習 5（P のみ）と比べて定常偏差とオーバーシュートの変化を見る
@@ -803,7 +803,7 @@ ws::motor_mixer(ws::rc_throttle(),
     Teleplot で比較する
   </p></div></div></div>
 <ol class="fs-footnotesize"><li> <code class="tex-code">sf lesson switch sci2026:9</code>
-    </li><li> 相補フィルタを実装
+    </li><li> <code class="tex-code">sf lesson edit</code> で相補フィルタを実装して保存
     </li><li> <code class="tex-code">sf lesson build</code>
     </li><li> <code class="tex-code">sf lesson flash</code>
     </li><li> <code class="tex-code">sf monitor</code> + Teleplot で <code class="tex-code">cf_roll</code> と <code class="tex-code">eskf_roll</code> を比較
