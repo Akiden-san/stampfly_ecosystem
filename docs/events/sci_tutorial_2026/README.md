@@ -57,32 +57,61 @@
 
 ### 開発環境のセットアップ
 
-ターミナル操作に不慣れな場合は GUI インストーラ「StampFly Setup」を使う。
+コマンドライン（CLI）で導入する。GUI 版インストーラ「StampFly Setup」もあるが、動作の安定性を確認できていないため本チュートリアルでは使わない。手順はリポジトリ直下の README「インストール」節と同じ 3 段階で、コードブロックは 1 つずつ貼り付け、実行が終わるのを待ってから次へ進む。ESP-IDF のダウンロードを含むので、前日までの実施を勧める。
 
-| 手順 | 内容 |
+| 段階 | 内容 |
 |------|------|
-| 1 | [GUI インストーラガイド](../../guides/gui-installer.md) からダウンロードし、ウィザードに従って導入する |
-| 2 | 導入後、`sf doctor` を実行して環境を診断する（問題があれば表示に従って解消する） |
-| 3 | ターミナル操作に慣れている場合は CLI インストーラ（`install.sh`/`install.bat`）でもよい |
-| 4 | VSCode 拡張機能 `alexnesnes.teleplot` を入れておく（Teleplot でセンサ波形をリアルタイム表示するために使う） |
+| ① 前提ツール | Git と Python 3.12 を入れる |
+| ② 取得と導入 | リポジトリを取得してインストーラを実行する。途中で ESP-IDF の導入を尋ねられたら 1（Install ESP-IDF v5.5.2）を選ぶ |
+| ③ 有効化と診断 | 開発環境を有効化し、`sf doctor` で確認する |
+
+**Windows**（コマンドプロンプト。WSL は不要）
+
+① Git と Python 3.12 を導入する。終わったら CMD を一度閉じて開き直す。
+
+```cmd
+winget install Git.Git --accept-source-agreements --accept-package-agreements
+winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements
+```
+
+② リポジトリを取得してインストーラを実行する。
+
+```cmd
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
+install.bat
+```
+
+③ 開発環境を有効化して診断する。新しい CMD を開くたびに `setup_env.bat` を実行する。
+
+```cmd
+setup_env.bat
+sf doctor
+```
+
+**macOS / Linux** も同じ 3 段階で、② は `./install.sh`、③ は `source setup_env.sh`。① の前提ツール（Homebrew／apt のコマンド）はリポジトリ直下の README を参照。
+
+VSCode 拡張機能 `alexnesnes.teleplot` も入れておく（Teleplot でセンサ波形をリアルタイム表示するために使う）。
 
 ### 機体・コントローラの準備
 
 | 手順 | 内容 |
 |------|------|
-| 1 | [Webフラッシャ](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) から機体・コントローラのファームウェアを書き込む |
-| 2 | コントローラのペアリングを行う（初回のみ手動: コントローラは LCD パネルボタンを押しながら電源投入，StampFly は本体ボタンを約3秒長押し。双方がビープしたら完了。以降は電源投入だけで自動再接続する。手順は [送信機の使い方](../../guides/controller.md) を参照） |
+| 1 | 開発環境で機体ファームをビルドして書き込む（当日の実習 1 と同じ手順）: `sf build vehicle` → `sf flash vehicle -m`。書き込み直後に起動音が鳴り、LED が白から緑の常灯になり、モニタに起動ログが流れれば成功 |
+| 2 | コントローラのペアリングを行う（初回のみ手動: コントローラは LCD パネルボタンを押しながら電源投入，StampFly は本体ボタンを 3 秒以上押し続け、双方がビープしたら離す。5 秒以上押し続けるとシステムリセットになる。以降は電源投入だけで自動再接続する。手順は [送信機の使い方](../../guides/controller.md) を参照）。自分で購入したコントローラは先に `sf flash controller` で書き直す |
 | 3 | 機体を机の上に置き、モータ回転中は手を近づけない状態でコントローラから ARM（右スティック押し込み）し、モータが応答することを確認する。異常時は即 DISARM |
+
+WiFi モードとチャンネルの設定は、当日の実習 1 (2/2) で講師の指定するチャンネルとあわせて行う。
 
 ### シミュレータの試走
 
-実機を持ち込まない、または実機なしで復習したい場合は VPython シミュレータで代替できる。
+開発環境が動いているかの確認として、VPython シミュレータを一度起動しておく。
 
 ```bash
 sf sim run vpython
 ```
 
-ブラウザに3D表示が出れば準備完了。詳細は `simulator/README.md` を参照。
+ブラウザに 3D 表示が出れば開発環境は動いている。実習 1〜9 は機体とコントローラが前提で、シミュレータは実機の代わりにはならない。実機を持たない場合は、当日は「見るだけ」で参加してほしい。
 
 ### 事前準備チェック
 
@@ -90,7 +119,7 @@ sf sim run vpython
 |---------|-----------|
 | `sf doctor` | エラーなしで完了する |
 | 機体の起動 | 緑点灯＋起動音まで到達する |
-| Webフラッシャでの書き込み | 書き込み完了メッセージが出る |
+| `sf flash vehicle -m` | 起動音・LED 緑・モニタに起動ログ |
 | `sf sim run vpython` | ブラウザに3D表示が出る |
 
 うまくいかない場合は [トラブルシューティング](../../guides/troubleshooting.md) を参照。それでも解決しない場合は、当日は「見るだけ」で参加し、資料と録画で後日復習してほしい。
@@ -154,32 +183,61 @@ If you plan to join the hands-on parts, complete the following **before** the da
 
 ### Development environment
 
-If you are not comfortable with a terminal, use the "StampFly Setup" GUI installer.
+Install from the command line (CLI). A GUI installer, "StampFly Setup", exists, but its stability has not been confirmed, so this tutorial does not use it. The procedure is the same three stages as the "Installation" section of the repository's top-level README: paste one code block at a time and wait for it to finish before the next. It downloads ESP-IDF, so do it the day before at the latest.
 
-| Step | Detail |
-|------|--------|
-| 1 | Download from the [GUI installer guide](../../guides/gui-installer.md) and follow the wizard |
-| 2 | After install, run `sf doctor` to diagnose the environment (follow its output to resolve any issue) |
-| 3 | If you are comfortable with a terminal, the CLI installer (`install.sh`/`install.bat`) works too |
-| 4 | Install the VSCode extension `alexnesnes.teleplot` (used to graph sensor data live via Teleplot) |
+| Stage | Detail |
+|-------|--------|
+| 1. Prerequisites | Install Git and Python 3.12 |
+| 2. Get and install | Clone the repository and run the installer. When it asks about ESP-IDF, choose 1 (Install ESP-IDF v5.5.2) |
+| 3. Activate and check | Activate the environment and run `sf doctor` |
+
+**Windows** (Command Prompt; no WSL needed)
+
+Stage 1: install Git and Python 3.12, then close and reopen CMD.
+
+```cmd
+winget install Git.Git --accept-source-agreements --accept-package-agreements
+winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements
+```
+
+Stage 2: clone the repository and run the installer.
+
+```cmd
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
+cd stampfly_ecosystem
+install.bat
+```
+
+Stage 3: activate and check. Run `setup_env.bat` in every new CMD window.
+
+```cmd
+setup_env.bat
+sf doctor
+```
+
+**macOS / Linux** follow the same three stages with `./install.sh` in stage 2 and `source setup_env.sh` in stage 3; the stage-1 prerequisites (Homebrew / apt commands) are in the repository's top-level README.
+
+Also install the VSCode extension `alexnesnes.teleplot` (used to graph sensor data live via Teleplot).
 
 ### Vehicle and controller
 
 | Step | Detail |
 |------|--------|
-| 1 | Flash the vehicle and controller firmware from the [Web Flasher](https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/) |
-| 2 | Pair the controller (first time only, manual: power on the controller while holding its LCD panel button, then hold the StampFly's body button for about 3 s; both beep when paired. After that, power-up alone reconnects automatically. See [Using the Transmitter](../../guides/controller.md)) |
+| 1 | Build and flash the vehicle firmware from the dev environment (the same steps as Exercise 1 on the day): `sf build vehicle` then `sf flash vehicle -m`. Success looks like the boot chime, the LED going white then steady green, and the boot log in the monitor |
+| 2 | Pair the controller (first time only, manual: power on the controller while holding its LCD panel button, then hold the StampFly's body button for 3 s or more and release at the double beep; holding 5 s or more triggers a system reset. After that, power-up alone reconnects automatically. See [Using the Transmitter](../../guides/controller.md)). A controller you bought yourself must first be reflashed with `sf flash controller` |
 | 3 | Place the vehicle on a table, keep hands clear of the spinning motors, and arm from the controller (push the right stick) to confirm the motors respond. DISARM immediately if anything looks wrong |
+
+The WiFi mode and channel are set on the day in Exercise 1 (2/2), together with the channel the instructor assigns you.
 
 ### Simulator dry run
 
-If you are not bringing hardware, or want to review without it, the VPython simulator is a substitute.
+As a check that the dev environment works, launch the VPython simulator once.
 
 ```bash
 sf sim run vpython
 ```
 
-You are ready once a 3D view opens in your browser. See `simulator/README.md` for details.
+A 3D view opening in your browser means the environment works. Exercises 1-9 require the vehicle and controller; the simulator is not a substitute for the hardware. If you do not have a vehicle, plan to join the hands-on parts in "watch only" mode.
 
 ### Pre-tutorial checklist
 
@@ -187,7 +245,7 @@ You are ready once a 3D view opens in your browser. See `simulator/README.md` fo
 |-------|-----------------|
 | `sf doctor` | Completes with no errors |
 | Vehicle boot | Reaches steady green LED with the boot chime |
-| Web Flasher | Shows a flash-complete message |
+| `sf flash vehicle -m` | Boot chime, green LED, boot log in the monitor |
 | `sf sim run vpython` | A 3D view opens in the browser |
 
 If something does not work, see [Troubleshooting](../../guides/troubleshooting.md). Otherwise, plan to join the hands-on parts in "watch only" mode on the day, and catch up afterward using the recording and materials.

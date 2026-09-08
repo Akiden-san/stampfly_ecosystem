@@ -21,7 +21,7 @@
 % ------------------------------------------------------------------
 \begin{frame}{要点3つ}
   \begin{enumerate}
-    \item ビルド環境は ESP-IDF と \code{sf CLI} が担う。開発を伴わない参加者は Web Flasher / GUI インストーラという代替経路がある
+    \item ビルド環境は ESP-IDF と \code{sf CLI} が担う。導入も書き込みも sf CLI で行う
     \item 参加者が書くコードは \api{setup()} と \api{loop\_400Hz(dt)} の2関数だけ。センサやHWの詳細は \api{ws::} 名前空間が隠す
     \item センサデータの取得経路は3通りある。目的に応じて \api{ws::print}、\code{sf telemetry}、\code{sf log wifi} を使い分ける
   \end{enumerate}
@@ -58,8 +58,8 @@
 
 % ------------------------------------------------------------------
 \begin{frame}{開発環境の導入: 機体とペアリング}
-  \begin{block}{開発環境なしでも書き込みだけはできる}
-    \small ブラウザ（Chrome/Edge）から Web Flasher を開き、公開済みの完成版ファームウェアを機体・コントローラへ直接書き込める。インストール不要\\
+  \begin{block}{書き込みは \code{sf flash vehicle} / \code{sf flash controller} で行う}
+    \small 本講座の操作はすべて sf CLI で行う。参考: ブラウザから公開済みファームウェアを書き込む Web Flasher もある（本講座では使わない）\\
     \url{https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/}
   \end{block}
 
@@ -428,7 +428,7 @@ sf log viz flight.csv
 \begin{frame}{チェックポイント}
   \begin{alertblock}{確認事項}
     \begin{itemize}
-      \item[$\square$] \code{sf doctor} が通る、または代替経路（Web Flasher / GUI インストーラ）を把握した
+      \item[$\square$] \code{sf doctor} が通る
       \item[$\square$] \api{setup()}/\api{loop\_400Hz(dt)} の2関数構造を説明できる
       \item[$\square$] ジャイロ・加速度をどれか1つの経路で確認できた
     \end{itemize}

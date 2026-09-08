@@ -32,7 +32,7 @@
 | 項目 | 確認内容 | 出典 |
 |------|---------|------|
 | 実機・コントローラ | 講師用デモ機と貸出用予備のバッテリーを全数充電。対面参加者は基本的に実機を持参する（README §「持ち物」）ため、予備の必要台数はその日の参加者構成による — 資料に具体的な予備台数の指定はない | README 開催情報, verification_checklist §5 |
-| Web Flasher | `https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/` をブラウザで開いておく | README §4 |
+| 書き込み | 講師機・貸出機とも `sf flash vehicle` / `sf flash controller` で当日朝までに書き込み済みにする（Web Flasher は p.34 で紹介するだけで使わない） | README §4 |
 | 講師 PC 環境 | `source setup_env.sh` を実行し、`sf doctor` がエラーなく通ることを確認 | README §4, sci_s2 p.35 |
 | 代替素材フォルダ | `docs/events/sci_tutorial_2026/fallback/` を開いておく（実演が失敗した場合に即座に画像・動画を提示できる状態にする） | verification_checklist §5, fallback/README.md |
 | 投影・配信 | プロジェクタ接続を確認。Zoom 画面共有をテストする（オンライン参加者向け、当日はオンデマンド配信もあり） | README 開催情報 |
@@ -53,7 +53,7 @@
 
 全21フレーム中、実演・実習は5件（再構成で17→19→18→20→21フレームに推移。実習1・実習2それぞれに手順を明記した専用フレームが立った後、「開発環境の導入 (1/2): PC側」がオープニング（先出し）へ移動し1枚減り、さらにWiFi接続の説明フレームが2枚新設され、実習 1 (2/2)「機体の初期設定を一度に済ませる」が加わった）。
 
-未導入の参加者への案内は、このセッション冒頭ではなくオープニングの「開発環境の導入（先出し）: PC側」で行う（GUIインストーラ／CLIインストーラの手順。参加者はWindowsが多い想定なので `install.bat` / `setup_env.bat` を主に書き、macOS/Linuxは括弧内）。当セッションは導入済み前提でOS差異の参照とペアリング・実習1の確認から始まる。
+未導入の参加者への案内は、このセッション冒頭ではなくオープニングの「開発環境の導入（先出し）: PC側」で行う（CLI 導入の 3 段階: 前提ツール → clone と install.bat → setup_env.bat と sf doctor。GUI 版インストーラは安定性未確認のため使わない。参加者はWindowsが多い想定なので `install.bat` / `setup_env.bat` を主に書き、macOS/Linuxは括弧内）。当セッションは導入済み前提でOS差異の参照とペアリング・実習1の確認から始まる。
 
 新設の p.33「OSによる違いはここだけ」は macOS/Linux と Windows のコマンド差異（`./install.sh` 対 `install.bat`、`source setup_env.sh` 対 `setup_env.bat`、シリアルポート名）をまとめた参照フレームで、当日はデモしない。Windows参加者から質問が出た際の説明に使う。
 
@@ -278,7 +278,7 @@ Complete `verification_checklist.md` §1-§4 (bench check, flight check, system-
 | Item | What to confirm | Source |
 |------|------------------|--------|
 | Vehicle & controller | Fully charge the instructor's demo unit and any loaner spares. On-site participants generally bring their own hardware (README "Bring"), so the number of spares needed depends on the day's attendee mix — the materials give no specific spare count | README event info, verification_checklist §5 |
-| Web Flasher | Open `https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/` in the browser | README §4 |
+| Flashing | Instructor and loaner vehicles/controllers flashed with `sf flash vehicle` / `sf flash controller` before the morning (the Web Flasher is only mentioned on p.34, not used) | README §4 |
 | Instructor PC environment | Run `source setup_env.sh` and confirm `sf doctor` completes with no errors | README §4, sci_s2 p.35 |
 | Fallback material folder | Open `docs/events/sci_tutorial_2026/fallback/` (so images/videos can be shown immediately if a live demo fails) | verification_checklist §5, fallback/README.md |
 | Projector / Zoom | Confirm the projector connection. Test Zoom screen sharing (for online attendees; the day is also recorded for on-demand viewing) | README event info |
@@ -299,7 +299,7 @@ Of 21 frames, 4 are demonstration or expected-result frames. One frame, "Touchin
 
 Of 21 frames, 5 are demonstration/hands-on frames (this session went 17 -> 19 -> 18 -> 20 -> 21: Exercise 1 and Exercise 2 first got their own frames with explicit steps, then "Installing the Dev Environment (1/2): PC Side" moved to the opening, dropping the count by one, and two WiFi-connection frames were later added, then Exercise 1 (2/2) "One-time vehicle setup").
 
-Guidance for attendees who haven't installed yet now lives in the opening frame "Installing the Dev Environment (moved earlier): PC Side" (GUI installer / CLI installer steps; written Windows-first with `install.bat` / `setup_env.bat`, macOS/Linux in parentheses, since most attendees are expected on Windows), not at the top of this session. This session now opens assuming the install is underway, starting from the OS-differences reference and pairing/Exercise-1 verification.
+Guidance for attendees who haven't installed yet now lives in the opening frame "Installing the Dev Environment (moved earlier): PC Side" (the three CLI stages: prerequisites, clone + install.bat, setup_env.bat + sf doctor; the GUI installer is not used because its stability is unconfirmed; written Windows-first with `install.bat` / `setup_env.bat`, macOS/Linux in parentheses, since most attendees are expected on Windows), not at the top of this session. This session now opens assuming the install is underway, starting from the OS-differences reference and pairing/Exercise-1 verification.
 
 The new p.33 "OS-Specific Differences" is a reference frame summarizing macOS/Linux vs. Windows command differences (`./install.sh` vs. `install.bat`, `source setup_env.sh` vs. `setup_env.bat`, serial port names). It is not demoed on the day; use it if a Windows attendee has trouble.
 

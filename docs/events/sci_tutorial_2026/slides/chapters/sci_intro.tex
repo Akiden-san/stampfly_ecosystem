@@ -84,22 +84,20 @@
 % 削らない）。確認ステップ（setup_env → sf doctor）はS2「実習1」に残すため、
 % 本フレーム末尾の注記は「このあと」ではなく明示的にS2を指す。
 \begin{frame}[fragile]{開発環境の導入（先出し）: PC 側}
-  {\small 未導入の方は Session 1 を聞きながら並行して進めてほしい（Windows 主体で書く）}
+  {\small 未導入の方は Session 1 を聞きながら並行して。導入は CLI で行う（Windows のコマンドプロンプトで書く）}
 
-  \begin{block}{方法①: GUI インストーラ「StampFly Setup」}
-    \footnotesize Releases の \code{StampFlySetup\_windows-x64.exe}（macOS / Linux 版もあり）を起動し、ウィザードに従えば \code{sf} CLI 一式（ESP-IDF 込み）が入る。SmartScreen 警告は「詳細情報」$\to$「実行」\\
-    \url{https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest}
-  \end{block}
-
-  \begin{exampleblock}{方法②: CLI インストーラ（CMD で）}
-    \begin{lstlisting}[style=sfbash, numbers=none, aboveskip=2pt, belowskip=0pt]
-git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem
+  {\footnotesize \textbf{① 前提ツール}: Git と Python 3.12 を入れる（Windows は \code{winget}、macOS は \code{brew}、Linux は \code{apt}。コマンドはリポジトリ直下 README）。終わったら CMD を開き直す}
+  \begin{exampleblock}{② 取得と導入}
+    \begin{lstlisting}[style=sfbash, numbers=none, aboveskip=1pt, belowskip=0pt]
+git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
-install.bat           # macOS / Linux は ./install.sh
+install.bat
     \end{lstlisting}
+    \footnotesize macOS / Linux は \code{./install.sh}。ESP-IDF を尋ねられたら 1 を選ぶ
   \end{exampleblock}
+  {\footnotesize \textbf{③ 有効化と診断}: 新しい CMD を開くたびに \code{setup\_env.bat}（macOS / Linux は \code{source setup\_env.sh}）、続けて \code{sf doctor}}
 
-  {\scriptsize どちらも Git が必要（未導入なら \url{https://git-scm.com/download/win}）。導入確認（\code{setup\_env.bat} $\to$ \code{sf doctor}、macOS / Linux は \code{source setup\_env.sh}）は Session 2 の「実習1」で行う}
+  {\scriptsize GUI 版インストーラは安定性未確認のため本講座では使わない}
 \end{frame}
 
 % ------------------------------------------------------------------

@@ -33,15 +33,18 @@
     </li><li> 学会チュートリアル（本日）
   </li></ul></div><footer class="slide-footer"><span class="footer-session">オープニング</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">2 / 155</span></footer></section>
 <section class="slide content" id="s-003" data-title="開発環境の導入（先出し）: PC 側" data-session="オープニング"><header class="slide-header"><h2>開発環境の導入（先出し）: PC 側</h2></header><div class="slide-body"><p>
-  <span class="fs-small"> 未導入の方は Session 1 を聞きながら並行して進めてほしい（Windows 主体で書く）</span></p>
-<div class="block block"><h3 class="block-title">方法①: GUI インストーラ「StampFly Setup」</h3><div class="block-body"><div class="fs-footnotesize"><p> Releases の <code class="tex-code">StampFlySetup_windows-x64.exe</code>（macOS / Linux 版もあり）を起動し、ウィザードに従えば <code class="tex-code">sf</code> CLI 一式（ESP-IDF 込み）が入る。SmartScreen 警告は「詳細情報」<span class="math-inline">\(\to\)</span>「実行」<br>
-    <a class="tex-url" href="https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest" target="_blank" rel="noopener">https://github.com/M5Fly-kanazawa/stampfly_ecosystem/releases/latest</a>
-  </p></div></div></div>
-<div class="block example"><h3 class="block-title">方法②: CLI インストーラ（CMD で）</h3><div class="block-body"><div class="code-block"><pre><code class="lang-bash">git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem
+  <span class="fs-small"> 未導入の方は Session 1 を聞きながら並行して。導入は CLI で行う（Windows のコマンドプロンプトで書く）</span></p>
+<p>  <span class="fs-footnotesize"> <strong>① 前提ツール</strong>: Git と Python 3.12 を入れる（Windows は <code class="tex-code">winget</code>、macOS は <code class="tex-code">brew</code>、Linux は <code class="tex-code">apt</code>。コマンドはリポジトリ直下 README）。終わったら CMD を開き直す</span>
+  </p>
+<div class="block example"><h3 class="block-title">② 取得と導入</h3><div class="block-body"><div class="code-block"><pre><code class="lang-bash">git clone https://github.com/M5Fly-kanazawa/stampfly_ecosystem.git
 cd stampfly_ecosystem
-install.bat           # macOS / Linux は ./install.sh
-    </code></pre></div></div></div>
-<p>  <span class="fs-scriptsize"> どちらも Git が必要（未導入なら <a class="tex-url" href="https://git-scm.com/download/win" target="_blank" rel="noopener">https://git-scm.com/download/win</a>）。導入確認（<code class="tex-code">setup_env.bat</code> <span class="math-inline">\(\to\)</span> <code class="tex-code">sf doctor</code>、macOS / Linux は <code class="tex-code">source setup_env.sh</code>）は Session 2 の「実習1」で行う</span>
+install.bat
+    </code></pre></div>
+<div class="fs-footnotesize"><p> macOS / Linux は <code class="tex-code">./install.sh</code>。ESP-IDF を尋ねられたら 1 を選ぶ
+  </p></div></div></div>
+<p>
+  <span class="fs-footnotesize"> <strong>③ 有効化と診断</strong>: 新しい CMD を開くたびに <code class="tex-code">setup_env.bat</code>（macOS / Linux は <code class="tex-code">source setup_env.sh</code>）、続けて <code class="tex-code">sf doctor</code></span></p>
+<p>  <span class="fs-scriptsize"> GUI 版インストーラは安定性未確認のため本講座では使わない</span>
 </p></div><footer class="slide-footer"><span class="footer-session">オープニング</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">3 / 155</span></footer></section>
 <section class="slide content" id="s-004" data-title="本日の進め方" data-session="オープニング"><header class="slide-header"><h2>本日の進め方</h2></header><div class="slide-body"><div class="block block"><h3 class="block-title">講義とデモのハイブリッド</h3><div class="block-body"><div class="fs-small"><p> 講師が実演しながら説明を進める。手元の環境構築でつまずいても、その場で全員を待たせることはしない
   </p></div></div></div>
@@ -161,7 +164,7 @@ sf sils gui
 <section class="slide content" id="s-031" data-title="地図: 今ここ" data-session="S2"><header class="slide-header"><h2>地図: 今ここ</h2></header><div class="slide-body"><div class="columns"><div class="column" style="flex:0.5 1 0"><div class="align-center"><div class="figure"><img src="assets/tikz/scisessionmap_2.svg" alt=""></div></div></div><div class="column" style="flex:0.47 1 0"><div class="fs-small"><p>
       S1 で見た全体像のうち、まず実装の入口（環境構築とセンサ取得）から手を動かす
     </p></div></div></div></div><footer class="slide-footer"><span class="footer-session">Session 2: 環境構築とセンサ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">31 / 155</span></footer></section>
-<section class="slide content" id="s-032" data-title="要点3つ" data-session="S2"><header class="slide-header"><h2>要点3つ</h2></header><div class="slide-body"><ol><li> ビルド環境は ESP-IDF と <code class="tex-code">sf CLI</code> が担う。開発を伴わない参加者は Web Flasher / GUI インストーラという代替経路がある
+<section class="slide content" id="s-032" data-title="要点3つ" data-session="S2"><header class="slide-header"><h2>要点3つ</h2></header><div class="slide-body"><ol><li> ビルド環境は ESP-IDF と <code class="tex-code">sf CLI</code> が担う。導入も書き込みも sf CLI で行う
     </li><li> 参加者が書くコードは <code class="tex-api">setup()</code> と <code class="tex-api">loop_400Hz(dt)</code> の2関数だけ。センサやHWの詳細は <code class="tex-api">ws::</code> 名前空間が隠す
     </li><li> センサデータの取得経路は3通りある。目的に応じて <code class="tex-api">ws::print</code>、<code class="tex-code">sf telemetry</code>、<code class="tex-code">sf log wifi</code> を使い分ける
   </li></ol></div><footer class="slide-footer"><span class="footer-session">Session 2: 環境構築とセンサ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">32 / 155</span></footer></section>
@@ -171,7 +174,7 @@ sf sils gui
   </p></div></div></div>
 <p>  <span class="fs-small"> 違いはこの2点だけ。<code class="tex-code">sf</code> コマンド自体（<code class="tex-code">sf build</code>、<code class="tex-code">sf lesson</code> 等）とワークフローは3 OSで完全に同一</span>
 </p></div><footer class="slide-footer"><span class="footer-session">Session 2: 環境構築とセンサ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">33 / 155</span></footer></section>
-<section class="slide content" id="s-034" data-title="開発環境の導入: 機体とペアリング" data-session="S2"><header class="slide-header"><h2>開発環境の導入: 機体とペアリング</h2></header><div class="slide-body"><div class="block block"><h3 class="block-title">開発環境なしでも書き込みだけはできる</h3><div class="block-body"><div class="fs-small"><p> ブラウザ（Chrome/Edge）から Web Flasher を開き、公開済みの完成版ファームウェアを機体・コントローラへ直接書き込める。インストール不要<br>
+<section class="slide content" id="s-034" data-title="開発環境の導入: 機体とペアリング" data-session="S2"><header class="slide-header"><h2>開発環境の導入: 機体とペアリング</h2></header><div class="slide-body"><div class="block block"><h3 class="block-title">書き込みは <code class="tex-code">sf flash vehicle</code> / <code class="tex-code">sf flash controller</code> で行う</h3><div class="block-body"><div class="fs-small"><p> 本講座の操作はすべて sf CLI で行う。参考: ブラウザから公開済みファームウェアを書き込む Web Flasher もある（本講座では使わない）<br>
     <a class="tex-url" href="https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/" target="_blank" rel="noopener">https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/</a>
   </p></div></div></div>
 <div class="block example"><h3 class="block-title">コントローラのペアリング（初回のみ）</h3><div class="block-body"><div class="fs-footnotesize"><ol><li> コントローラの LCD パネルボタンを押しながら電源を入れる
@@ -299,7 +302,7 @@ sf log viz flight.csv
   （アクセス階層 L0（実習用 API）<span class="math-inline">\(\to\)</span> L1（Topic API）の対応）</span>
 </p></div><footer class="slide-footer"><span class="footer-session">Session 2: 環境構築とセンサ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">49 / 155</span></footer></section>
 <section class="slide content later" id="s-050" data-title="復習パス" data-session="S2"><header class="slide-header"><h2>復習パス</h2><span class="later-badge">あとで読む</span></header><div class="slide-body"><div class="table-wrap align-center fs-footnotesize"><div class="table-scroll"><table><thead><tr><th style="text-align:left"><strong>コマンド</strong> </th><th style="text-align:left"> <strong>実習</strong> </th><th style="text-align:left"> <strong>文書</strong></th></tr></thead><tbody><tr><td style="text-align:left"><code class="tex-code">sf doctor</code> / <code class="tex-code">sf build vehicle</code> / <code class="tex-code">sf flash vehicle -m</code> </td><td style="text-align:left"> 実習1（環境確認とビルド） </td><td style="text-align:left"> <code class="tex-code">docs/\allowbreak guides/\allowbreak troubleshooting.md</code></td></tr><tr><td style="text-align:left"><code class="tex-code">sf lesson switch sci2026:2</code> </td><td style="text-align:left"> 実習2（IMU） </td><td style="text-align:left"> <code class="tex-code">firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak architecture.md §2</code></td></tr><tr><td style="text-align:left"><code class="tex-code">sf log wifi</code> / <code class="tex-code">sf log viz</code> </td><td style="text-align:left"> — </td><td style="text-align:left"> <code class="tex-code">docs/\allowbreak guides/\allowbreak flight-log-viz.md</code></td></tr></tbody></table></div></div></div><footer class="slide-footer"><span class="footer-session">Session 2: 環境構築とセンサ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">50 / 155</span></footer></section>
-<section class="slide content" id="s-051" data-title="チェックポイント" data-session="S2"><header class="slide-header"><h2>チェックポイント</h2></header><div class="slide-body"><div class="block alert"><h3 class="block-title">確認事項</h3><div class="block-body"><ul><li class="li-marker"><span class="marker"><span class="math-inline">\(\square\)</span></span> <code class="tex-code">sf doctor</code> が通る、または代替経路（Web Flasher / GUI インストーラ）を把握した
+<section class="slide content" id="s-051" data-title="チェックポイント" data-session="S2"><header class="slide-header"><h2>チェックポイント</h2></header><div class="slide-body"><div class="block alert"><h3 class="block-title">確認事項</h3><div class="block-body"><ul><li class="li-marker"><span class="marker"><span class="math-inline">\(\square\)</span></span> <code class="tex-code">sf doctor</code> が通る
       </li><li class="li-marker"><span class="marker"><span class="math-inline">\(\square\)</span></span> <code class="tex-api">setup()</code>/<code class="tex-api">loop_400Hz(dt)</code> の2関数構造を説明できる
       </li><li class="li-marker"><span class="marker"><span class="math-inline">\(\square\)</span></span> ジャイロ・加速度をどれか1つの経路で確認できた
     </li></ul></div></div>
