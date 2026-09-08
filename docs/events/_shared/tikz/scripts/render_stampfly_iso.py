@@ -43,14 +43,12 @@ from __future__ import annotations
 
 import argparse
 import struct
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.collections import PolyCollection
+from PIL import Image, ImageDraw
 
 # ---------------------------------------------------------------------------
 # Paths / パス
@@ -215,6 +213,182 @@ def project(points_units: np.ndarray) -> np.ndarray:
     線形写像で (..., 2) の画面座標へ変換する。
     """
     return points_units @ _P.T
+
+
+# ---------------------------------------------------------------------------
+# Output canvas: transparent RGBA PNG, exact [-3, 3] x [-3, 3] TikZ-unit
+# extent, origin at the pixel center -- matches \includegraphics[width=6cm]
+# anchored at (0,0) in imu_axes.tex.
+# 出力キャンバス: 透明背景のRGBA PNG。範囲はちょうど[-3, 3]×[-3, 3]TikZ単位、
+# 原点はピクセル中心 -- imu_axes.tex で (0,0) に置く
+# \includegraphics[width=6cm] と一致させる。
+# ---------------------------------------------------------------------------
+
+HALF_EXTENT_UNITS = 3.0  # matches \includegraphics[width=6cm] centred at origin / width=6cmで中心配置に一致
+CANVAS_PIXELS = 1800  # was 6 inch x 300 dpi under the old matplotlib path / 旧matplotlib経路の6インチ×300dpi相当
+
+
+def data_to_pixel(xy_units: np.ndarray) -> np.ndarray:
+    """(..., 2) screen points, in TikZ units over [-3, 3] x [-3, 3], to
+    (..., 2) pixel coordinates over the CANVAS_PIXELS x CANVAS_PIXELS
+    image (column, row), with row 0 at the TOP (y = +HALF_EXTENT_UNITS)
+    matching the usual top-down raster/PIL convention.
+    (..., 2) の画面座標（TikZ単位、[-3, 3]×[-3, 3]の範囲）を、
+    CANVAS_PIXELS×CANVAS_PIXELSの画像上の(..., 2)ピクセル座標（列, 行）に
+    変換する。行0が画像の一番上（y = +HALF_EXTENT_UNITS）になる、通常の
+    ラスタ画像/PILの上下方向の規約に合わせる。
+    """
+    col = (xy_units[..., 0] + HALF_EXTENT_UNITS) / (2.0 * HALF_EXTENT_UNITS) * CANVAS_PIXELS
+    row = (HALF_EXTENT_UNITS - xy_units[..., 1]) / (2.0 * HALF_EXTENT_UNITS) * CANVAS_PIXELS
+    return np.stack([col, row], axis=-1)
+
+
+def triangulate_polygon_fan(polygon_points: np.ndarray) -> list[np.ndarray]:
+    """Split one closed M-vertex polygon (planar or near-planar, star-
+    shaped from its own centroid -- true for the blade paddle and the hub
+    cap/side quads used here) into M triangles, fanned from the polygon's
+    own centroid rather than from vertex 0, so a slightly concave outline
+    (like the blade root) still triangulates correctly.
+    閉じたM頂点ポリゴン（平面またはほぼ平面で、自身の重心から見て星形 --
+    ここで使う羽根パドルやハブの上面/側面クアッドはいずれも該当）を、
+    M枚の三角形に分割する。頂点0からではなくポリゴン自身の重心から扇状に
+    分割するため、羽根の根元のようなわずかな凹みがあっても正しく
+    三角形分割できる。
+    """
+    centroid = polygon_points.mean(axis=0)
+    m = len(polygon_points)
+    return [
+        np.stack([centroid, polygon_points[i], polygon_points[(i + 1) % m]], axis=0) for i in range(m)
+    ]
+
+
+def rasterize_triangle(
+    screen_px: np.ndarray,
+    depth3: np.ndarray,
+    color_rgb: np.ndarray,
+    alpha: float,
+    *,
+    depth_buffer: np.ndarray,
+    color_buffer: np.ndarray,
+    alpha_buffer: np.ndarray,
+    depth_test_buffer: np.ndarray,
+    write_depth: bool,
+) -> None:
+    """Rasterize one flat-shaded triangle by per-pixel Z-buffer test
+    (instructor fix, round 5): replaces the old whole-triangle painter's
+    algorithm (sort-by-centroid-depth, draw far-to-near), which produced
+    a visible light/dark striping on parts made of many small, similarly-
+    angled triangles (the motor cans) because a handful of triangles'
+    CENTROID depth ordering does not always match the correct PER-PIXEL
+    depth ordering where those triangles overlap on screen.
+    Vectorized over the triangle's own screen-space bounding box only
+    (not the whole canvas): edge-function barycentric coordinates decide
+    which pixels are inside, a small inclusive tolerance avoids 1px seams
+    between adjacent triangles that share an edge, and the 3 vertices'
+    depths are barycentrically interpolated per pixel (exact, since depth
+    is a linear function of position and the triangle is planar).
+    画素単位のZバッファ判定で1枚の三角形をフラットシェーディングして描く
+    （講師修正指示・第5弾）: 従来の「三角形全体を重心の奥行きで並べ替えて
+    遠い順に塗り重ねる」画家アルゴリズムを置き換える。少数の三角形の
+    重心の奥行き順は、それらが画面上で重なり合う領域の画素単位の正しい
+    奥行き順と必ずしも一致せず、似た向きの小さな三角形が多いモータ缶で
+    明暗の縞となって現れていた。
+    その三角形自身の画面上の外接矩形だけをベクトル化して処理する
+    （キャンバス全体ではない）: エッジ関数による重心座標判定で内部画素を
+    決め、隣接する三角形が共有する辺で1px幅の隙間ができないよう小さな
+    包含許容誤差を設け、3頂点の奥行きは画素ごとに重心座標で線形補間する
+    （三角形は平面なので奥行きは位置の線形関数であり、この補間は厳密に
+    正しい）。
+    """
+    x = screen_px[:, 0]
+    y = screen_px[:, 1]
+    x_min = max(int(np.floor(x.min())), 0)
+    x_max = min(int(np.ceil(x.max())), CANVAS_PIXELS - 1)
+    y_min = max(int(np.floor(y.min())), 0)
+    y_max = min(int(np.ceil(y.max())), CANVAS_PIXELS - 1)
+    if x_min > x_max or y_min > y_max:
+        return  # triangle's bbox is entirely off-canvas / 三角形の外接矩形がキャンバス外
+
+    area2 = (x[1] - x[0]) * (y[2] - y[0]) - (x[2] - x[0]) * (y[1] - y[0])  # 2x signed screen area / 符号付き画面面積の2倍
+    if area2 == 0:
+        return  # degenerate (zero screen area) triangle / 画面上で面積ゼロの退化三角形
+
+    px_grid, py_grid = np.meshgrid(
+        np.arange(x_min, x_max + 1) + 0.5, np.arange(y_min, y_max + 1) + 0.5
+    )
+
+    def edge(ax_, ay_, bx_, by_):
+        return (bx_ - ax_) * (py_grid - ay_) - (by_ - ay_) * (px_grid - ax_)
+
+    w0 = edge(x[1], y[1], x[2], y[2])  # barycentric weight of vertex 0 / 頂点0の重心座標分子
+    w1 = edge(x[2], y[2], x[0], y[0])  # barycentric weight of vertex 1 / 頂点1の重心座標分子
+    w2 = edge(x[0], y[0], x[1], y[1])  # barycentric weight of vertex 2 / 頂点2の重心座標分子
+
+    # Small inclusive tolerance (not a strict >=0 test): guarantees no 1px
+    # gap along an edge shared by two adjacent triangles, at the cost of a
+    # possible sub-pixel overlap the Z-buffer test resolves anyway.
+    # 厳密な>=0判定ではなく小さな包含許容誤差を使う: 隣接する2枚の
+    # 三角形が共有する辺に沿った1px幅の隙間を無くせる（代わりに生じ得る
+    # サブピクセルの重なりはどのみちZバッファ判定で解消される）。
+    eps = 1e-6 * abs(area2)
+    if area2 > 0:
+        inside = (w0 >= -eps) & (w1 >= -eps) & (w2 >= -eps)
+    else:
+        inside = (w0 <= eps) & (w1 <= eps) & (w2 <= eps)
+    if not inside.any():
+        return
+
+    b0 = w0 / area2
+    b1 = w1 / area2
+    b2 = w2 / area2
+    pixel_depth = b0 * depth3[0] + b1 * depth3[1] + b2 * depth3[2]
+
+    sub_test = depth_test_buffer[y_min : y_max + 1, x_min : x_max + 1]
+    visible = inside & (pixel_depth < sub_test)
+    if not visible.any():
+        return
+
+    if write_depth:
+        # Opaque pass: straight overwrite (depth test + depth write).
+        # 不透明パス: 単純な上書き（深度テスト＋深度書き込み）。
+        depth_buffer[y_min : y_max + 1, x_min : x_max + 1][visible] = pixel_depth[visible]
+        color_buffer[y_min : y_max + 1, x_min : x_max + 1, :][visible] = color_rgb
+        alpha_buffer[y_min : y_max + 1, x_min : x_max + 1][visible] = 1.0
+    else:
+        # Translucent pass: alpha-over compositing against the existing
+        # buffer contents, WITHOUT writing depth -- triangles in this pass
+        # are depth-TESTED against the frozen opaque buffer
+        # (depth_test_buffer) but never occlude each other via the
+        # Z-buffer; the caller sorts this pass's triangles far-to-near
+        # beforehand so a single "over" pass, applied in that order, is
+        # correct. color_buffer holds PREMULTIPLIED color (color*alpha,
+        # not straight color) throughout both passes -- for the opaque
+        # pass above that is the same thing as straight color, since
+        # alpha=1 there; the standard premultiplied "over" operator below
+        # (out_premult = src_rgb*src_a + dst_premult*(1-src_a)) is then
+        # exact regardless of how much alpha the destination already has,
+        # unlike a straight-alpha blend would be. Converted back to
+        # straight alpha once, at final PNG export.
+        # 半透明パス: 既存のバッファ内容に対してアルファオーバー合成する。
+        # 深度は書き込まない -- このパスの三角形は固定した不透明バッファ
+        # (depth_test_buffer)に対して深度テストされるが、Zバッファ同士
+        # では絶対に隠し合わない。呼び出し側があらかじめこのパスの三角形を
+        # 遠い順に並べておくので、その順に1回「over」合成すれば正しい。
+        # color_bufferは両パスを通じて「乗算済み(premultiplied)色」
+        # （colorそのものではなくcolor*alpha）を保持する -- 上の不透明パス
+        # ではalpha=1なので通常のcolorと同じ値になる。下の標準的な
+        # premultiplied版over演算子（out_premult = src_rgb*src_a +
+        # dst_premult*(1-src_a)）は、宛先が既にどれだけのalphaを持って
+        # いても厳密に正しい（straight alphaでの単純ブレンドでは正しくない）。
+        # 最終的なPNG書き出し時に一度だけstraight alphaへ変換する。
+        sub_premult = color_buffer[y_min : y_max + 1, x_min : x_max + 1, :]
+        sub_alpha = alpha_buffer[y_min : y_max + 1, x_min : x_max + 1]
+        dst_premult = sub_premult[visible]
+        dst_a = sub_alpha[visible]
+        new_premult = np.asarray(color_rgb) * alpha + dst_premult * (1.0 - alpha)
+        new_a = alpha + dst_a * (1.0 - alpha)
+        sub_premult[visible] = new_premult
+        sub_alpha[visible] = new_a
 
 
 # ---------------------------------------------------------------------------
@@ -774,163 +948,223 @@ def main() -> None:
     base_colors = np.array(all_colors)
 
     normals = face_normals(triangles_units)
-    centroids = triangles_units.mean(axis=1)
 
     # No backface culling (instructor fix, round 2): the STL normals are
     # not trustworthy for deciding "front vs. back" (some faces were
     # dropping out / showing through as transparent gaps), so instead of
     # trying to classify and discard "back" faces, EVERY triangle is kept
-    # and drawn; occlusion is handled purely by the painter's-algorithm
-    # depth sort below. face_normals() above already recomputes each
-    # normal from vertex winding (cross product), never from the STL
-    # file's own (unreliable) stored normal.
+    # and drawn; occlusion is now handled per-pixel by the Z-buffer below
+    # (round 5), which does not depend on winding/normal direction at all
+    # -- a correctly-wound-or-not triangle wins the Z-test purely on
+    # depth, so keeping every triangle is both simpler and harmless.
+    # face_normals() above already recomputes each normal from vertex
+    # winding (cross product), never from the STL file's own (unreliable)
+    # stored normal.
     # 背面カリングを廃止（講師修正指示・第2弾）: STLの法線は「表か裏か」の
     # 判定に使えない（一部の面が抜けて透けて見えていた）。「裏」面を分類・
     # 除外しようとするのではなく、全ての三角形をそのまま残して描画し、
-    # 前後関係は下の画家アルゴリズムの深度ソートだけで処理する。上の
-    # face_normals() は既に頂点の並び（外積）から法線を再計算しており、
-    # STLファイル自身の（信頼できない）法線は使っていない。
+    # 前後関係は下の画素単位Zバッファ（第5弾）だけで処理する -- Zバッファは
+    # 法線の向きに一切依存しない（三角形の巻き順が正しくてもそうでなくても
+    # 深度だけでZテストに勝敗が決まる）ため、全三角形を残すのは単純かつ
+    # 無害。face_normals() は既に頂点の並び（外積）から法線を再計算して
+    # おり、STLファイル自身の（信頼できない）法線は使っていない。
 
     # Two-sided flat shading: use |normal . light| so a triangle is lit
     # the same whether its (arbitrary-orientation) normal points toward
-    # or away from the light -- appropriate now that both winding
-    # directions are drawn without culling.
+    # or away from the light -- unchanged since round 2, still correct
+    # under Z-buffered rendering.
     # 両面フラットシェーディング: |法線・光源方向| を使い、法線が
-    # （向きが不定な）どちら向きでも同じ明るさになるようにする。
-    # カリングをやめて両方の面を描く以上、両面扱いが妥当。
+    # （向きが不定な）どちら向きでも同じ明るさになるようにする（第2弾から
+    # 不変。Zバッファ描画になっても引き続き妥当）。
     diffuse_term = np.abs(normals @ LIGHT_DIR)
     brightness = np.clip(AMBIENT + DIFFUSE * diffuse_term, 0.0, 1.0)
-    shaded_colors = np.clip(base_colors * brightness[:, None], 0.0, 1.0)
-    mesh_colors_rgba = np.concatenate([shaded_colors, np.ones((len(shaded_colors), 1))], axis=1)
-    mesh_depth = centroids @ F_HAT
+    mesh_shaded_colors = np.clip(base_colors * brightness[:, None], 0.0, 1.0)
 
-    # ---- Propellers (instructor fix #3): 12 flat translucent blade
-    # polygons, merged into the same depth-sorted painter's-algorithm draw
-    # list as the mesh triangles below.
-    # ---- プロペラ（講師修正指示3）: 12枚の平らな半透明羽根ポリゴンを、
-    # 下のメッシュ三角形と同じ深度ソート（画家アルゴリズム）の描画リストへ
-    # 統合する。
+    # ---- Propellers: 12 flat translucent blade polygons (unchanged
+    # geometry/color from round 4).
+    # ---- プロペラ: 12枚の平らな半透明羽根ポリゴン（幾何・色は第4弾から
+    # 不変）。
     blade_polygons_units, blade_colors_rgba = build_propeller_polygons_frd_units(parts, units_per_mm)
-    blade_depth = np.array([(poly[:, :3] @ F_HAT).mean() for poly in blade_polygons_units])
 
-    # ---- Hub cylinders (instructor fix, round 4, item 2): same
-    # depth-sorted merge treatment as the blades above.
-    # ---- ハブ円柱（講師修正指示・第4弾・項目2）: 上の羽根と同様に
-    # 深度ソートした描画リストへ統合する。
+    # ---- Hub cylinders (unchanged geometry/color from round 4).
+    # ---- ハブ円柱（幾何・色は第4弾から不変）。
     hub_polygons_units, hub_colors_rgba = build_hub_polygons_frd_units(parts, units_per_mm)
-    # Per-polygon mean depth, computed one polygon at a time (not a single
-    # vectorized (N, K) array): the top-cap n-gon (HUB_SIDES vertices) and
-    # the side-wall quads (4 vertices) have different vertex counts.
-    # ポリゴンごとに平均深度を1枚ずつ計算する（単一の(N, K)配列で一括処理
-    # しない）: 上面のn角形（HUB_SIDES頂点）と側面のクアッド（4頂点）で
-    # 頂点数が異なるため。
-    hub_depth = np.array([(poly[:, :3] @ F_HAT).mean() for poly in hub_polygons_units])
 
-    # ---- Merge mesh triangles + propeller blades + hubs into one draw
-    # list, then paint far-to-near (painter's algorithm) in a single pass
-    # so they correctly occlude/get-occluded-by each other and the body
-    # mesh.
-    # ---- メッシュ三角形・プロペラ羽根・ハブを1つの描画リストへ統合し、
-    # 遠い順（画家アルゴリズム）で1回のパスとして描く。これにより互いと
-    # 機体メッシュの前後関係が正しく処理される。
-    all_polygons_3d: list[np.ndarray] = list(triangles_units) + blade_polygons_units + hub_polygons_units
-    all_colors_rgba = np.concatenate(
-        [mesh_colors_rgba, np.array(blade_colors_rgba), np.array(hub_colors_rgba)], axis=0
+    # ---- Shrink the drawn body/propellers around the origin -- applied
+    # to the raw 3D point arrays (mesh triangles, blade polygons, hub
+    # polygons) BEFORE screen projection and depth computation, so both
+    # stay mutually consistent (a uniform positive scale about the origin
+    # preserves relative depth ordering along any fixed direction, so
+    # this is safe to do before computing per-vertex Z-buffer depths
+    # below). The PNG's coordinate extent stays exactly [-3, 3] x [-3, 3]
+    # units regardless (HALF_EXTENT_UNITS unchanged), and this must NOT be
+    # applied to the DEBUG alignment-check axes (drawn separately, after
+    # compositing, at the true unscaled AL length matching imu_axes.tex).
+    # ---- 機体・プロペラの描画を原点中心に縮小する -- 画面投影・深度計算の
+    # 前に、生の3D点配列（メッシュ三角形・羽根ポリゴン・ハブポリゴン）に
+    # 適用する（原点を中心とした一様な正のスケーリングは、任意の固定方向
+    # に沿った相対的な深度順序を保つため、下のZバッファ深度を計算する前に
+    # 行っても安全）。PNGの座標範囲は[-3, 3]×[-3, 3]単位のまま変わらない
+    # （HALF_EXTENT_UNITSは不変）。DEBUG位置合わせ確認用の軸（合成後に別途
+    # 描く、imu_axes.texと一致する実寸のAL長）には適用してはならない。
+    triangles_units = triangles_units * MODEL_SCALE
+    blade_polygons_units = [poly * MODEL_SCALE for poly in blade_polygons_units]
+    hub_polygons_units = [poly * MODEL_SCALE for poly in hub_polygons_units]
+
+    # ---- Triangulate the non-triangular translucent polygons (blade
+    # paddles, hub top caps, hub side quads) into actual triangles, fanned
+    # from each polygon's own centroid, so the same per-triangle
+    # rasterizer handles everything uniformly.
+    # ---- 三角形でない半透明ポリゴン（羽根パドル・ハブ上面・ハブ側面
+    # クアッド）を、それぞれの重心から扇状に実三角形へ分割する。同じ
+    # 三角形単位のラスタライザで統一的に扱うため。
+    translucent_triangles: list[np.ndarray] = []
+    translucent_colors_rgba: list[tuple[float, float, float, float]] = []
+    for poly, color in zip(blade_polygons_units + hub_polygons_units, blade_colors_rgba + hub_colors_rgba):
+        for tri in triangulate_polygon_fan(poly):
+            translucent_triangles.append(tri)
+            translucent_colors_rgba.append(color)
+
+    # ---- Per-pixel Z-buffer rasterization (instructor fix, round 5):
+    # replaces the old whole-triangle painter's algorithm, which produced
+    # visible light/dark striping on parts made of many small, similarly-
+    # angled triangles (the motor cans) -- see rasterize_triangle()'s
+    # docstring for why. Pass 1 draws the opaque body mesh with full
+    # depth test + depth write. Pass 2 draws the translucent hub+blade
+    # triangles, sorted far-to-near for correct alpha-over blending,
+    # depth-TESTED against the (now frozen) opaque Z-buffer but not
+    # depth-written, so a blade/hub triangle hidden behind the opaque body
+    # is correctly skipped without ever occluding another translucent
+    # triangle via the Z-buffer.
+    # ---- 画素単位Zバッファでのラスタライズ（講師修正指示・第5弾）:
+    # 従来の三角形単位の画家アルゴリズムを置き換える（モータ缶のような
+    # 似た向きの小さな三角形が多い部分で明暗の縞が出ていた理由は
+    # rasterize_triangle()のdocstring参照）。パス1で不透明な機体メッシュを
+    # 完全な深度テスト＋深度書き込みで描く。パス2で半透明のハブ＋羽根の
+    # 三角形を、正しいアルファオーバー合成のため遠い順にソートしてから、
+    # （今や固定された）不透明パスのZバッファに対して深度テストしつつ
+    # 深度は書き込まずに描く。これにより、不透明な機体の陰に隠れる羽根/
+    # ハブの三角形は正しくスキップされ、かつ半透明三角形同士がZバッファで
+    # 互いを隠すことはない。
+    t_start = time.perf_counter()
+
+    depth_buffer = np.full((CANVAS_PIXELS, CANVAS_PIXELS), np.inf)
+    color_buffer = np.zeros((CANVAS_PIXELS, CANVAS_PIXELS, 3))  # premultiplied color / 乗算済み色
+    alpha_buffer = np.zeros((CANVAS_PIXELS, CANVAS_PIXELS))
+
+    n_opaque_tris = len(triangles_units)
+    for i in range(n_opaque_tris):
+        tri = triangles_units[i]
+        screen_px = data_to_pixel(project(tri))
+        depth3 = tri @ F_HAT
+        rasterize_triangle(
+            screen_px,
+            depth3,
+            mesh_shaded_colors[i],
+            1.0,
+            depth_buffer=depth_buffer,
+            color_buffer=color_buffer,
+            alpha_buffer=alpha_buffer,
+            depth_test_buffer=depth_buffer,
+            write_depth=True,
+        )
+
+    # Sort the translucent set far-to-near for correct back-to-front
+    # alpha-over compositing (see rasterize_triangle()'s else-branch).
+    # 半透明の集合を、正しい遠い順のアルファオーバー合成のために遠い順へ
+    # ソートする（rasterize_triangle()のelse節を参照）。
+    translucent_depth = np.array([tri.mean(axis=0) @ F_HAT for tri in translucent_triangles])
+    translucent_order = np.argsort(-translucent_depth)  # descending depth = far first / 深度降順=遠い順
+    n_translucent_tris = len(translucent_triangles)
+    for i in translucent_order:
+        tri = translucent_triangles[i]
+        color_rgba = translucent_colors_rgba[i]
+        screen_px = data_to_pixel(project(tri))
+        depth3 = tri @ F_HAT
+        rasterize_triangle(
+            screen_px,
+            depth3,
+            np.array(color_rgba[:3]),
+            color_rgba[3],
+            depth_buffer=depth_buffer,
+            color_buffer=color_buffer,
+            alpha_buffer=alpha_buffer,
+            depth_test_buffer=depth_buffer,
+            write_depth=False,
+        )
+
+    elapsed_s = time.perf_counter() - t_start
+    print(
+        f"[render_stampfly_iso] rasterized {n_opaque_tris} opaque + {n_translucent_tris} translucent "
+        f"triangles into {CANVAS_PIXELS}x{CANVAS_PIXELS}px in {elapsed_s:.1f}s"
     )
-    all_depth = np.concatenate([mesh_depth, blade_depth, hub_depth])
 
-    # ---- Shrink the drawn body/propellers around the origin (instructor
-    # fix, round 3, item 2) -- depth (for sort order) and shading were
-    # already computed above from the TRUE, unscaled geometry, so scaling
-    # here only changes where things land on screen, not their relative
-    # front/back order or brightness.
-    # ---- 機体・プロペラの描画を原点中心に縮小する（講師修正指示・第3弾・
-    # 項目2）-- 深度（描画順に使う）とシェーディングは上で実寸（縮小前）の
-    # ジオメトリから既に計算済みなので、ここでの縮小は画面上の位置だけを
-    # 変え、前後関係や明るさには影響しない。
-    all_polygons_3d = [poly * MODEL_SCALE for poly in all_polygons_3d]
-
-    draw_order = np.argsort(-all_depth)  # descending depth = far first / 深度降順=遠い順
-    screen_sorted = [project(all_polygons_3d[i]) for i in draw_order]
-    colors_sorted = all_colors_rgba[draw_order]
-
-    # ---- Figure: transparent background, no axes, exact [-3, 3] extent ----
-    # ---- 図: 透明背景・軸なし・[-3, 3]の範囲を厳密に一致させる ----
-    HALF_EXTENT_UNITS = 3.0  # matches \includegraphics[width=6cm] centred at origin / width=6cmで中心配置に一致
-    FIG_SIDE_INCH = 6.0
-    DPI = 300
-
-    fig = plt.figure(figsize=(FIG_SIDE_INCH, FIG_SIDE_INCH), dpi=DPI)
-    fig.patch.set_alpha(0.0)
-    ax = fig.add_axes([0.0, 0.0, 1.0, 1.0])
-    ax.set_facecolor("none")
-    ax.set_xlim(-HALF_EXTENT_UNITS, HALF_EXTENT_UNITS)
-    ax.set_ylim(-HALF_EXTENT_UNITS, HALF_EXTENT_UNITS)
-    ax.set_aspect("equal", adjustable="box")
-    ax.axis("off")
-
-    # No visible triangle-edge/wireframe lines (instructor fix, round 4,
-    # item 1): edgecolor = facecolor (not darkened), at a hairline width
-    # just wide enough to paper over the sub-pixel anti-aliasing gap
-    # between adjacent filled triangles -- a darker or thicker edge would
-    # itself draw a visible wireframe, which is exactly what we are
-    # removing (translucent blade/hub faces made it especially visible).
-    # 三角形の縁線・ワイヤーフレームを見せない（講師修正指示・第4弾・
-    # 項目1）: edgecolorをfacecolorと同じ（暗くしない）にし、隣接する
-    # 塗りつぶし三角形間のサブピクセルのアンチエイリアス隙間を埋める
-    # だけの極細幅にする -- 縁を暗く/太くするとそれ自体がワイヤーフレーム
-    # として見えてしまう（半透明の羽根・ハブ面では特に目立っていた）。
-    EDGE_LINEWIDTH_HAIRLINE = 0.25
-    poly = PolyCollection(
-        screen_sorted,
-        facecolors=colors_sorted,
-        edgecolors=colors_sorted,
-        linewidths=EDGE_LINEWIDTH_HAIRLINE,
-        antialiased=True,
-    )
-    ax.add_collection(poly)
+    # ---- Un-premultiply and pack into an RGBA uint8 image (PIL, not
+    # matplotlib -- instructor fix, round 5, item 1). Fully transparent
+    # pixels (alpha=0) get an arbitrary safe RGB (division guarded by
+    # ALPHA_EPS) since they are invisible anyway.
+    # ---- 乗算済み色を通常色へ戻し、RGBA uint8画像へ詰める（PILを使用、
+    # matplotlibは使わない -- 講師修正指示・第5弾・項目1）。完全に透明な
+    # 画素（alpha=0）は、どのみち見えないため安全な適当なRGB値になる
+    # （ALPHA_EPSで0除算を防ぐ）。
+    ALPHA_EPS = 1e-8
+    alpha_safe = np.where(alpha_buffer > ALPHA_EPS, alpha_buffer, 1.0)
+    straight_rgb = np.clip(color_buffer / alpha_safe[:, :, None], 0.0, 1.0)
+    rgba_u8 = np.zeros((CANVAS_PIXELS, CANVAS_PIXELS, 4), dtype=np.uint8)
+    rgba_u8[:, :, :3] = np.round(straight_rgb * 255.0).astype(np.uint8)
+    rgba_u8[:, :, 3] = np.round(np.clip(alpha_buffer, 0.0, 1.0) * 255.0).astype(np.uint8)
+    image = Image.fromarray(rgba_u8, mode="RGBA")
 
     if args.debug:
-        # ---- DEBUG-only alignment-check overlay (instructor fix, round 3,
-        # item 1): origin crosshair + thin projected X/Y/Z axis lines, at
-        # the SAME unscaled length AL_MATCH_TIKZ_UNITS as \AL in
-        # imu_axes.tex, drawn in bright colors distinct from TikZ's own
-        # (thicker) red/green/blue arrows. Temporarily copy this file over
-        # OUT_PNG and rebuild the standalone imu_axes.pdf: a correct
-        # projection/scale/placement makes each thin line run exactly down
-        # the centerline of the matching thick TikZ arrow, and the
-        # crosshair sit exactly on the arrows' common origin.
-        # ---- DEBUG専用の位置合わせ確認オーバーレイ（講師修正指示・第3弾・
-        # 項目1）: 原点の十字と、imu_axes.tex の \AL と同じ実寸（縮小なし）
-        # の長さ AL_MATCH_TIKZ_UNITS で投影したX/Y/Z軸の細線を、TikZ自身の
-        # （より太い）赤緑青の矢印とは異なる明るい色で描く。このファイルを
-        # 一時的にOUT_PNGへコピーしてstandaloneのimu_axes.pdfを再ビルド
-        # すれば、投影・スケール・配置が正しければ、各細線は対応する太い
-        # TikZ矢印の中心線をちょうど通り、十字は矢印群の共通原点にちょうど
-        # 重なるはずである。
+        # ---- DEBUG-only alignment-check overlay: origin crosshair + thin
+        # projected X/Y/Z axis lines, at the SAME unscaled length
+        # AL_MATCH_TIKZ_UNITS as \AL in imu_axes.tex, drawn in bright
+        # colors distinct from TikZ's own (thicker) red/green/blue arrows,
+        # via plain PIL line drawing on top of the already-composited
+        # image (no Z-buffer/depth interaction -- this is a flat 2D
+        # overlay). Temporarily copy this file over OUT_PNG and rebuild
+        # the standalone imu_axes.pdf: a correct projection/scale/
+        # placement makes each thin line run exactly down the centerline
+        # of the matching thick TikZ arrow, and the crosshair sit exactly
+        # on the arrows' common origin.
+        # ---- DEBUG専用の位置合わせ確認オーバーレイ: 原点の十字と、
+        # imu_axes.tex の \AL と同じ実寸（縮小なし）の長さ
+        # AL_MATCH_TIKZ_UNITS で投影したX/Y/Z軸の細線を、TikZ自身の
+        # （より太い）赤緑青の矢印とは異なる明るい色で、合成済み画像の上に
+        # PILの単純な線描画で重ねる（Zバッファ/深度とは無関係 -- 平面的な
+        # 2Dオーバーレイ）。このファイルを一時的にOUT_PNGへコピーして
+        # standaloneのimu_axes.pdfを再ビルドすれば、投影・スケール・配置が
+        # 正しければ、各細線は対応する太いTikZ矢印の中心線をちょうど通り、
+        # 十字は矢印群の共通原点にちょうど重なるはずである。
+        draw = ImageDraw.Draw(image)
         AL_MATCH_TIKZ_UNITS = 4.5  # must equal \AL in imu_axes.tex / imu_axes.tex の \AL と同じ値
         CROSSHAIR_HALF_UNITS = 0.15
         debug_axis_specs = [
-            ("X", np.array([1.0, 0.0, 0.0]), "gold"),
-            ("Y", np.array([0.0, 1.0, 0.0]), "magenta"),
-            ("Z", np.array([0.0, 0.0, 1.0]), "cyan"),
+            (np.array([1.0, 0.0, 0.0]), (255, 215, 0, 255)),  # X: gold / 金
+            (np.array([0.0, 1.0, 0.0]), (255, 0, 255, 255)),  # Y: magenta / マゼンタ
+            (np.array([0.0, 0.0, 1.0]), (0, 255, 255, 255)),  # Z: cyan / シアン
         ]
-        for _label, axis_dir_frd, line_color in debug_axis_specs:
+        for axis_dir_frd, line_color in debug_axis_specs:
             tip_units = axis_dir_frd * AL_MATCH_TIKZ_UNITS
-            seg_screen = project(np.stack([np.zeros(3), tip_units]))
-            ax.plot(seg_screen[:, 0], seg_screen[:, 1], color=line_color, linewidth=0.8, solid_capstyle="butt")
-        ax.plot(
-            [-CROSSHAIR_HALF_UNITS, CROSSHAIR_HALF_UNITS], [0, 0], color="lime", linewidth=0.8
+            seg_px = data_to_pixel(project(np.stack([np.zeros(3), tip_units])))
+            draw.line([tuple(seg_px[0]), tuple(seg_px[1])], fill=line_color, width=2)
+        origin_px = data_to_pixel(project(np.zeros((1, 3))))[0]
+        half_px = CROSSHAIR_HALF_UNITS / (2.0 * HALF_EXTENT_UNITS) * CANVAS_PIXELS
+        draw.line(
+            [(origin_px[0] - half_px, origin_px[1]), (origin_px[0] + half_px, origin_px[1])],
+            fill=(50, 255, 50, 255),
+            width=2,
         )
-        ax.plot(
-            [0, 0], [-CROSSHAIR_HALF_UNITS, CROSSHAIR_HALF_UNITS], color="lime", linewidth=0.8
+        draw.line(
+            [(origin_px[0], origin_px[1] - half_px), (origin_px[0], origin_px[1] + half_px)],
+            fill=(50, 255, 50, 255),
+            width=2,
         )
-        fig.savefig(DEBUG_OUT_PNG, transparent=True, dpi=DPI)
+        image.save(DEBUG_OUT_PNG)
         print(f"[render_stampfly_iso] DEBUG: wrote {DEBUG_OUT_PNG} (NOT used by imu_axes.tex)")
     else:
-        fig.savefig(OUT_PNG, transparent=True, dpi=DPI)
+        image.save(OUT_PNG)
         print(f"[render_stampfly_iso] wrote {OUT_PNG}")
-    plt.close(fig)
 
     # ---- Sanity check: projected motor centres vs. TikZ's own mapping ----
     # ---- 検証: 投影したモータ中心位置とTikZ側のマッピングとの比較 ----
