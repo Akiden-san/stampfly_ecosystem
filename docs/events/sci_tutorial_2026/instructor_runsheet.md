@@ -131,7 +131,7 @@ void loop_400Hz(float dt) {
 - 「実習5の振り返り: 実習コード」: 実習5のコードを再掲する解説フレームで、その場での再実行はない
 - 「同定結果と理論値の比較」（`sf sysid fit`の出力例と理論値比較表をまとめたフレーム）、「sf sysid rate-fit / rate-tune の使い方」: いずれもコマンドの出力例を提示するのみで、本番中に講師が実際に実行するとはスライド上に明記されていない
 - 「期待結果の再現手順」（あとで読む）: デモの期待結果フレームの数値をSILSで自分で再現するCLI手順（`sf lesson switch sci2026:5 --solution`→`sf lesson sils --scenario step`）。当日のライブ実演ではなく、事前準備または帰宅後の参照用
-- 上記に加え、新設された多数の理論解説フレーム（フィードバック制御の基礎・P制御の限界・プラント物理モデルの深掘り・2次系設計とループ整形・システム同定の考え方・PID理論の深掘り（不完全微分/アンチワインドアップ/離散化/ARM時リセット）・加速度センサからの傾き角の導出・周波数掃引同定の原理とETFE・仕様ベースのゲイン設計）はすべて座学（実演なし）で、多くに「あとで読む」の印が付く。当日は要点のみ口頭で触れ、詳細は帰宅後に資料で参照してもらう設計
+- 上記に加え、新設された多数の理論解説フレーム（フィードバック制御の基礎・P制御の限界・プラント物理モデルの深掘り・2次系設計とループ整形・システム同定の考え方・PID理論の深掘り（不完全微分/アンチワインドアップ/離散化/ARM時リセット）・加速度センサからの傾き角の導出・周波数掃引同定の原理とETFE・仕様ベースのゲイン設計）はすべて座学（実演なし）で、多くに「あとで読む」の印が付く。例外は「システム同定の考え方」（p.90）で、実習 7 の前提になるため当日講義する（「あとで読む」の印は外した）。当日は要点のみ口頭で触れ、詳細は帰宅後に資料で参照してもらう設計
 
 ## 7. Session 5: シミュレータ・解析ツールの活用と発展的テーマ（15:30–16:30）
 
@@ -377,7 +377,7 @@ Of 46 frames, 7 are demonstration/hands-on/expected-result frames (the 29-to-46 
 - "Recap: Exercise 5 Exercise Code": re-displays Exercise 5's code for explanation; nothing is re-run live here
 - "Identification Results vs. Theory" (the frame combining `sf sysid fit`'s example output with a theory-vs-identified comparison table), "Using sf sysid rate-fit / rate-tune": both present example command output only; the slides do not state that the instructor runs these live on the day
 - "Reproducing the Expected Result" (read later): the CLI steps to reproduce the expected-result frame's numbers yourself via SILS (`sf lesson switch sci2026:5 --solution` -> `sf lesson sils --scenario step`). Not a live in-session demo; it is a prep/at-home reference
-- In addition, the many newly added theory frames (feedback control basics, the limits of P control, a deep dive into the plant's physical model, second-order design and loop shaping, the idea behind system identification, a deep dive into PID theory (incomplete derivative / anti-windup / discretization / ARM-transition reset), deriving tilt angle from the accelerometer, the principle of swept-frequency identification and ETFE, spec-based gain design) are all lecture-only (no live demo), and most are tagged "read later." The plan is to touch on them only briefly out loud on the day and let attendees read the details afterward
+- In addition, the many newly added theory frames (feedback control basics, the limits of P control, a deep dive into the plant's physical model, second-order design and loop shaping, the idea behind system identification, a deep dive into PID theory (incomplete derivative / anti-windup / discretization / ARM-transition reset), deriving tilt angle from the accelerometer, the principle of swept-frequency identification and ETFE, spec-based gain design) are all lecture-only (no live demo), and most are tagged "read later." The exception is "The Idea Behind System Identification" (p.90): it is the lead-in to Exercise 7, so it is taught live and its read-later tag was removed. The plan is to touch on them only briefly out loud on the day and let attendees read the details afterward
 
 ## 7. Session 5: Simulator and Analysis Tools, Advanced Topics (15:30-16:30)
 
