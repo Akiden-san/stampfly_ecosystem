@@ -19,20 +19,140 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{要点3つ}
+\begin{frame}{StampFly Ecosystem とは何か: 目的・考え方・提供物}
   \begin{enumerate}
-    \item マルチコプタは制御なしには1秒も飛べない。この性質が制御工学の教材として理想的である
-    \item 必要なリソースが分散していることが普及の障壁になっている。StampFly Ecosystem は単一リポジトリへの集約でこれに応える
-    \item ファームウェアは4階層のアクセス構造を持ち、初学者から研究者まで同じコードベースを共有しながら自分の関心に合わせて深さを選べる
+    \item \textbf{何のために}: 制御なしには飛べないマルチコプタを教材にし、一人の学習者が 1 機で「設計 $\to$ 実装 $\to$ 実験 $\to$ 解析」を自分の手で一周できるようにする
+    \item \textbf{どういう考え方で}: 一つのリポジトリ・4 階層の入口・同じコードとモデルで実機とシミュレータをつなぐ（5 つの設計の考え方）
+    \item \textbf{何を提供するか}: 機体、ファームウェア、3 種類のシミュレータ、sf CLI、そして 8 分野を通る教材。本日の実習 1〜9 はその教材の一部
   \end{enumerate}
-
-  \vspace{0.3em}
-
-  {\small 後半では、飛ばす前後で同じモデルを使って結果を確かめる仕組み（3 種類のシミュレーション）にも触れる}
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{今日使う機体: StampFly}
+\begin{frame}{目的: 制御がなければ飛べない}
+  \vspace{0.3em}
+
+  \small マルチコプタは固定翼機のように滑空できず、ヘリコプタのようにオートローテーションで降りることもできない。制御系が止まれば即座に墜落する
+
+  \vspace{0.5em}
+
+  \begin{exampleblock}{教材としての魅力}
+    \small この性質は安全上の課題であると同時に、学習者が「制御がなければ飛べない」という事実を身をもって体験できる特性でもある。フィードバック制御の役割を直感的に理解する入口になる
+  \end{exampleblock}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{目的: 教材として使うには 4 つの障壁がある}
+  \small 制御なしには飛べないマルチコプタは制御教育の教材として魅力的だが、実際の教育現場で使うには次の 4 つの障壁がある
+
+  \vspace{0.5em}
+
+  \begin{itemize}\small\setlength{\itemsep}{4pt}
+    \item \textbf{ブラックボックス問題}: 市販の教育用ドローンは飛ぶが、制御ループの中身に触れられない
+    \item \textbf{理論と実装のギャップ}: PIDの数式は教科書で学べても、組込みのリアルタイム制御ループとして実装するには別のスキルが要る
+    \item \textbf{体系的教材の不在}: センサ取得から状態推定、制御、実験、データ解析までを一貫して学べる教材が見当たらない
+    \item \textbf{教育者の準備負担}: カリキュラム設計・教材作成・ツール整備を一人の教育者がすべて担うのは現実的でない
+  \end{itemize}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{目的: 既存プラットフォームとの比較}
+  {\small 既存のプラットフォームは、この 4 つの障壁のどれかが残る}
+  \begin{table}
+    \centering\footnotesize
+    \begin{tabular}{lcccc}
+      \hline
+       & Crazyflie & Tello EDU\textsuperscript{*} & PX4 & StampFly Eco. \\
+      \hline
+      制御ループアクセス & \checkmark & --- & \checkmark & \checkmark \\
+      教材・カリキュラム & $\triangle$ & $\triangle$ & $\triangle$ & \checkmark \\
+      シミュレータ統合   & \checkmark & --- & \checkmark & \checkmark \\
+      コスト             & 高 & 低 & 高 & 低 \\
+      コード規模         & 中 & --- & 大 & 小 \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.5em}
+
+  {\small 制御ループへのフルアクセスと体系的な教材・ツールの統合提供を両立させ、ファームウェア全体を一人の学習者が読み通せる規模に抑えている点が異なる}
+
+  {\scriptsize \textsuperscript{*}Tello EDU は2023年末に販売終了（評価は筆者の定性的見解）}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{目的: StampFly Ecosystem が目指すもの}
+  \begin{block}{一人の学習者が、1 機の機体で、制御設計の循環を自分の手で一周できるようにする}
+    \footnotesize 設計（モデルとゲイン）$\to$ 実装（コード）$\to$ 実験（実機と SILS）$\to$ 解析（ログの可視化と同定）$\to$ 次の設計へ。対象は制御を学ぶ学生・研究者と教育者
+  \end{block}
+
+  \begin{table}
+    \centering\scriptsize
+    \renewcommand{\arraystretch}{1.1}
+    \begin{tabular}{lp{92mm}}
+      \hline
+      \textbf{障壁} & \textbf{Ecosystem の答え} \\
+      \hline
+      ブラックボックス問題 & 制御ループからドライバまで全部を公開し、学習者が読み通せる規模に抑える \\
+      理論と実装のギャップ & 実機と同じコードをシミュレータでも動かし、数式と組込み実装を切れ目なく扱う \\
+      体系的教材の不在 & センサ取得・状態推定・制御・実験・解析を 1 機で通る教材とツールを同梱する \\
+      教育者の準備負担 & 教材・実習コード・ビルドと書き込みの道具を一式で配り、準備を減らす \\
+      \hline
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{思想: 5 つの Ecosystem 設計の考え方}
+  \begin{table}
+    \centering\footnotesize
+    \renewcommand{\arraystretch}{1.2}
+    \setlength{\tabcolsep}{8pt}
+    \begin{tabular}{lp{104mm}}
+      \hline
+      \textbf{考え方} & \textbf{内容} \\
+      \hline
+      一つのリポジトリ & ファーム・シミュレータ・解析ツール・教材を一か所にまとめる。通信仕様の定義は一つだけ置き、各実装はそこから作る \\
+      sf CLI & ビルド・書込み・ログ取得・シミュレーションを一つのコマンド体系で操作する \\
+      4 階層アクセス & 実習用 API からハードウェアの直接操作まで 4 つの入口を用意し、必要な深さから入る \\
+      シミュレータ統合 & 軽量 3D・高精度物理・実ファーム実行の 3 種類のシミュレータで、同じ制御アルゴリズムを動かす \\
+      オープンソース & 制御ループからドライバまで全部を公開し、ブラックボックスを作らない \\
+      \hline
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{思想: 4 階層アクセス（必要な深さから入る）}
+  \centering
+  \vspace{-1mm}
+  \resizebox{!}{0.82\textheight}{\input{../../_shared/tikz/sci_tier_access}}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{思想: 実機とシミュレータをつなぐ 3 原則}
+  \begin{table}
+    \centering\footnotesize
+    \begin{tabular}{lp{100mm}}
+      \hline
+      \textbf{原則} & \textbf{内容} \\
+      \hline
+      Code Identity  & \textbf{同じコードで動く。}SILS は実機と同じファームウェアのソースをそのまま組み込んで動かす。推定や制御の式だけでなく、制御ループ全体が実機と同一 \\
+      Parameter Identity & \textbf{同じ設定値で動く。}ゲインなどの調整値は SILS と実機が同じ一覧から読む。片方で決めた値をそのまま他方へ持ち込める \\
+      Model Fidelity & \textbf{正解は物理モデルから作る。}SILS の「真値」は物理モデルで作る。実機データが要るのは、初飛行のあとでモデルを現実に近づけるときだけ \\
+      \hline
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{提供: エコシステムの地図}
+  \centering
+  \vspace{1mm}
+  \resizebox{!}{0.78\textheight}{\input{../../_shared/tikz/ecosystem_layers}}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{提供: 機体 StampFly}
   \begin{columns}[T]
     \begin{column}{0.42\textwidth}
       \centering
@@ -69,118 +189,7 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{制御がなければ飛べない}
-  \vspace{0.3em}
-
-  \small マルチコプタは固定翼機のように滑空できず、ヘリコプタのようにオートローテーションで降りることもできない。制御系が止まれば即座に墜落する
-
-  \vspace{0.5em}
-
-  \begin{exampleblock}{教材としての魅力}
-    \small この性質は安全上の課題であると同時に、学習者が「制御がなければ飛べない」という事実を身をもって体験できる特性でもある。フィードバック制御の役割を直感的に理解する入口になる
-  \end{exampleblock}
-\end{frame}
-
-
-% ------------------------------------------------------------------
-\begin{frame}{教材として使うには 4 つの障壁がある}
-  \small 制御なしには飛べないマルチコプタは制御教育の教材として魅力的だが、実際の教育現場で使うには次の 4 つの障壁がある
-
-  \vspace{0.5em}
-
-  \begin{itemize}\small\setlength{\itemsep}{4pt}
-    \item \textbf{ブラックボックス問題}: 市販の教育用ドローンは飛ぶが、制御ループの中身に触れられない
-    \item \textbf{理論と実装のギャップ}: PIDの数式は教科書で学べても、組込みのリアルタイム制御ループとして実装するには別のスキルが要る
-    \item \textbf{体系的教材の不在}: センサ取得から状態推定、制御、実験、データ解析までを一貫して学べる教材が見当たらない
-    \item \textbf{教育者の準備負担}: カリキュラム設計・教材作成・ツール整備を一人の教育者がすべて担うのは現実的でない
-  \end{itemize}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{既存プラットフォームとの比較}
-  {\small 既存のプラットフォームは、この 4 つの障壁のどれかが残る}
-  \begin{table}
-    \centering\footnotesize
-    \begin{tabular}{lcccc}
-      \hline
-       & Crazyflie & Tello EDU\textsuperscript{*} & PX4 & StampFly Eco. \\
-      \hline
-      制御ループアクセス & \checkmark & --- & \checkmark & \checkmark \\
-      教材・カリキュラム & $\triangle$ & $\triangle$ & $\triangle$ & \checkmark \\
-      シミュレータ統合   & \checkmark & --- & \checkmark & \checkmark \\
-      コスト             & 高 & 低 & 高 & 低 \\
-      コード規模         & 中 & --- & 大 & 小 \\
-      \hline
-    \end{tabular}
-  \end{table}
-
-  \vspace{0.5em}
-
-  {\small 制御ループへのフルアクセスと体系的な教材・ツールの統合提供を両立させ、ファームウェア全体を一人の学習者が読み通せる規模に抑えている点が異なる}
-
-  {\scriptsize \textsuperscript{*}Tello EDU は2023年末に販売終了（評価は筆者の定性的見解）}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{エコシステムの地図}
-  \centering
-  \vspace{1mm}
-  \resizebox{!}{0.78\textheight}{\input{../../_shared/tikz/ecosystem_layers}}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{5つのEcosystem設計の考え方}
-  \begin{table}
-    \centering\footnotesize
-    \renewcommand{\arraystretch}{1.2}
-    \setlength{\tabcolsep}{8pt}
-    \begin{tabular}{lp{104mm}}
-      \hline
-      \textbf{考え方} & \textbf{内容} \\
-      \hline
-      一つのリポジトリ & ファーム・シミュレータ・解析ツール・教材を一か所にまとめる。通信仕様の定義は一つだけ置き、各実装はそこから作る \\
-      sf CLI & ビルド・書込み・ログ取得・シミュレーションを一つのコマンド体系で操作する \\
-      4 階層アクセス & 実習用 API からハードウェアの直接操作まで 4 つの入口を用意し、必要な深さから入る \\
-      シミュレータ統合 & 軽量 3D・高精度物理・実ファーム実行の 3 種類のシミュレータで、同じ制御アルゴリズムを動かす \\
-      オープンソース & 制御ループからドライバまで全部を公開し、ブラックボックスを作らない \\
-      \hline
-    \end{tabular}
-  \end{table}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{1機から学べる8分野}
-  {\small この 5 つの考え方の上で、1 機から次の 8 分野を扱える}
-
-  \vspace{0.15em}
-
-  \begin{table}
-    \centering\footnotesize
-    \renewcommand{\arraystretch}{1.0}
-    \setlength{\tabcolsep}{10pt}
-    \begin{tabular}{ll}
-      \hline
-      \textbf{分野} & \textbf{主な学習項目} \\
-      \hline
-      制御理論       & PID, カスケード制御, FF/FB, アンチワインドアップ \\
-      飛行力学       & 6DoF運動方程式, ホバー条件, NED/Body座標変換 \\
-      センサ工学     & IMU, 気圧, 光学フロー, Allan分散, ノイズ解析 \\
-      状態推定       & 相補フィルタ, ESKF, センサフュージョン \\
-      アクチュエータ & PWM制御, 推力モデル, プロペラ空力特性, ミキサ行列 \\
-      システム同定   & 周波数応答, パラメータ推定, モデル検証 \\
-      通信・IoT      & ESP-NOW, WiFiテレメトリ, プロトコル設計 \\
-      ソフトウェア工学 & リアルタイムタスク, 組込み開発, OSS開発 \\
-      \hline
-    \end{tabular}
-  \end{table}
-
-  \vspace{0.15em}
-
-  {\small これらは独立した知識ではなく、1台の機体の中で密接に関連し合っている。PIDゲインの設計には慣性モーメントやモータ応答特性の知識が要り、推定精度はセンサのノイズ特性に左右される}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{vehicle ファーム構造}
+\begin{frame}{提供: 機体ファームウェア（vehicle）}
   \begin{table}
     \centering\footnotesize
     \begin{tabular}{ll}
@@ -206,7 +215,7 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{400\,Hz 制御ループ}
+\begin{frame}{提供: 400\,Hz 制御ループ}
   \centering
   \vspace{-1mm}
   \resizebox{0.82\textwidth}{!}{\input{../../_shared/tikz/loop_400hz_timeline}}
@@ -217,15 +226,8 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{4階層アクセス}
-  \centering
-  \vspace{-1mm}
-  \resizebox{!}{0.82\textheight}{\input{../../_shared/tikz/sci_tier_access}}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{シミュレーション3層}
-  {\small 設計の考え方「シミュレータ統合」を掘り下げる。目的の異なる 3 種類のシミュレーションを使い分ける}
+\begin{frame}{提供: 3 種類のシミュレーション}
+  {\small 目的の異なる 3 種類のシミュレーションを提供する（設計の考え方「シミュレータ統合」の中身）}
 
   \vspace{0.15em}
 
@@ -253,27 +255,11 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{開発の3原則\later}
-  \begin{table}
-    \centering\footnotesize
-    \begin{tabular}{lp{100mm}}
-      \hline
-      \textbf{原則} & \textbf{内容} \\
-      \hline
-      Code Identity  & \textbf{同じコードで動く。}SILS は実機と同じファームウェアのソースをそのまま組み込んで動かす。推定や制御の式だけでなく、制御ループ全体が実機と同一 \\
-      Parameter Identity & \textbf{同じ設定値で動く。}ゲインなどの調整値は SILS と実機が同じ一覧から読む。片方で決めた値をそのまま他方へ持ち込める \\
-      Model Fidelity & \textbf{正解は物理モデルから作る。}SILS の「真値」は物理モデルで作る。実機データが要るのは、初飛行のあとでモデルを現実に近づけるときだけ \\
-      \hline
-    \end{tabular}
-  \end{table}
-\end{frame}
-
-% ------------------------------------------------------------------
 % sf sils gui is listed in this session's review path, so show it once here
 % (what the screen looks like). How to use it and the hands-on are in S5.
 % 復習パスに sf sils gui が載るので、ここで 1 枚だけ画面を見せる。
 % 使い方と実習は S5 で扱う。
-\begin{frame}[fragile]{SILS を画面で触る: sf sils gui}
+\begin{frame}[fragile]{提供: SILS を画面で触る（sf sils gui）}
   \vspace{0.15em}
 
   \begin{columns}[T]
@@ -299,6 +285,37 @@ sf sils gui
       \end{sflisting}
     \end{column}
   \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{提供: 教材 --- 1 機から学べる 8 分野}
+  {\small 教材は 1 機から次の 8 分野を扱う。本日の実習 1〜9 は制御理論・センサ工学・アクチュエータ・システム同定・状態推定を通る}
+
+  \vspace{0.15em}
+
+  \begin{table}
+    \centering\footnotesize
+    \renewcommand{\arraystretch}{1.0}
+    \setlength{\tabcolsep}{10pt}
+    \begin{tabular}{ll}
+      \hline
+      \textbf{分野} & \textbf{主な学習項目} \\
+      \hline
+      制御理論       & PID, カスケード制御, FF/FB, アンチワインドアップ \\
+      飛行力学       & 6DoF運動方程式, ホバー条件, NED/Body座標変換 \\
+      センサ工学     & IMU, 気圧, 光学フロー, Allan分散, ノイズ解析 \\
+      状態推定       & 相補フィルタ, ESKF, センサフュージョン \\
+      アクチュエータ & PWM制御, 推力モデル, プロペラ空力特性, ミキサ行列 \\
+      システム同定   & 周波数応答, パラメータ推定, モデル検証 \\
+      通信・IoT      & ESP-NOW, WiFiテレメトリ, プロトコル設計 \\
+      ソフトウェア工学 & リアルタイムタスク, 組込み開発, OSS開発 \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.15em}
+
+  {\small これらは独立した知識ではなく、1台の機体の中で密接に関連し合っている。PIDゲインの設計には慣性モーメントやモータ応答特性の知識が要り、推定精度はセンサのノイズ特性に左右される}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -389,16 +406,17 @@ sf sils gui
 % ------------------------------------------------------------------
 \begin{frame}{チェックポイント}
   \begin{alertblock}{確認事項}
-    \begin{itemize}
-      \item[$\square$] マルチコプタが制御教材として適している理由を説明できる
-      \item[$\square$] StampFly Ecosystem が集約によってどの障壁に対応しているか説明できる
-      \item[$\square$] 4階層アクセス（L0--L3）のうち自分の関心に合う層を1つ選べる
+    \begin{itemize}\small
+      \item[$\square$] \textbf{何のために}: 制御なしに飛べない機体で設計の循環を一周する、と説明できる
+      \item[$\square$] \textbf{どういう考え方で}: 一つのリポジトリ・4 階層の入口・同じコードとモデル、と説明できる
+      \item[$\square$] \textbf{何を提供するか}: 機体・ファーム・3 種類のシミュレータ・sf CLI・教材を挙げ、自分の入る層を 1 つ選べる
     \end{itemize}
   \end{alertblock}
 
-  \vspace{1em}
+  \vspace{0.5em}
 
   \begin{block}{次のセッション}
     S2: 開発環境のセットアップとセンサデータの取得（11:00 -- 12:00）--- 全体像を見た次は、実際に手を動かしてセンサの値を読む番
   \end{block}
 \end{frame}
+

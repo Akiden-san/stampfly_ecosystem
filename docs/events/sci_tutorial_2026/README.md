@@ -36,7 +36,7 @@
 | （休憩） | 15:00 -- 15:30 | |
 | S5 | 15:30 -- 16:30 | シミュレータ・解析ツールの活用と発展的テーマの紹介と質疑 |
 
-各セッションは「地図（今どこにいるか）→ 要点3つ → デモ → 理論とコードの対応表 → 復習パス → チェックポイント」という共通の型で進む。デモは「見るだけ／一緒に打つ／帰宅後に再現」の3段階を示すので、環境構築が間に合わなくても最後まで内容を追える。
+各セッションは「地図（今どこにいるか）→ このセッションで伝えること → デモ → 理論とコードの対応表 → 復習パス → チェックポイント」という共通の進め方で進む。デモは「見るだけ／一緒に打つ／帰宅後に再現」の3段階を示すので、環境構築が間に合わなくても最後まで内容を追える。
 
 ## 3. 資料索引
 
@@ -162,7 +162,7 @@ This document is the material index and pre-tutorial checklist for the SCI/SICE 
 | (Break) | 15:00 -- 15:30 | |
 | S5 | 15:30 -- 16:30 | Simulator and analysis tools, advanced topics, and Q&A |
 
-Every session follows the same shape: map (where we are) -> three key points -> demo -> theory-to-code map -> review path -> checkpoint. Each demo is shown at three levels of engagement (watch only / follow along / reproduce at home), so falling behind on setup does not mean falling behind on content.
+Every session follows the same flow: map (where we are) -> what this session says -> demo -> theory-to-code map -> review path -> checkpoint. Each demo is shown at three levels of engagement (watch only / follow along / reproduce at home), so falling behind on setup does not mean falling behind on content.
 
 ## 3. Material Index
 
