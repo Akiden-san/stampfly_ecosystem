@@ -193,6 +193,14 @@
 \newcommand{\api}[1]{\texttt{\color{sfblue}#1}}
 \newcommand{\warn}[1]{\textcolor{sfred}{\textbf{#1}}}
 \newcommand{\code}[1]{\texttt{\small #1}}
+% Equal-height card bodies for side-by-side blocks: wrap each block's body in
+% \cardbody{<height>}{<content>} with the same height on both sides so the
+% two cards end on the same line. Content taller than <height> overflows the
+% box (visible), so pick <height> from the taller card.
+% 左右に並べたブロックの高さを揃える: 両側のブロック本文を同じ高さで
+% \cardbody{<高さ>}{<内容>} に包む。内容が <高さ> を超えるとはみ出して見えるので、
+% 高い方のカードに合わせて <高さ> を選ぶ。
+\newcommand{\cardbody}[2]{\begin{minipage}[t][#1][t]{\linewidth}#2\end{minipage}}
 
 % --- Lesson command ---
 % Usage: \lesson{number}{title_ja}{title_en}

@@ -808,10 +808,14 @@ sf sysid fit flight.csv --plot
 \end{frame}
 
 % ------------------------------------------------------------------
+% Card height shared by the two anti-windup cards (taller = left card)
+% 左右カードの共通高さ（高い方＝左カードに合わせる）
+\newlength{\antiwindupCardH}\setlength{\antiwindupCardH}{3.9cm}
 \begin{frame}{アンチワインドアップ: クランプ vs 条件付き積分\later}
   \begin{columns}[T]
     \begin{column}{0.48\textwidth}
       \begin{block}{実習 8 実装: 積分クランプ}\footnotesize
+        \cardbody{\antiwindupCardH}{%
         \setlength{\abovedisplayskip}{2pt}\setlength{\belowdisplayskip}{2pt}%
         \[
           \begin{array}{l}
@@ -821,14 +825,15 @@ sf sysid fit flight.csv --plot
         \]
         積分値そのものを上下限で切る。単純だが，出力が飽和している間も
         積分は上限いっぱいまで巻き上がり続け，誤差が反転すると
-        ゆっくり戻る $\to$ オーバーシュートの原因になる
+        ゆっくり戻る $\to$ オーバーシュートの原因になる}
       \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
       \begin{exampleblock}{vehicle 実装: 条件付き積分}\footnotesize
+        \cardbody{\antiwindupCardH}{%
         出力がすでに飽和方向へ押されている間\textbf{だけ}積分の更新を止める
         （\code{pid.hpp}）。飽和中は積分がそれ以上巻き上がらないため，
-        誤差反転後すぐに追従できる。ハードクランプは保険として残す
+        誤差反転後すぐに追従できる。ハードクランプは保険として残す}
       \end{exampleblock}
     \end{column}
   \end{columns}
@@ -1031,11 +1036,43 @@ sf sysid fit flight.csv --plot
     \adjustbox{max width=0.74\textwidth, max height=0.52\textheight}{\input{../../_shared/tikz/sysid_chirp_etfe}}
   \end{center}
 
-  {\footnotesize \code{sf sysid fit}（実習7）は P 制御前提の逆算だった。ここでは
-  実際に飛んだ PID の入出力から，プラントの\textbf{周波数応答}を直接推定する。
+  {\footnotesize \code{sf sysid fit}（実習7）はステップ状の操縦入力に対する時間波形の最小二乗フィットだった。
+  ここでは励振信号を意図的に加え，その入出力からプラントの\textbf{周波数応答}を直接推定する。
   上段: 1$\to$25\,Hz へ滑らかに上げる励振信号（対数チャープ）を目標角速度に重畳。
   下段: 出力/入力のスペクトル比（ETFE）を Welch 法で計算し，一次遅れ$+$むだ時間
   モデルを当てはめる}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{補足: Welch 法によるスペクトル推定\later}
+  \begin{block}{なぜ区間平均が要るか}
+    \scriptsize 1 回の FFT で作る比 $Y(j\omega)/U(j\omega)$ は雑音でばらつく。時系列を重なりのある区間に分けて
+    各区間のスペクトルを平均し，分散を下げる（Welch 法）。\code{sf sysid rate-fit} の設定: 400\,Hz の $u,y$ を
+    \textbf{1024 点（2.56\,s）}の区間，\textbf{重なり 50\,\%}，区間ごとに平均値を除いて \textbf{Hann 窓}を掛け FFT
+  \end{block}
+
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      \footnotesize
+      \setlength{\abovedisplayskip}{2pt}\setlength{\belowdisplayskip}{2pt}%
+      \[
+        S_{uu}=\sum_k |U_k|^2,\quad S_{uy}=\sum_k Y_k U_k^{*},\quad S_{yy}=\sum_k |Y_k|^2
+      \]
+      \[
+        \hat G(j\omega)=\frac{S_{uy}}{S_{uu}}\ (\text{ETFE}),\qquad
+        \gamma^2(\omega)=\frac{|S_{uy}|^2}{S_{uu}\,S_{yy}}\ (\text{コヒーレンス})
+      \]
+      {\scriptsize $U_k, Y_k$ は $k$ 番目の区間の FFT，$*$ は複素共役}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \scriptsize
+      \begin{itemize}\setlength{\itemsep}{1pt}
+        \item 分解能 $\Delta f = 400/1024 \approx 0.39$\,Hz。区間を長くすると分解能は上がるが区間数が減りばらつく
+        \item コヒーレンス $\gamma^2$ は 0〜1。1 に近いほど出力が入力で線形に説明できる。低い帯域はフィットから外す（前ページ「高域はコヒーレンス低下」）
+        \item フィット帯域は 0.8〜30\,Hz（チャープの範囲）
+      \end{itemize}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -1058,7 +1095,7 @@ sf sysid fit flight.csv --plot
     \]
   \end{block}
 
-  {\footnotesize 実習7の \code{sf sysid fit} は $K_p$ 一定・低速の飛行が前提だが，
+  {\footnotesize 実習7の \code{sf sysid fit} は操縦入力に含まれる周波数成分だけで当てはめるが，
   こちらはチャープで能動的に励振するため周波数帯域全体を1回の飛行でカバーできる}
 \end{frame}
 
@@ -1085,8 +1122,7 @@ sf sysid fit flight.csv --plot
 \begin{frame}[fragile]{sf sysid rate-fit / rate-tune の使い方\later}
   \begin{block}{ETFE によるプラント同定と仕様ベースのゲイン設計}\footnotesize
     チャープ励振で軸ごとに $(b,L,T)$ を推定し $G_p(s)=b\,e^{-Ls}/(s(Ts+1))$ に
-    フィットする。sf sysid fit（P 制御前提の逆算）と違い，実際に飛んだ PID 出力を
-    再構成してから ETFE を取る閉ループ同定
+    フィットする。sf sysid fit（時間波形の最小二乗）と違い，周波数領域で ETFE を取る閉ループ同定
   \end{block}
 
   \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{コマンド}
@@ -1095,8 +1131,7 @@ sf sysid rate-tune --fit fit.json --wc 25 --pm 60
   \end{sflisting}
 
   {\scriptsize \code{rate-tune} はゲイン交差周波数 $\omega_c$ と位相余裕 PM の仕様を満たす
-  $K_p/T_i/T_d$ を逆算し，\code{param set rate.roll.kp ...} の形で出力する（WiFi の CLI に打てば
-  飛行中も即時反映。\code{sf log wifi} と同じく WiFi 接続が前提，S2 参照）。
+  $K_p/T_i/T_d$ を逆算し，\code{param set rate.roll.kp ...} の形で出力する（WiFi の CLI に打てば飛行中も即時反映）。
   \warn{注:} 実習コードで rate-fit/rate-tune を使うには，角速度目標の計算直後に
   \api{ws::set\_rate\_target(roll,pitch,yaw)} を呼ぶ（実習 7 で必須，Data Stream の
   \code{rate\_ref\_*} に記録）}

@@ -80,7 +80,7 @@
   % 短い直角ジョグ（下りてから横に寄せる）で吸収する。
   \draw[line, sfgreen] (accel_in) -- (atan);
   \draw[line, sfgreen] (atan) -- (one_alpha);
-  \draw[line, sfgreen] (one_alpha.south) -- ++(0,-0.4) -| (sum2.north);
+  \draw[line, sfgreen] (one_alpha.east) -| (sum2.north);
 
   % --- Output line and its branch dot ---
   \draw[line, sfblue, line width=1.5pt] (sum2) -- (output);
