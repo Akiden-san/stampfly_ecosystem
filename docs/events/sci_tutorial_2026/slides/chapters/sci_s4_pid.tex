@@ -279,6 +279,10 @@ ws::motor_mixer(ws::rc_throttle(),
 \end{frame}
 
 % ------------------------------------------------------------------
+% Card height shared by the two formula cards below (taller = right card,
+% whose K_m formula uses \cases and needs an extra line)
+% 下段2枚のカード共通高さ（高い方＝右カード、K_m の式が \cases で1行多い）
+\newlength{\tauKmCardH}\setlength{\tauKmCardH}{1.7cm}
 \begin{frame}{$\tau_m$ と $K_m$ の物理的な意味\later}
   \vspace{-1mm}
   \begin{columns}[c]
@@ -297,10 +301,11 @@ ws::motor_mixer(ws::rc_throttle(),
   \begin{columns}[t]
     \begin{column}{0.48\textwidth}
       \begin{block}{モータ時定数 $\tau_m$}\footnotesize
+        \cardbody{\tauKmCardH}{%
         \vspace{-0.3em}
         \[
           \tau_m = \frac{J_{mp} R_m}{K_e^2 + D_m R_m}
-        \]
+        \]}
       \end{block}
       {\footnotesize
       \begin{tabular}{lll}
@@ -316,11 +321,12 @@ ws::motor_mixer(ws::rc_throttle(),
     \end{column}
     \begin{column}{0.5\textwidth}
       \begin{block}{実効トルクゲイン $K_m$}\footnotesize
+        \cardbody{\tauKmCardH}{%
         \vspace{-0.3em}
         \[
           K_f=\left.\frac{dF}{dd}\right|_{\!hover}\!\!,\;\;
           K_m=\begin{cases}4L K_f & \text{Roll/Pitch}\\4\kappa K_f & \text{Yaw}\end{cases}
-        \]
+        \]}
       \end{block}
       {\footnotesize
       \begin{tabular}{lll}
@@ -1119,22 +1125,43 @@ sf sysid fit flight.csv --plot
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{sf sysid rate-fit / rate-tune の使い方\later}
-  \begin{block}{ETFE によるプラント同定と仕様ベースのゲイン設計}\footnotesize
-    チャープ励振で軸ごとに $(b,L,T)$ を推定し $G_p(s)=b\,e^{-Ls}/(s(Ts+1))$ に
-    フィットする。sf sysid fit（時間波形の最小二乗）と違い，周波数領域で ETFE を取る閉ループ同定
+\begin{frame}[fragile]{sf sysid rate-fit / rate-tune とは\later}
+  \begin{block}{対象は vehicle ファームだけ（実習コードでは使わない）}\footnotesize
+    \code{rate-fit} は記録した目標 $r$ と角速度 $y$ から，vehicle ファームの PID（理想形＋不完全微分）を
+    そのゲインで再計算して入力 $u$ を復元し，周波数領域（ETFE）で $G_p(s)=b\,e^{-Ls}/(s(Ts+1))$ に
+    フィットする。PID の形もゲインも違う実習コードでは復元できない（実習コードは sf sysid fit で duty から同定）
   \end{block}
 
-  \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{コマンド}
-sf sysid rate-fit flight.csv --axis roll -o fit.json
-sf sysid rate-tune --fit fit.json --wc 25 --pm 60
+  \begin{block}{3 つのコマンドの役割}\footnotesize
+    \begin{tabular}{@{}lp{0.72\linewidth}@{}}
+      \code{rate-excite} & 飛行中の機体に同定用の励振信号を入れる（機体が動く唯一のコマンド） \\
+      \code{rate-fit}    & 記録した CSV からプラント $(b, T, L)$ を求める。机上で実行，機体に触らない \\
+      \code{rate-tune}   & ゲイン交差周波数 $\omega_c$ と位相余裕 PM を満たす $K_p/T_i/T_d$ を逆算し，
+                           \code{param set rate.roll.kp ...} の形で出力。WiFi の CLI に打てば飛行中も即時反映，
+                           \code{param save} で保存 \\
+    \end{tabular}
+  \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}[fragile]{rate-excite → rate-fit → rate-tune の手順\later}
+  \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{手順（vehicle ファーム，WiFi 接続）}
+sf log wifi -d 40 -o sysid01.csv
+sf sysid rate-excite --axis roll --takeoff --land
+sf sysid rate-fit sysid01.csv --axis roll -o fit.json   # 机上
+sf sysid rate-tune --fit fit.json --wc 25 --pm 60       # 机上
   \end{sflisting}
 
-  {\scriptsize \code{rate-tune} はゲイン交差周波数 $\omega_c$ と位相余裕 PM の仕様を満たす
-  $K_p/T_i/T_d$ を逆算し，\code{param set rate.roll.kp ...} の形で出力する（WiFi の CLI に打てば飛行中も即時反映）。
-  \warn{注:} 実習コードで rate-fit/rate-tune を使うには，角速度目標の計算直後に
-  \api{ws::set\_rate\_target(roll,pitch,yaw)} を呼ぶ（実習 7 で必須，Data Stream の
-  \code{rate\_ref\_*} に記録）}
+  \begin{block}{rate-excite で機体はどうなるか}\footnotesize
+    1 行目を別ターミナルで先に開始してから 2 行目を打つ。機体は
+    WiFi の API で POS\_HOLD 離陸（0.8\,m）し，静止ホバー中にロール角速度目標へ
+    チャープ（既定 $\pm25$\,deg/s，5\,s）を加算してから着陸する。
+    離陸前や着陸中は機体側が拒否する。スティックは中立のまま，機体は小さく揺れるだけ
+  \end{block}
+
+  \vspace{-0.7em}
+  {\scriptsize \warn{使うとき:} 広い場所で，ホバーが安定している vehicle ファームの機体に対して行う。
+  実習コードで飛んでいる機体には使わない}
 \end{frame}
 
 % ==============================================================================
@@ -1144,16 +1171,16 @@ sf sysid rate-tune --fit fit.json --wc 25 --pm 60
 % ------------------------------------------------------------------
 \begin{frame}{デモ: 完成コードで飛行}
   \begin{exampleblock}{デモの見方}\footnotesize
-    \textbf{見るだけ}: ステップ応答の波形と設計値の一致を確認するだけで要点はつかめる。
+    \textbf{見るだけ}: スティック操作に角速度が追従する速さと行き過ぎを波形で見るだけで要点はつかめる。
     \textbf{一緒に打つ}: 手元の flight.csv で \code{sf sysid fit} を試す。
     \textbf{帰宅後に再現}: 本日は見るだけにして，後日実習 5〜9を通しで動かす
   \end{exampleblock}
 
   \begin{block}{手順}\footnotesize
     \begin{enumerate}
-      \item PID 化した実習コードで飛行し，\code{sf log wifi} でテレメトリ取得
-      \item \code{sf log viz} でロール角速度のステップ応答を表示
-      \item モデル予測（$\zeta=0.7$ の応答波形）と重ねて比較
+      \item PID 化した実習コードで飛行し，\code{sf log wifi} でテレメトリ取得。ホバー中にロールのスティックを短く切る
+      \item \code{sf log viz} で角速度目標（rate\_ref）と実測角速度を重ね，追従の速さと行き過ぎを定性的に見る
+      \item 正確なステップ入力は手動では入れられない。設計値（$\zeta=0.7$）との定量比較は次ページの SILS（ロールステップシナリオ）で行う
     \end{enumerate}
   \end{block}
 \end{frame}

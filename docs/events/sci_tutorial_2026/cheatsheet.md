@@ -22,8 +22,7 @@
 | `sf flasher` | ネイティブ書き込みGUIアプリの管理 |
 | `sf monitor` | シリアルモニタを開く |
 | `sf telemetry [--web]` | 50Hz テレメトリのライブ表示 |
-| `sf blocks [--demo]` | Blockly ブロックプログラミング（`--demo` で機体なしデモ） |
-| `sf log wifi/capture/list/info/convert/analyze/viz` | ログ取得・変換・解析・可視化 |
+| `sf log wifi/list/info/analyze/viz` | ログ取得・解析・可視化（`capture`/`convert` は旧ファーム専用） |
 | `sf sim run vpython\|genesis` | シミュレータ起動 |
 | `sf sils build/run/scenario/regression/gate/sysid-gate/gui` | SILS ベンチ操作 |
 | `sf cal gyro/accel/mag` | センサキャリブレーション |
@@ -37,12 +36,11 @@
 | `sf battery/height/tof/baro/attitude/acceleration/speed` | 機体状態の問い合わせ |
 | `sf rc` | RC 値の一時送信 |
 | `sf lesson list/switch/solution/info/edit/build/flash/monitor/sils` | 実習コードの管理。本チュートリアルの実習番号は `sf lesson switch sci2026:N`、一覧は `sf lesson list --course sci2026` |
-| `sf competition hover-time/score` | ホバー耐久・スコア記録 |
 | `sf app` | カスタムファームアプリの管理 |
 | `sf docs` | ドキュメントサイトのビルド・配信 |
 | `sf upgrade` | 最新版を pull し環境を再同期 |
 
-**`sf sysid noise` の入力 CSV について:** `sf log wifi -o file.csv` が出す CSV は gyro/accel の列しかなく、baro/tof は含まれない。baro/tof のノイズ評価には `sf log capture`（USB経由）→ `sf log convert` で得た CSV を使うこと。また、静止区間だけを解析するために `--static-only` を付けることを推奨する。
+**`sf sysid noise` の入力 CSV について:** `sf log wifi -o file.csv` が出す CSV は gyro/accel の列しかなく、baro/tof は含まれない。baro/tof のノイズ評価は現行ファームでは対象外（`sf log capture` → `sf log convert` は旧ファーム vehicle_old の USB バイナリログ専用で、現行ファームでは動かない）。また、静止区間だけを解析するために `--static-only` を付けることを推奨する。
 
 全コマンドは `lib/sfcli/commands/` に実装がある。
 
@@ -168,8 +166,7 @@ In `sf --help` display order.
 | `sf flasher` | Manage the native flasher GUI app |
 | `sf monitor` | Open the serial monitor |
 | `sf telemetry [--web]` | Live 50Hz telemetry |
-| `sf blocks [--demo]` | Blockly block programming (`--demo` = no hardware needed) |
-| `sf log wifi/capture/list/info/convert/analyze/viz` | Log capture, conversion, analysis, visualization |
+| `sf log wifi/list/info/analyze/viz` | Log capture, analysis, visualization (`capture`/`convert` are legacy-firmware only) |
 | `sf sim run vpython\|genesis` | Launch a simulator |
 | `sf sils build/run/scenario/regression/gate/sysid-gate/gui` | SILS bench operations |
 | `sf cal gyro/accel/mag` | Sensor calibration |
@@ -183,12 +180,11 @@ In `sf --help` display order.
 | `sf battery/height/tof/baro/attitude/acceleration/speed` | Query vehicle state |
 | `sf rc` | Send RC values one-shot |
 | `sf lesson list/switch/solution/info/edit/build/flash/monitor/sils` | Lesson-code management. This tutorial's exercise numbers: `sf lesson switch sci2026:N`, listed with `sf lesson list --course sci2026` |
-| `sf competition hover-time/score` | Hover-endurance and score recording |
 | `sf app` | Manage custom firmware apps |
 | `sf docs` | Build/serve the documentation site |
 | `sf upgrade` | Pull the latest changes and resync the environment |
 
-**About `sf sysid noise`'s input CSV:** the CSV from `sf log wifi -o file.csv` only has gyro/accel columns -- no baro/tof. For baro/tof noise characterization, capture with `sf log capture` (USB) and convert with `sf log convert` instead. Also add `--static-only` so the analysis only uses stationary segments.
+**About `sf sysid noise`'s input CSV:** the CSV from `sf log wifi -o file.csv` only has gyro/accel columns -- no baro/tof. Baro/tof noise characterization is not available with the current firmware (`sf log capture` -> `sf log convert` reads the legacy vehicle_old USB binary log only and does not work with the current firmware). Also add `--static-only` so the analysis only uses stationary segments.
 
 All commands are implemented under `lib/sfcli/commands/`.
 

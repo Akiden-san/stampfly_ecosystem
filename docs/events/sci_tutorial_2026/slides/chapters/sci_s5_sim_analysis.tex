@@ -104,19 +104,17 @@
 \begin{frame}[fragile]{VPython と Genesis}
   \begin{table}
     \centering\footnotesize
-    \begin{tabular}{lll}
+    \begin{tabular}{lp{0.40\linewidth}p{0.40\linewidth}}
       \hline
-      & \textbf{特徴} & \textbf{用途} \\
+      & \textbf{特徴} & \textbf{位置づけ} \\
       \hline
-      VPython & 軽量，ブラウザ3D表示，センサモデル充実 & 制御学習，SILS/HILS\footnotemark \\
-      Genesis & 高精度物理エンジン，2000\,Hz 物理演算 & 高精度シミュレーション \\
+      VPython & 軽量。Python で書いた 6 自由度モデル・センサモデル・ブラウザ 3D 表示 &
+        シミュレータの作り方を学ぶ練習用。制御則は Python 実装で，実習コードは入らない \\
+      Genesis & 高精度物理エンジン，2000\,Hz 物理演算 &
+        強化学習向けの選択肢。標準インストールに含まれず \code{sf setup genesis} で追加（GPU 必須）。今日は使わない \\
       \hline
     \end{tabular}
   \end{table}
-  \footnotetext{\scriptsize HILS（Hardware-in-the-Loop Simulation）:
-  実機を接続した検証。本エコシステムではファーム側未対応}
-
-  \vspace{0.5em}
 
   \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{コマンド}
 sf sim run vpython
@@ -124,7 +122,7 @@ sf sim run genesis
   \end{sflisting}
 
   {\footnotesize AtomS3 + Atom JoyStick を USB HID モードで使い，実機と同じ操縦感で
-  シミュレータを飛ばせる}
+  シミュレータを飛ばせる。自分の実習コードの動作確認は SILS（\code{sf lesson sils}）で行う}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -208,8 +206,8 @@ sf lesson sils
 
   \begin{block}{手順}\footnotesize
     \begin{enumerate}
-      \item \code{sf sim run vpython} でブラウザ3D操縦
-      \item \code{sf sils gui} でシナリオを1本実行し，判定結果（PASS/FAIL）を確認
+      \item \code{sf sim run vpython} でブラウザ3D操縦（内蔵の Python 制御則で飛ぶ。実習コードは入らない）
+      \item \code{sf sils gui} でシナリオを1本実行し，判定結果（PASS/FAIL）を確認（実ファームがそのまま動く）
       \item 同じシナリオでパラメータを変え，挙動の変化を見る
     \end{enumerate}
   \end{block}
@@ -232,7 +230,7 @@ sf lesson sils
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{解析ツール: sf log analyze / viz}
   \begin{block}{取得したテレメトリをそのまま解析する}\small
-    \code{sf log wifi}/\code{sf log capture} で取得した CSV を，
+    \code{sf log wifi} で取得した CSV を，
     追加スクリプトなしで解析・可視化できる
   \end{block}
 
@@ -265,8 +263,8 @@ sf sysid noise static_noise.csv --sensor gyro --static-only --plot
   \vspace{-1.5mm}
 
   {\footnotesize \code{--sensor} は \code{gyro/accel/baro/tof/all} を選べるが，
-  \code{sf log wifi -o} の CSV は gyro/accel のみ。baro/tof には
-  \code{sf log capture} $\to$ \code{sf log convert} を使う。
+  \code{sf log wifi -o} の CSV は gyro/accel のみ（baro/tof は現行ファームでは対象外。
+  \code{sf log capture} は旧ファーム vehicle\_old 専用）。
   トリム調整には \code{sf trim analyze} がある}
 \end{frame}
 
@@ -380,7 +378,7 @@ sf app flash my_ctrl -m
 
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{研究利用の入口 (4/4): サンプルプログラム\later}
-  \begin{block}{\code{examples/09\_topic\_api\_hello}}\footnotesize
+  \begin{block}{\code{firmware/vehicle/examples/09\_topic\_api\_hello}}\footnotesize
     姿勢トピックを購読し，roll/pitch/yaw を 10\,Hz でシリアル表示する最小例
   \end{block}
 
@@ -393,8 +391,8 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
   \end{sflisting}
 
   {\scriptsize 自分の複製で試す: \code{sf app new my\_hello --from 09\_topic\_api\_hello} $\to$ \code{sf app edit/build/flash my\_hello}\\[0pt]
-  \warn{帰宅後に再現:} \code{examples/09\_topic\_api\_hello}（\code{04\_read\_imu} 等と
-  同じく単独ビルド可能）を手元で試す}
+  \warn{帰宅後に再現:} \code{firmware/vehicle/examples/09\_topic\_api\_hello}（リポジトリ直下から。
+  \code{04\_read\_imu} 等と同じく単独ビルド可能）を手元で試す}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -455,6 +453,10 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
 \end{frame}
 
 % ------------------------------------------------------------------
+% Right card padded down to match the left card's bottom (left has a
+% 4-item bulleted list and a 2-line title, right is short)
+% 右カードを左カードの下端に合わせて伸ばす（左は4項目の箇条書き＋2行タイトルで長い）
+\newlength{\communityCardH}\setlength{\communityCardH}{4.35cm}
 \begin{frame}{教育・研究での再利用\later}
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
@@ -465,15 +467,14 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
                 追加できる（本チュートリアルの \code{sci2026} も同じ仕組み）
           \item 本スライド一式は LaTeX（Beamer）ソースごと公開されている
           \item SILS で実機なしの演習・採点も一部自動化できる
-          \item Blockly・競技会（\code{sf blocks --demo}, \code{sf competition}）
-                も用意している
         \end{itemize}
       \end{block}
     \end{column}
     \begin{column}{0.47\textwidth}
       \begin{exampleblock}{コミュニティへ}\footnotesize
+        \cardbody{\communityCardH}{%
         質問・不具合報告・開発への協力はリポジトリの Issue で受け付けている\\[4pt]
-        \url{https://github.com/M5Fly-kanazawa/stampfly_ecosystem}
+        \url{https://github.com/M5Fly-kanazawa/stampfly_ecosystem}}
       \end{exampleblock}
     \end{column}
   \end{columns}

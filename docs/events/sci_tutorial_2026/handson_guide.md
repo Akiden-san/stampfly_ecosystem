@@ -17,7 +17,7 @@
 | 1 | `sf lesson switch sci2026:N` | 実習 N の学習者テンプレートを `user_code.cpp` にコピー |
 | 2 | `sf lesson build` | ビルド |
 | 3 | `sf lesson flash` | 実機に書き込み |
-| 4 | （実機がない場合）`sf sim run vpython` | シミュレータで代替 |
+| 4 | （実機がない場合）`sf lesson sils` | SILS で動作確認（VPython には実習コードは入らない） |
 
 本チュートリアルの実習番号は `sci2026` という実習構成（コース）に対応付けられている。一覧は `sf lesson list --course sci2026` で確認できる。模範解答をそのまま試したい場合は `sf lesson switch sci2026:N --solution` を使う。実習コードと模範解答の差分だけを見たい場合は `sf lesson solution sci2026:N` を使う。
 
@@ -173,7 +173,7 @@ Every lesson follows the same pattern.
 | 1 | `sf lesson switch sci2026:N` | Copy Exercise N's student template into `user_code.cpp` |
 | 2 | `sf lesson build` | Build |
 | 3 | `sf lesson flash` | Flash to the vehicle |
-| 4 | (no hardware) `sf sim run vpython` | Use the simulator instead |
+| 4 | (no hardware) `sf lesson sils` | Check it in SILS (your exercise code does not run in VPython) |
 
 This tutorial's exercise numbers map onto a `sci2026` exercise set (course); list them with `sf lesson list --course sci2026`. To try the reference solution directly, use `sf lesson switch sci2026:N --solution`. To see only the diff between the student code and the solution, use `sf lesson solution sci2026:N`.
 

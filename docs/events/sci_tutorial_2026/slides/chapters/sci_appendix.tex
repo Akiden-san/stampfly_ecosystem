@@ -15,12 +15,10 @@
       \code{sf doctor}     & 環境診断（問題があればまず実行） \\
       \code{sf build/flash/monitor} & ビルド・書き込み・シリアルモニタ \\
       \code{sf telemetry}  & 50\,Hz テレメトリのライブ表示（\code{--web} でブラウザ） \\
-      \code{sf blocks}     & Blockly ブロックプログラミング（\code{--demo} で機体なしデモ） \\
       \code{sf cal gyro/accel/mag} & センサキャリブレーション \\
       \code{sf lesson}     & 実習コードの管理（\code{switch sci2026:N}/\code{build}/\code{flash}，一覧は \code{list --course sci2026}） \\
       \code{sf trim analyze} & ホバーログから姿勢トリムを算出 \\
       \code{sf takeoff} 等   & Tello 風ミニコマンド（\code{sf takeoff/land/hover/jump}，個別のトップレベルコマンド） \\
-      \code{sf competition hover-time/score} & ホバー耐久・スコア記録 \\
       \hline
     \end{tabular}
   \end{table}
@@ -34,7 +32,7 @@
       \hline
       \textbf{コマンド} & \textbf{機能} \\
       \hline
-      \code{sf log wifi/capture} & WiFi/USB 経由でテレメトリ・ログ取得 \\
+      \code{sf log wifi} & WiFi 経由で 400\,Hz テレメトリ取得（\code{capture} は旧ファーム専用） \\
       \code{sf log viz/analyze}  & ログ可視化・解析 \\
       \code{sf sim run vpython/genesis} & シミュレータ起動（S5） \\
       \code{sf sils build/scenario/gui} & SILS ベンチ（S5） \\
