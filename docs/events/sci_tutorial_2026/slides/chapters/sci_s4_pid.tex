@@ -576,8 +576,8 @@ ws::motor_mixer(ws::rc_throttle(),
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{閉ループのログから開ループを同定できる理由\later}
-  \begin{block}{ログにプラントの入力と出力が両方入っているから}
+\begin{frame}{同定に使う入力と出力はログに記録されている\later}
+  \begin{block}{入力（モータ duty）と出力（ジャイロ）を 400\,Hz で記録する}
     \footnotesize
     \setlength{\abovedisplayskip}{2pt}\setlength{\belowdisplayskip}{2pt}%
     Data Stream には 400\,Hz で 4 モータの duty（入力）とジャイロ（出力）がそろって記録される。
