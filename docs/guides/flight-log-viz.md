@@ -98,6 +98,27 @@ sf log viz logs/flight_001.csv --time-range 5 15
 | `--mode attitude` | 姿勢のみ |
 | `--mode position` | 位置のみ |
 
+### Data Stream CSV（sf log wifi -o *.csv）の可視化
+
+`sf log wifi -d 30 -o flight.csv` は400Hzの Data Stream CSV（IMUと姿勢推定
+（ESKF: 拡張カルマンフィルタ）に、内側ループのレート指令・外側ループの角度
+指令・推力・モータduty・flight_modeをマージした形式）を書き出します。
+`sf log viz flight.csv` はこの形式を自動判別し、7段のパネルで表示します。
+
+| パネル | 内容 | 単位 |
+|-------|------|------|
+| Roll Rate | ロールレート実測 vs 指令（ステップ応答の確認向け） | deg/s |
+| Pitch Rate | ピッチレート実測 vs 指令 | deg/s |
+| Yaw Rate | ヨーレート実測 vs 指令 | deg/s |
+| Attitude | クォータニオンから求めたroll/pitch/yawと角度指令 | deg |
+| Acceleration | 機体座標系の加速度 x/y/z | m/s^2 |
+| Thrust and Motors | 総推力と4モータのduty | N / [0,1] |
+| Gyro Bias / Flight Mode | ESKFのジャイロバイアス推定値とflight_mode | deg/s |
+
+`--mode attitude` でレート3段+姿勢のみ、`--time-range 5 15` で時間範囲を
+絞り込み、`--save FILE` で画像保存できます（`--mode` のセンサー系は
+`--mode sensors` で加速度+生ジャイロに切り替わります）。
+
 ## 4. 典型的なワークフロー
 
 ### 基本フロー
@@ -185,6 +206,28 @@ sf log viz logs/flight_001.csv
 # Save as image
 sf log viz logs/flight_001.csv --save flight_analysis.png
 ```
+
+### Visualizing the Data Stream CSV (sf log wifi -o *.csv)
+
+`sf log wifi -d 30 -o flight.csv` writes the 400Hz Data Stream CSV (IMU and
+ESKF attitude estimate merged with the inner-loop rate reference, the
+outer-loop angle reference, thrust, motor duty, and flight_mode).
+`sf log viz flight.csv` auto-detects this format and renders it as 7
+panels.
+
+| Panel | Content | Unit |
+|-------|---------|------|
+| Roll Rate | Measured vs. commanded roll rate (for reading step responses) | deg/s |
+| Pitch Rate | Measured vs. commanded pitch rate | deg/s |
+| Yaw Rate | Measured vs. commanded yaw rate | deg/s |
+| Attitude | Roll/pitch/yaw from quaternion, plus angle reference | deg |
+| Acceleration | Body-frame acceleration x/y/z | m/s^2 |
+| Thrust and Motors | Total thrust and the 4 motor duty channels | N / [0,1] |
+| Gyro Bias / Flight Mode | ESKF gyro bias estimate and flight_mode | deg/s |
+
+Use `--mode attitude` for the 3 rate panels plus attitude only, `--time-range
+5 15` to restrict the time window, and `--save FILE` to save an image
+(`--mode sensors` switches to acceleration + raw gyro).
 
 ## 4. Typical Workflow
 

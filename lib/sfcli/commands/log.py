@@ -728,8 +728,23 @@ def run_viz(args: argparse.Namespace) -> int:
             reader = csv.DictReader(f)
             columns = reader.fieldnames
 
+        # Data Stream CSV (sf log wifi -o *.csv) - 400Hz IMU+ESKF merged with
+        # rate_ref and the 50Hz CtrlRef. Must be checked before the extended
+        # format because it also carries timestamp_us + quat_w.
+        # Data Stream CSV（sf log wifi -o *.csv）- 400Hz IMU+ESKF に rate_ref と
+        # 50Hz CtrlRef をマージした形式。timestamp_us + quat_w も持つため、
+        # extended 形式より先に判定する。
+        import visualize_stream
+        if visualize_stream.is_stream_csv(columns):
+            console.info("Detected: Data Stream CSV (sf log wifi -o *.csv, 400Hz)")
+
+            df = visualize_stream.load_stream_csv(str(path))
+            visualize_stream.visualize_all(
+                df, str(path), save_path=args.save, show=(args.save is None),
+                time_range=args.time_range, mode=args.mode,
+            )
         # Extended format (400Hz with ESKF) - has timestamp_us and quat_w
-        if 'timestamp_us' in columns and 'quat_w' in columns:
+        elif 'timestamp_us' in columns and 'quat_w' in columns:
             import visualize_extended
             console.info("Detected: Extended telemetry (400Hz with ESKF)")
 
