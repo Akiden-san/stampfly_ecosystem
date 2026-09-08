@@ -478,7 +478,7 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
   \begin{itemize}\small
     \item \textbf{MPC・適応制御}: 今日扱った PID の先にある発展的な制御手法
     \item \textbf{ESKF・オートチューン}: 15状態 ESKF の実装，
-          S4 で紹介した \code{sf\_autotune} によるオンボードチューニング
+          S4 の rate-fit/rate-tune と同じ設計を機体内で行う \code{sf\_autotune}
     \item \textbf{高度・位置ループ}: レート/姿勢カスケードの外側に
           ALT\_HOLD/POS\_HOLD が乗る。外乱オブザーバ（\code{altitude.dob.fc}）も
           パラメータで opt-in できる
