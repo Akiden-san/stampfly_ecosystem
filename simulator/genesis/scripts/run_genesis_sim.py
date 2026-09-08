@@ -647,6 +647,14 @@ def main():
     # Drone front = +Y when yaw=0, so behind = -Y
     DRONE_SPAWN_POS = (0, 0, 2.0)
     print("\n[4] Creating scene...")
+    # Viewer frame-rate option: Genesis >= 1.4 renamed `max_FPS` to
+    # `refresh_rate` and raises if the old name is passed. Pick whichever
+    # name the installed Genesis understands so both old and new work.
+    # ビューアのフレームレート指定: Genesis 1.4 以降は `max_FPS` が
+    # `refresh_rate` に改名され、旧名を渡すと例外になる。導入済みの Genesis が
+    # 持つ方の名前を使い、新旧どちらでも動くようにする。
+    viewer_fields = getattr(gs.options.ViewerOptions, "model_fields", {})
+    fps_key = "refresh_rate" if "refresh_rate" in viewer_fields else "max_FPS"
     scene = gs.Scene(
         show_viewer=True,
         viewer_options=gs.options.ViewerOptions(
@@ -655,7 +663,7 @@ def main():
                         DRONE_SPAWN_POS[2] + follow_camera.height),
             camera_lookat=DRONE_SPAWN_POS,
             camera_fov=100,
-            max_FPS=RENDER_FPS,
+            **{fps_key: RENDER_FPS},
         ),
         sim_options=gs.options.SimOptions(
             gravity=(0, 0, -GRAVITY),
