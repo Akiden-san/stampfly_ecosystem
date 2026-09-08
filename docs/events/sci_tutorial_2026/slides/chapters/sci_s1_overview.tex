@@ -114,7 +114,7 @@
       一つのリポジトリ & ファーム・シミュレータ・解析ツール・教材を一か所にまとめる。通信仕様の定義は一つだけ置き、各実装はそこから作る \\
       sf CLI & ビルド・書込み・ログ取得・シミュレーションを一つのコマンド体系で操作する \\
       4 階層アクセス & 実習用 API からハードウェアの直接操作まで 4 つの入口を用意し、必要な深さから入る \\
-      シミュレータ統合 & 軽量 3D・高精度物理・実ファーム実行の 3 種類のシミュレータで、同じ制御アルゴリズムを動かす \\
+      シミュレータ統合 & 軽量 3D（VPython）・高精度物理（Genesis）・実ファーム実行（SILS）の 3 つを使い分け、同じ物理パラメータとゲインでつなぐ \\
       オープンソース & 制御ループからドライバまで全部を公開し、ブラックボックスを作らない \\
       \hline
     \end{tabular}
@@ -226,33 +226,61 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{提供: 3 種類のシミュレーション}
-  {\small 目的の異なる 3 種類のシミュレーションを提供する（設計の考え方「シミュレータ統合」の中身）}
-
-  \vspace{0.15em}
-
+\begin{frame}{提供: シミュレータ --- 役割の違う 3 つの実行環境}
   \begin{table}
-    \centering\footnotesize
-    \setlength{\tabcolsep}{5pt}
-    \begin{tabular}{p{28mm}p{52mm}p{42mm}}
+    \centering\scriptsize
+    \renewcommand{\arraystretch}{1.2}
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{p{15mm}p{40mm}p{28mm}p{24mm}p{22mm}}
       \hline
-      \textbf{層} & \textbf{内容} & \textbf{位置づけ} \\
+      \textbf{名前} & \textbf{役割} & \textbf{物理モデル} & \textbf{動く制御コード} & \textbf{可視化} \\
       \hline
-      層1 設計用線形モデル & 実飛行ログから同定した低次 $G(s)$ & 制御系設計・ループ整形の基準 \\
-      層2 実ログ駆動再生   & 移植した制御則を実ログの外乱・指令で駆動 & パラメータ変更の A/B 判定の基準 \\
-      層3 SILS             & MuJoCo + 実ファーム C++、Code/Param Identity & システム全体の検証ベンチ \\
+      SILS & \textbf{ファームの開発と制御系の実装を、机上である程度完了させる}。飛ばす前の検証と合否判定（実習 8 (2/2)） & MuJoCo（外部エンジン、物理計算のみ）＋自作のモータ・センサ・風モデル & 実機と同じ C++ ファームそのもの & ブラウザ GUI（three.js の 3D とグラフ） \\
+      VPython 版 & \textbf{練習用}。簡単で読みやすい Python で、力学エンジン・3D 表示・センサモデルなど「シミュレータの作り方」を学ぶ（デモ①） & 自作の 6 自由度モデル & Python に移植した制御則 & VPython のブラウザ 3D \\
+      Genesis 版 & \textbf{強化学習向けの選択肢}として残している。今日は使わない & Genesis（外部の高精度エンジン） & Python の制御則 & Genesis の 3D \\
       \hline
     \end{tabular}
   \end{table}
 
-  \vspace{0.2em}
-
-  {\footnotesize SILS（Software-in-the-Loop Simulation: 実ファームをホスト PC 上で MuJoCo 物理エンジンと組み合わせて動かすシミュレーション検証）}
-
-  \vspace{0.1em}
-
-  {\footnotesize 3 つとも同じ物理パラメータを使うので、飛ばす前の設計（線形モデル・ログ再生）と飛ばした後の答え合わせ（SILS）が同じモデルでつながる。合否の基準と実習は S5 で扱う}
+  \begin{block}{なぜ 1 つでは足りないか}
+    \footnotesize 「実機のファームをそのまま動かして検証する」「中身を読んで作り方を学ぶ」「強化学習を回す」は要求が違い、1 つの実装では両立しない。3 つは同じ物理パラメータ（\code{stampfly\_physical.yaml}、\code{sf params check} で照合）を共有する。ゲイン設計に使う線形モデル（S4）はシミュレータではなく設計の道具
+  \end{block}
 \end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{提供: SILS の仕組み --- 実機のファームを PC で走らせる}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{1pt}
+        \item \textbf{ファームは無改変}: 実機に書き込む vehicle のソースをそのまま PC 向けにコンパイル（状態機械・フェイルセーフも含む）
+        \item \textbf{OS の代わり}: 仮想時計で動く決定論的な疑似 RTOS と ESP-IDF 互換スタブ。同じ入力なら毎回同じ結果
+        \item \textbf{制御対象}: MuJoCo（6 自由度）＋自作のモータ・センサ・風モデル。400\,Hz でファームと歩調を合わせる
+        \item \textbf{試験の与え方}: シナリオ \code{.scn} に操縦・外乱・故障を時系列で書き、\code{.expect} で PASS / FAIL を自動判定。CI で退行を検出
+        \item \textbf{実習コードも同じ土俵}: 参加者の \code{user\_code.cpp} も同じ仕組みで飛ぶ（実習 8 (2/2)）
+        \item できないこと: 複数タスクの競合、実際の WiFi / ESP-NOW の電波
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}[
+        box/.style={draw, rounded corners=1pt, align=center, font=\scriptsize, minimum width=44mm, inner sep=3pt},
+        arr/.style={-{Latex[length=1.5mm,width=1.2mm]}, line width=0.5pt},
+        node distance=3.5mm and 0mm]
+        \node[box, fill=sfblue!8] (scn) {シナリオ \code{.scn}\\操縦入力・外乱・故障の時系列};
+        \node[box, fill=sfblue!15, below=of scn, minimum height=10mm] (fw) {実機と同じファームウェア C++\\（疑似 RTOS ＋ 互換スタブの上）};
+        \node[box, fill=sfblue!8, below=of fw, minimum height=10mm] (plant) {制御対象: MuJoCo 6 自由度\\＋ モータ・センサ・風モデル};
+        \node[box, fill=sfblue!8, below=of plant] (chk) {ログ ＋ \code{.expect} で合否判定};
+        \draw[arr] (scn.south) -- (fw.north);
+        \draw[arr] ([xshift=-12mm]fw.south) -- ([xshift=-12mm]plant.north);
+        \node[font=\tiny, anchor=east] at ([xshift=-13mm, yshift=-2.5mm]fw.south) {モータ指令};
+        \draw[arr] ([xshift=12mm]plant.north) -- ([xshift=12mm]fw.south);
+        \node[font=\tiny, anchor=west] at ([xshift=13mm, yshift=-2.5mm]fw.south) {センサ値};
+        \draw[arr] (plant.south) -- (chk.north);
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
 
 % ------------------------------------------------------------------
 % sf sils gui is listed in this session's review path, so show it once here

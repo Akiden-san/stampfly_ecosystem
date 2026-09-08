@@ -26,7 +26,7 @@
 
       \begin{block}{本日の最後に扱うもの}
         \footnotesize
-        3層シミュレーション $\to$ SILS 実習 $\to$ 解析ツールと教育教材 $\to$
+        SILS の仕組みと使い方 $\to$ SILS 実習 $\to$ 解析ツールと教育教材 $\to$
         研究・発展テーマ $\to$ 質疑
       \end{block}
     \end{column}
@@ -36,8 +36,8 @@
 % ------------------------------------------------------------------
 \begin{frame}{飛ばさずに検証し、1 機から先へ広げる}
   \begin{enumerate}
-    \item StampFly のシミュレーションは目的の異なる3層で構成され，
-          層3（SILS）は実ファームを無改変で走らせる
+    \item SILS は実機のファームを無改変で PC 上で走らせ，ファームの開発と
+          制御系の実装を机上である程度完了させるための仕組みである
     \item 参加者が実装した推定器・制御器は，L1 Topic API 経由で
           既存の実装と差し替えられる
     \item 実習 5/8 で書いた PID コードは，実機を飛ばす前に SILS で
@@ -53,35 +53,10 @@
   \end{alertblock}
 \end{frame}
 
-% ------------------------------------------------------------------
-\begin{frame}{シミュレーションの3層構造}
-  \begin{center}
-    \resizebox{0.95\textwidth}{!}{\input{../../_shared/tikz/sci_sim_layers}}
-  \end{center}
 
-  {\footnotesize 目的の異なる3層を使い分ける。詳細は \code{docs/architecture/simulation-policy.md} を参照}
-\end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{層1・層2: 設計モデルとログ再生}
-  \begin{exampleblock}{層1: 設計用線形モデル}\small
-    $G(s) = b\,e^{-Ls}/(s(Ts+1))$ を \code{sf sysid rate-fit} で実飛行ログから
-    同定し，制御設計とループ整形の基準とする（S4 で扱った同定と同じ枠組み）
-  \end{exampleblock}
-
-  \vspace{0.5em}
-
-  \begin{block}{層2: 実ログ駆動オフライン再生}\small
-    層1のモデルと Python に移植した制御則を，実機ログから再構成した
-    実外乱・実指令で駆動する閉ループ再生。パラメータ変更の A/B 判定の基準
-  \end{block}
-
-  {\footnotesize \code{analysis/scripts/} 配下の Python 群。ヨー$\kappa$修正のリプレイ一致
-  0.0〜0.7\%，ALT\_HOLD 再生誤差約8\%という精度で検証できている}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{層3: SILS}
+\begin{frame}{SILS: 実機のファームをそのまま PC で走らせる}
   \begin{block}{Code Identity と Parameter Identity}\small
     SILS（Software-in-the-Loop Simulation: 実ファームをホスト PC 上で
     物理シミュレーションと閉ループ実行する検証手法）は，
@@ -506,32 +481,26 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
 
 % ------------------------------------------------------------------
 \begin{frame}{理論とコードの対応表\later}
-  {\footnotesize 本セッションの概念が，リポジトリのどのファイル・コマンドに対応するか一覧する}
-
-  \vspace{0.15em}
-
   \begin{table}
-    \centering\footnotesize
-    \renewcommand{\arraystretch}{0.9}
+    \centering\scriptsize
+    \renewcommand{\arraystretch}{0.85}
     \setlength{\tabcolsep}{4pt}
     \begin{tabular}{>{\raggedright\arraybackslash}p{35mm}>{\raggedright\arraybackslash}p{58mm}>{\raggedright\arraybackslash}p{35mm}}
       \hline
       \textbf{概念} & \textbf{実装場所} & \textbf{コマンド} \\
       \hline
-      層1: 設計用線形モデル       & \code{control/\allowbreak models/\allowbreak stampfly\_physical.yaml} & \code{sf sysid rate-fit} \\
-      層2: 実ログ駆動オフライン再生 & \code{analysis/\allowbreak scripts/}                       & --- \\
-      層3: SILS                   & \code{simulator/\allowbreak sils/}                         & \code{sf sils scenario} \\
-      モデル一致の合否判定         & \code{tools/\allowbreak log\_analyzer/\allowbreak rate\_sysid.py}      & \code{sf sils sysid-gate} \\
+      SILS（実ファーム＋MuJoCo）  & \code{simulator/\allowbreak sils/}                         & \code{sf sils scenario} \\
+      VPython シミュレータ        & \code{simulator/\allowbreak vpython/}                      & \code{sf sim run vpython} \\
+      Genesis シミュレータ        & \code{simulator/\allowbreak genesis/}                      & \code{sf sim run genesis} \\
+      物理パラメータの正本         & \code{control/\allowbreak models/\allowbreak stampfly\_physical.yaml} & \code{sf params check} \\
+      同定とモデル一致の合否判定   & \code{tools/\allowbreak sysid/}, \code{tools/\allowbreak log\_analyzer/} & \code{sf sysid fit} / \code{sf sils sysid-gate} \\
       推定インターフェース         & \code{sf\_estimator} / \code{sf\_estimator\_\allowbreak eskf} & --- \\
       制御インターフェース         & \code{sf\_controller} / \code{sf\_controller\_\allowbreak pid} & --- \\
       \hline
     \end{tabular}
   \end{table}
 
-  \vspace{0.5em}
-
-  {\small 3層とも同じ物理パラメータ（\code{stampfly-parameters.md}）を参照する。
-  層を追うごとにプラント物理・制御コードの忠実度が上がる}
+  {\footnotesize 3 つのシミュレータは同じ物理パラメータの正本（\code{stampfly\_physical.yaml}）を参照し、\code{sf params check} で手動コピーの食い違いを検出する}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -593,7 +562,7 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
 \begin{frame}{チェックポイント}
   \begin{alertblock}{確認事項}\small
     \begin{itemize}\setlength{\itemsep}{1pt}
-      \item[$\square$] シミュレーションの3層構造と，それぞれの役割を説明できる
+      \item[$\square$] SILS・VPython・Genesis の役割の違いと，SILS の仕組みを説明できる
       \item[$\square$] \code{sf sils gui} でのシナリオ実行とパラメータ編集の流れを見た
             （または手元で試した）
       \item[$\square$] L1 Topic API で自分の推定器・制御器を差し替える方法を理解した
