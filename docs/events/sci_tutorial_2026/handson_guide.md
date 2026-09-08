@@ -19,7 +19,7 @@
 | 3 | `sf lesson flash` | 実機に書き込み |
 | 4 | （実機がない場合）`sf sim run vpython` | シミュレータで代替 |
 
-本チュートリアルの実習番号は `sci2026` という実習構成（コース）に対応付けられている。一覧は `sf lesson list --course sci2026` で確認できる。模範解答をそのまま試したい場合は `sf lesson switch sci2026:N --solution` を使う。学習者コードと模範解答の差分だけを見たい場合は `sf lesson solution sci2026:N` を使う。
+本チュートリアルの実習番号は `sci2026` という実習構成（コース）に対応付けられている。一覧は `sf lesson list --course sci2026` で確認できる。模範解答をそのまま試したい場合は `sf lesson switch sci2026:N --solution` を使う。実習コードと模範解答の差分だけを見たい場合は `sf lesson solution sci2026:N` を使う。
 
 ## 2. S2 の再現: 開発環境とセンサデータ
 
@@ -266,7 +266,7 @@ sf lesson switch sci2026:8 --solution        # or your own code
 sf lesson sils
 ```
 
-**Watch for:** the pass criteria (`.expect`) check two things: (1) did it lift off (true altitude exceeds 0.1 m), and (2) does tilt stay under 15° (no tumble). The lesson firmware has no altitude loop, so landing is by DISARM descent only. Use `sf lesson sils` for learner-code SILS runs (`sf sils gui` targets the vehicle firmware). Following the sequence above as written yields `alt_max` ~= 0.64 m and `tilt_max` = 0.0, i.e. PASS.
+**Watch for:** the pass criteria (`.expect`) check two things: (1) did it lift off (true altitude exceeds 0.1 m), and (2) does tilt stay under 15° (no tumble). The lesson firmware has no altitude loop, so landing is by DISARM descent only. Use `sf lesson sils` for exercise-code SILS runs (`sf sils gui` targets the vehicle firmware). Following the sequence above as written yields `alt_max` ~= 0.64 m and `tilt_max` = 0.0, i.e. PASS.
 
 ### Exercise 9: Attitude Estimation
 

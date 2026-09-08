@@ -6,7 +6,7 @@
 
 ### このドキュメントについて
 
-`sf` CLI コマンドと `ws::` 実習用 API（学習者コード用）の早見表。スライド付録のチートシートと同内容を、印刷・検索しやすい表形式でまとめたもの。
+`sf` CLI コマンドと `ws::` 実習用 API（実習コード用）の早見表。スライド付録のチートシートと同内容を、印刷・検索しやすい表形式でまとめたもの。
 
 ## 2. sf CLI コマンド
 
@@ -83,7 +83,7 @@ sf telemetry
 | `sf lesson sils` | `sf sils build --target workshop` → `sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop` |
 | `sf lesson sils --scenario step` | 同上でシナリオは `workshop_acro_step.scn` |
 
-## 3. ws:: 実習用 API（学習者コード用、`#include "workshop_api.hpp"`、全関数は `ws::` 名前空間）
+## 3. ws:: 実習用 API（実習コード用、`#include "workshop_api.hpp"`、全関数は `ws::` 名前空間）
 
 ### モータ制御
 
@@ -145,7 +145,7 @@ sf telemetry
 
 ### About This Document
 
-A cheat sheet for the `sf` CLI and the `ws::` lesson API (for learner code). Same content as the slide-appendix cheat sheets, in a print/search-friendly table form.
+A cheat sheet for the `sf` CLI and the `ws::` lesson API (for exercise code). Same content as the slide-appendix cheat sheets, in a print/search-friendly table form.
 
 ## 2. sf CLI Commands
 
@@ -222,7 +222,7 @@ Do not rely on venue WiFi (assume it is down). Each attendee's StampFly has a di
 | `sf lesson sils` | `sf sils build --target workshop` -> `sf sils scenario simulator/sils/scenarios/workshop_acro.scn --target workshop` |
 | `sf lesson sils --scenario step` | Same, but with the `workshop_acro_step.scn` scenario |
 
-## 3. ws:: Lesson API (for learner code, `#include "workshop_api.hpp"`, all functions in the `ws::` namespace)
+## 3. ws:: Lesson API (for exercise code, `#include "workshop_api.hpp"`, all functions in the `ws::` namespace)
 
 ### Motor control
 

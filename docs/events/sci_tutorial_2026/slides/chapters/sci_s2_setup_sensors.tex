@@ -22,7 +22,7 @@
 \begin{frame}{要点3つ}
   \begin{enumerate}
     \item ビルド環境は ESP-IDF と \code{sf CLI} が担う。開発を伴わない参加者は Web Flasher / GUI インストーラという代替経路がある
-    \item 学習者が書くコードは \api{setup()} と \api{loop\_400Hz(dt)} の2関数だけ。センサやHWの詳細は \api{ws::} 名前空間が隠す
+    \item 参加者が書くコードは \api{setup()} と \api{loop\_400Hz(dt)} の2関数だけ。センサやHWの詳細は \api{ws::} 名前空間が隠す
     \item センサデータの取得経路は3通りある。目的に応じて \api{ws::print}、\code{sf telemetry}、\code{sf log wifi} を使い分ける
   \end{enumerate}
 \end{frame}
@@ -124,10 +124,12 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{学習者コードの型とワークフロー}
+\begin{frame}[fragile]{参加者が書くコードと作業の流れ}
+  {\small 参加者が編集するファイルは \code{user\_code.cpp} の1つだけ。本資料ではこれを「実習コード」と呼ぶ}
+  \vspace{0.2em}
   \begin{columns}[T]
     \begin{column}{0.56\textwidth}
-      \begin{block}{学習者が書く関数は2つだけ}
+      \begin{block}{参加者が書く関数は2つだけ}
         \footnotesize
         \begin{itemize}
           \item \api{setup()} --- 起動時に1回
@@ -146,7 +148,7 @@
     \end{column}
     \begin{column}{0.40\textwidth}
       \centering
-      \adjustbox{max width=\columnwidth, max height=0.78\textheight}{\input{../../_shared/tikz/sci_build_flash_flow}}
+      \adjustbox{max width=\columnwidth, max height=0.72\textheight}{\input{../../_shared/tikz/sci_build_flash_flow}}
     \end{column}
   \end{columns}
 \end{frame}
@@ -307,7 +309,7 @@ void loop_400Hz(float dt) {
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{データ取得経路② sf telemetry\later}
   \begin{block}{コード変更なしでライブ表示}
-    \small 機体は状態推定値を常時 50\,Hz で送信している。受信して表示するだけなら学習者コードの変更は不要
+    \small 機体は状態推定値を常時 50\,Hz で送信している。受信して表示するだけなら実習コードの変更は不要
   \end{block}
 
   \begin{lstlisting}[style=sfbash, numbers=none]
@@ -381,7 +383,7 @@ sf log viz flight.csv
 
   \vspace{0.5em}
 
-  {\small 学習者が呼ぶ \api{ws::} 関数は、内部で \code{sensor\_imu} トピックを購読しているだけである
+  {\small 参加者が呼ぶ \api{ws::} 関数は、内部で \code{sensor\_imu} トピックを購読しているだけである
   （アクセス階層 L0（実習用 API）$\to$ L1（Topic API）の対応）}
 \end{frame}
 

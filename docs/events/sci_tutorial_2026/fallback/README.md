@@ -29,7 +29,7 @@
 | S4 | 実習 5（P制御）飛行動画 | `S4_ex5_p_flight.mp4` | 「P だけでも離陸・ホバーはできるが、ステップ応答に振動が残る」 | 同上 |
 | S4 | 実習 8（PID制御）飛行動画 | `S4_ex8_pid_flight.mp4` | 「同じシナリオを PID にすると応答が滑らかになる」 | 同上 |
 | S5 | 合否判定結果（テキスト） | `S5_gate_result.txt` | 「STABILIZE 飛行の12項目チェックが全て PASS」 | `sf sils scenario simulator/sils/scenarios/stab_flight.scn --target vehicle --video` |
-| S5 | 回帰テスト最終サマリ | `S5_regression_summary.txt` | 「34本のシナリオ中 28 PASS、5件は既知の追跡中課題（KNOWN-FAIL、xfail マーカー付き）、1件は学習者コード対象のスキップ — 新規の退行はゼロ」 | `sf sils regression` |
+| S5 | 回帰テスト最終サマリ | `S5_regression_summary.txt` | 「34本のシナリオ中 28 PASS、5件は既知の追跡中課題（KNOWN-FAIL、xfail マーカー付き）、1件は実習コード対象のスキップ — 新規の退行はゼロ」 | `sf sils regression` |
 | S5 | 姿勢・角速度の時系列 | `S5_attitude_rate.png` | 「ロール+8°→-8°→ピッチ+8°→中立、の3連ステップに追従し、中立に戻すたび自己水平化する」 | `sf sils scenario simulator/sils/scenarios/stab_flight.scn --target vehicle --video` |
 | S5 | STABILIZE 飛行動画（MuJoCo 3D + 状態グラフ） | `S5_stab_flight.mp4` | 「STABILIZE はスロットルを自動制御しないので、そのまま上昇し続ける（仕様通り、故障ではない）」 | 同上 |
 
@@ -54,13 +54,13 @@ SF_ROOT_OVERRIDE=<このチェックアウトの絶対パス> PYTHONPATH=<同>/l
   python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py
 ```
 
-S1（`pos_roll.scn`）・S5（`stab_flight.scn`）を SILS で再実行してから生成する場合（vehicle ターゲットのみ、学習者コードの状態には触れない・安全）:
+S1（`pos_roll.scn`）・S5（`stab_flight.scn`）を SILS で再実行してから生成する場合（vehicle ターゲットのみ、実習コードの状態には触れない・安全）:
 
 ```bash
 python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py --run
 ```
 
-S4（実習 5 vs 実習 8）も再実行する場合。**`sf lesson switch` で学習者コード（`firmware/workshop/main/user_code.cpp`）を書き換える**ため、実行前の実習を `sf lesson list` で確認し、`--restore-lesson` で指定すること（既定は `0` = 実習 1 の student に対応する内部レッスン番号、本タスク実行時の元の状態）:
+S4（実習 5 vs 実習 8）も再実行する場合。**`sf lesson switch` で実習コード（`firmware/workshop/main/user_code.cpp`）を書き換える**ため、実行前の実習を `sf lesson list` で確認し、`--restore-lesson` で指定すること（既定は `0` = 実習 1 の student に対応する内部レッスン番号、本タスク実行時の元の状態）:
 
 ```bash
 python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py --run --run-s4 --restore-lesson 0
@@ -112,7 +112,7 @@ This directory holds pre-generated graphs, videos, and text summaries from SILS 
 | S4 | Exercise 5 (P-control) flight video | `S4_ex5_p_flight.mp4` | "P alone can take off and hover, but the step response still rings" | same |
 | S4 | Exercise 8 (PID control) flight video | `S4_ex8_pid_flight.mp4` | "The same scenario with PID responds more smoothly" | same |
 | S5 | Pass/fail verdict (text) | `S5_gate_result.txt` | "All 12 checks PASS for the STABILIZE flight" | `sf sils scenario simulator/sils/scenarios/stab_flight.scn --target vehicle --video` |
-| S5 | Regression suite final summary | `S5_regression_summary.txt` | "28 PASS out of 34 scenarios, 5 are known, tracked issues (KNOWN-FAIL, xfail-marked), 1 is a learner-code-target skip — zero new regressions" | `sf sils regression` |
+| S5 | Regression suite final summary | `S5_regression_summary.txt` | "28 PASS out of 34 scenarios, 5 are known, tracked issues (KNOWN-FAIL, xfail-marked), 1 is an exercise-code-target skip — zero new regressions" | `sf sils regression` |
 | S5 | Attitude/angular-rate time series | `S5_attitude_rate.png` | "It tracks a 3-step sequence (roll +8 -> -8 -> pitch +8 -> centre) and self-levels back to zero each time the stick centres" | `sf sils scenario simulator/sils/scenarios/stab_flight.scn --target vehicle --video` |
 | S5 | STABILIZE flight video (MuJoCo 3D + state graphs) | `S5_stab_flight.mp4` | "STABILIZE has no automatic throttle/altitude control, so it just keeps climbing — that's by design, not a malfunction" | same |
 
@@ -137,13 +137,13 @@ SF_ROOT_OVERRIDE=<absolute path to this checkout> PYTHONPATH=<same>/lib \
   python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py
 ```
 
-To re-run S1 (`pos_roll.scn`) and S5 (`stab_flight.scn`) in SILS first (vehicle target only — never touches the learner-code state, safe):
+To re-run S1 (`pos_roll.scn`) and S5 (`stab_flight.scn`) in SILS first (vehicle target only — never touches the exercise-code state, safe):
 
 ```bash
 python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py --run
 ```
 
-To also re-run S4 (Exercise 5 vs Exercise 8). **This rewrites the learner code (`firmware/workshop/main/user_code.cpp`) via `sf lesson switch`** — check the current exercise with `sf lesson list` first and pass it via `--restore-lesson` (default `0` = the internal lesson number for Exercise 1's student code, the state this task found the repo in):
+To also re-run S4 (Exercise 5 vs Exercise 8). **This rewrites the exercise code (`firmware/workshop/main/user_code.cpp`) via `sf lesson switch`** — check the current exercise with `sf lesson list` first and pass it via `--restore-lesson` (default `0` = the internal lesson number for Exercise 1's student code, the state this task found the repo in):
 
 ```bash
 python3 docs/events/sci_tutorial_2026/fallback/make_fallback.py --run --run-s4 --restore-lesson 0

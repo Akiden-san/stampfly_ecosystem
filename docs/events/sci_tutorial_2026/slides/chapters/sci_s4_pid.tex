@@ -142,7 +142,7 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{実習 5 の振り返り: 学習者コード}
+\begin{frame}[fragile]{実習 5 の振り返り: 実習コード}
   \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{user\_code.cpp（実習 5）}
 float Kp_rp=0.5f, Kp_yaw=2.0f, rmax=1.0f, ymax=5.0f;
 float re = ws::rc_roll()*rmax  - ws::gyro_x();
@@ -706,7 +706,7 @@ sf sysid fit flight.csv --kp 0.5 --plot
 
   \vspace{0.3em}
 
-  {\footnotesize 実習 8 の学習者コードは工学形式ではなく，教科書形式の直接ゲイン
+  {\footnotesize 実習 8 のコードは工学形式ではなく，教科書形式の直接ゲイン
   $(K_p,K_i,K_d)$ を使う}
 
   \vspace{0.3em}
@@ -1075,7 +1075,7 @@ sf sysid rate-tune --fit fit.json --wc 25 --pm 60
   {\scriptsize \code{rate-tune} はゲイン交差周波数 $\omega_c$ と位相余裕 PM の仕様を満たす
   $K_p/T_i/T_d$ を逆算し，\code{param set rate.roll.kp ...} の形で出力する（WiFi の CLI に打てば
   飛行中も即時反映。\code{sf log wifi} と同じく WiFi 接続が前提，S2 参照）。
-  \warn{注:} 学習者コードで rate-fit/rate-tune を使うには，角速度目標の計算直後に
+  \warn{注:} 実習コードで rate-fit/rate-tune を使うには，角速度目標の計算直後に
   \api{ws::set\_rate\_target(roll,pitch,yaw)} を呼ぶ（実習 7 で必須，Data Stream の
   \code{rate\_ref\_*} に記録）}
 \end{frame}
@@ -1094,7 +1094,7 @@ sf sysid rate-tune --fit fit.json --wc 25 --pm 60
 
   \begin{block}{手順}\footnotesize
     \begin{enumerate}
-      \item PID 化した学習者コードで飛行し，\code{sf log wifi} でテレメトリ取得
+      \item PID 化した実習コードで飛行し，\code{sf log wifi} でテレメトリ取得
       \item \code{sf log viz} でロール角速度のステップ応答を表示
       \item モデル予測（$\zeta=0.7$ の応答波形）と重ねて比較
     \end{enumerate}
@@ -1134,7 +1134,7 @@ sf lesson sils --scenario step
 
 % ------------------------------------------------------------------
 \begin{frame}{理論とコードの対応表}
-  {\footnotesize 同じ概念を指す変数・パラメータが，学習者コード／vehicle 実装／
+  {\footnotesize 同じ概念を指す変数・パラメータが，実習コード／vehicle 実装／
   Data Stream の間でどう呼び名を変えるかを一覧で確認する}
 
   \begin{center}\footnotesize
@@ -1144,7 +1144,7 @@ sf lesson sils --scenario step
                     >{\raggedright\arraybackslash}p{49mm}
                     >{\raggedright\arraybackslash}p{29mm}@{}}
     \hline
-    \textbf{教科書表記} & \textbf{実習8 学習者} & \textbf{vehicle 実装} & \textbf{Data Stream} \\
+    \textbf{教科書表記} & \textbf{実習コード} & \textbf{vehicle 実装} & \textbf{Data Stream} \\
     \hline
     比例ゲイン $K_p$ & \code{float Kp} & \code{rate.roll.kp} & --- \\
     積分ゲイン $K_i$ & \code{float Ki} & \code{rate.roll.kp}/\code{.ti}（$K_i=K_p/T_i$） & --- \\
@@ -1157,9 +1157,9 @@ sf lesson sils --scenario step
   \end{tabular}
   \end{center}
 
-  {\footnotesize レートループの $K_p$ は，学習者コードでは duty 空間の無次元値，
+  {\footnotesize レートループの $K_p$ は，実習コードでは duty 空間の無次元値，
   vehicle 実装では物理トルク単位。数値を単純比較できない点が
-  「学習者コードと vehicle 実装の違い」を最もよく表す}
+  「実習コードと vehicle 実装の違い」を最もよく表す}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -1193,7 +1193,7 @@ sf lesson sils --scenario step
     \begin{itemize}\setlength{\itemsep}{1pt}
       \item[$\square$] $G_p(s)=K/(s(\tau_m s+1))$ と実測パラメータの対応を説明できる
       \item[$\square$] P 制御の限界と，I 項・D 項が何を補うかを説明できる
-      \item[$\square$] 不完全微分・アンチワインドアップ・ARM 時リセットで学習者
+      \item[$\square$] 不完全微分・アンチワインドアップ・ARM 時リセットで実習
             コードと vehicle 実装がどう違うか説明できる（持ち帰り資料「不完全微分と
             D-on-M」以降に詳しい）
       \item[$\square$] \code{sf sysid fit} の入出力と，理論値との比較の読み方を理解した

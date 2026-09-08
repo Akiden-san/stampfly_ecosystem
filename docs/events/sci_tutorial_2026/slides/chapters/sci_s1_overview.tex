@@ -178,41 +178,6 @@
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{深掘り: sf CLI\later}
-  \small \code{idf.py} を直接叩く代わりに、ビルド・書き込み・診断・ログ取得・シミュレーションを統一されたコマンド体系で提供する
-
-  \vspace{0.5em}
-
-  \begin{table}
-    \centering\footnotesize
-    \begin{tabular}{ll}
-      \hline
-      \textbf{カテゴリ} & \textbf{コマンド例} \\
-      \hline
-      ビルド・書込み   & \code{sf build} / \code{sf flash} \\
-      診断             & \code{sf doctor} / \code{sf monitor} \\
-      ログ             & \code{sf log wifi} / \code{sf log viz} \\
-      シミュレータ     & \code{sf sim run vpython} / \code{sf sils gui} \\
-      同定・整合       & \code{sf sysid} / \code{sf params check} \\
-      \hline
-    \end{tabular}
-  \end{table}
-\end{frame}
-
-% ------------------------------------------------------------------
-\begin{frame}{深掘り: 4階層は同時に存在する\later}
-  \small \code{ws::} 名前空間（L0 実習用 API）は、制御ループの起動やセンサ初期化を隠しつつ、\api{setup()} と \api{loop\_400Hz(dt)} だけで機体を動かせるようにする
-
-  \vspace{0.5em}
-
-  \begin{itemize}\small
-    \item L0 実習用 API・L1 Topic API・L2 HAL・L3 ハードウェア直叩きの4層は、実習の進行に応じて後から現れるのではなく、ファームウェア起動時点からすべて実装済みで並行して存在する
-    \item 学習者はどの層からでも入口を選べる。全員がL0から順に進む必要はない
-    \item 本チュートリアルはL0から順に説明していくが、これは教える都合の順序であり層の解禁順ではない。4層の全体像は本セッション後半の「4階層アクセス」で示す
-  \end{itemize}
-\end{frame}
-
-% ------------------------------------------------------------------
 \begin{frame}{vehicle ファーム構造}
   \begin{table}
     \centering\footnotesize
