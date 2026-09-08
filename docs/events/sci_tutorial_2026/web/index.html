@@ -921,17 +921,18 @@ sf sysid rate-tune --fit fit.json --wc 25 --pm 60       # 机上
 </p></div><footer class="slide-footer"><span class="footer-session">Session 4: PID 姿勢安定化</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">115 / 160</span></footer></section>
 <section class="slide content later" id="s-116" data-title="機体内で完結する自動チューン: sf_autotune" data-session="S4"><header class="slide-header"><h2>機体内で完結する自動チューン: sf_autotune</h2><span class="later-badge">あとで読む</span></header><div class="slide-body"><div class="block block"><h3 class="block-title">rate-excite → rate-fit → rate-tune を機体が単独で行う</h3><div class="block-body"><div class="fs-footnotesize"><p>
     ホバー中に，①ステップドサイン 9 点（2〜35 Hz）で励振し I/Q を蓄積 →
-    ②<span class="math-inline">\(G_p(s)=b\,e^{-Ls}/(s(Ts+1))\)</span> にフィット → ③<span class="math-inline">\(\omega_c\)</span>・位相余裕の仕様で <span class="math-inline">\(K_p/T_i/T_d\)</span> を設計し余裕を数値検証 →
+    ②<span class="math-inline">\(G_p(s)=b\,e^{-Ls}/(s(Ts+1))\)</span> にフィット → ③ゲイン交差周波数 <span class="math-inline">\(\omega_c\)</span> と位相余裕 PM の仕様で <span class="math-inline">\(K_p/T_i/T_d\)</span> を設計し余裕を数値検証 →
     ④ライブ適用（NVS には保存しない）。PC もログも不要
   </p></div></div></div>
-<div class="code-block titled"><div class="code-title">起動の 2 通り（vehicle ファーム）</div><pre><code class="lang-cpp">autotune roll 25 60                  # WiFi API (Tello 風) にホバー中に送る
+<div class="code-block titled"><div class="code-title">起動の 2 通り（vehicle ファーム）</div><pre><code class="lang-cpp">autotune roll 25 60                  # 軸 wc=25rad/s PM=60deg (ホバー中)
 param set autotune.sched.axis 0      # 地上で設定して離陸 -&gt; FLYING 到達から
 param set autotune.sched.delay 20    #   delay 秒後にブザーが鳴り自動実行
   </code></pre></div>
-<p>  <span class="fs-scriptsize"> <span class="warn">安全条件:</span> フィット残差・余裕の誤差 <span class="math-inline">\(\pm5^\circ\)</span>・パラメータ範囲・ゲイン跳躍
-  <span class="math-inline">\([1/4, 4]\times\)</span> のどれかに掛かると旧ゲインのまま（エラー応答を返す）。
-  結果を採用するなら着陸後に確認飛行してから <code class="tex-code">param save</code>。
-  2026-06 に実機で得た値を一時既定にした実績があり，現在の既定はオリジナル機のゲインを換算したもの</span>
+<p>
+  <span class="fs-scriptsize"> 引数は 軸・<span class="math-inline">\(\omega_c\)</span> [rad/s]・PM [deg]（省略時 25/60，yaw の <span class="math-inline">\(\omega_c\)</span> は 18）。
+  <span class="warn">安全条件:</span> フィット残差・余裕の誤差 <span class="math-inline">\(\pm5^\circ\)</span>・パラメータ範囲・ゲイン跳躍 <span class="math-inline">\([1/4, 4]\times\)</span>
+  のどれかに掛かると旧ゲインのまま。採用するなら着陸後に確認飛行してから <code class="tex-code">param save</code>。
+  2026-06 に実機で実行した実績あり（現在の既定ゲインはオリジナル機からの換算値）</span>
 </p></div><footer class="slide-footer"><span class="footer-session">Session 4: PID 姿勢安定化</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">116 / 160</span></footer></section>
 <section class="slide content" id="s-117" data-title="デモ: 完成コードで飛行" data-session="S4"><header class="slide-header"><h2>デモ: 完成コードで飛行</h2></header><div class="slide-body"><div class="block example"><h3 class="block-title">デモの見方</h3><div class="block-body"><div class="fs-footnotesize"><p>
     <strong>見るだけ</strong>: スティック操作に角速度が追従する速さと行き過ぎを波形で見るだけで要点はつかめる。

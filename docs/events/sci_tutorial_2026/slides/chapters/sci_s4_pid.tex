@@ -1169,20 +1169,21 @@ sf sysid rate-tune --fit fit.json --wc 25 --pm 60       # 机上
 \begin{frame}[fragile]{機体内で完結する自動チューン: sf\_autotune\later}
   \begin{block}{rate-excite → rate-fit → rate-tune を機体が単独で行う}\footnotesize
     ホバー中に，①ステップドサイン 9 点（2〜35\,Hz）で励振し I/Q を蓄積 →
-    ②$G_p(s)=b\,e^{-Ls}/(s(Ts+1))$ にフィット → ③$\omega_c$・位相余裕の仕様で $K_p/T_i/T_d$ を設計し余裕を数値検証 →
+    ②$G_p(s)=b\,e^{-Ls}/(s(Ts+1))$ にフィット → ③ゲイン交差周波数 $\omega_c$ と位相余裕 PM の仕様で $K_p/T_i/T_d$ を設計し余裕を数値検証 →
     ④ライブ適用（NVS には保存しない）。PC もログも不要
   \end{block}
 
   \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{起動の 2 通り（vehicle ファーム）}
-autotune roll 25 60                  # WiFi API (Tello 風) にホバー中に送る
+autotune roll 25 60                  # 軸 wc=25rad/s PM=60deg (ホバー中)
 param set autotune.sched.axis 0      # 地上で設定して離陸 -> FLYING 到達から
 param set autotune.sched.delay 20    #   delay 秒後にブザーが鳴り自動実行
   \end{sflisting}
 
-  {\scriptsize \warn{安全条件:} フィット残差・余裕の誤差 $\pm5^\circ$・パラメータ範囲・ゲイン跳躍
-  $[1/4, 4]\times$ のどれかに掛かると旧ゲインのまま（エラー応答を返す）。
-  結果を採用するなら着陸後に確認飛行してから \code{param save}。
-  2026-06 に実機で得た値を一時既定にした実績があり，現在の既定はオリジナル機のゲインを換算したもの}
+  \vspace{-0.3em}
+  {\scriptsize 引数は 軸・$\omega_c$ [rad/s]・PM [deg]（省略時 25/60，yaw の $\omega_c$ は 18）。
+  \warn{安全条件:} フィット残差・余裕の誤差 $\pm5^\circ$・パラメータ範囲・ゲイン跳躍 $[1/4, 4]\times$
+  のどれかに掛かると旧ゲインのまま。採用するなら着陸後に確認飛行してから \code{param save}。
+  2026-06 に実機で実行した実績あり（現在の既定ゲインはオリジナル機からの換算値）}
 \end{frame}
 
 % ==============================================================================
