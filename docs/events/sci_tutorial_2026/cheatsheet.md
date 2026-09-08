@@ -46,7 +46,7 @@
 
 全コマンドは `lib/sfcli/commands/` に実装がある。
 
-### WiFi 接続（設定・疎通確認）
+### WiFi 接続（設定・接続の確認）
 
 `sf telemetry`／`sf log wifi`／`param set`（飛行中のライブなゲイン変更）／`sf sysid rate-fit`・`rate-tune` の入力ログなどは、いずれも WiFi 経由でしか取得・操作できない（飛行中は USB を挿せないため）。出荷時既定は `wifi.mode`=0（STA・資格情報未設定）でテレメトリが無効なので、最初に SoftAP（機体自身が出す WiFi）へ切り替える。
 
@@ -68,7 +68,7 @@ param save
 reboot
 ```
 
-続けてコントローラとペアリングする（コントローラの LCD パネルボタンを押しながら電源投入 → 機体のボタンを 3 秒以上押し続け、双方のビープで離す。5 秒以上押し続けるとシステムリセット）。PC側: WiFi設定でSSID `StampFly-XXYY` に接続（パスワードは既定 `stampfly`）。疎通確認は `sf telemetry`（IP指定不要、既定192.168.10.1で待ち受け）。
+続けてコントローラとペアリングする（コントローラの LCD パネルボタンを押しながら電源投入 → 機体のボタンを 3 秒以上押し続け、双方のビープで離す。5 秒以上押し続けるとシステムリセット）。PC側: WiFi設定でSSID `StampFly-XXYY` に接続（パスワードは既定 `stampfly`）。接続の確認は `sf telemetry`（IP指定不要、既定192.168.10.1で待ち受け）。
 
 ```
 sf telemetry

@@ -1,83 +1,75 @@
 # StampFly シミュレーション方針（Simulation Policy）
 
-> **【本書の位置づけ】** 本書は StampFly Ecosystem におけるシミュレーション方針の唯一の正（Single Source of Truth）である。`simulator/sils/RESET_PLAN.md`・`firmware/vehicle/docs/development_roadmap.md` 等、他文書の記述と食い違って見える場合は**本書が優先**する。食い違いに気づいたら、まず本書を更新すること。
->
-> 制定: 2026-07-22。制定理由: SILS 立ち上げ期の規律（「実機データは不要」）と、実機飛行後の Model Fidelity（モデル忠実度。物理モデルが現実にどれだけ合っているかの指標）期の方針が別々の文書に分散し、両者の関係（矛盾ではなくフェーズ移行であること）が文書上追えなくなっていた。本書がこれを統合し、交通整理する。
-
 > **Note:** [English version follows after the Japanese section.](#english) / 日本語の後に英語版があります。
+
+> 制定: 2026-07-22。全面改定: 2026-09-08。改定理由: 初版は「層1 設計用線形モデル／層2 実ログ駆動再生／層3 SILS」という 3 層の枠組みで書かれていたが、これは設計者の意図した整理ではなく、設計の道具（モデル・解析手法）と実行環境（SILS）という軸の違うものを一列に並べていた。本改定では、設計者が各シミュレータに与えた役割を正とし、3 層の枠組みを廃止する。モデル一致の合否判定・規律・改修バックログは事実として引き継ぐ。
 
 ## 1. 概要
 
 ### このドキュメントについて
 
-本ドキュメントは、StampFly Ecosystem におけるシミュレーション（設計用の線形モデル・実ログ駆動のオフライン再生・SILS）の位置づけ、実機データの扱い方針、そして SILS のプラント（制御対象の物理モデル）が満たすべき合格基準を定める。
+本ドキュメントは、StampFly Ecosystem にあるシミュレータ（SILS・VPython 版・Genesis 版）それぞれの役割と実現方法、共通の物理パラメータの扱い、実機データの使い方、SILS のプラント（制御対象の物理モデル）が満たすべき合格基準、そして今後の強化学習に向けた物理エンジンの比較を定める。シミュレーションに関する方針の正本であり、他文書と食い違ったときは本書を先に直す。
 
 ### 対象読者
 
 - SILS・シミュレータを開発・改修する開発者
-- 制御パラメータの変更を提案する開発者（本書 §5 の規律に従う）
-- 将来のセッション（本書を読めば方針の経緯と現在地がわかるようにする）
+- 制御パラメータの変更を SILS や解析で裏付けようとする制御設計者
+- シミュレータを教材として使う教育者、強化学習への応用を検討する研究者
 
 ### なぜ本書が必要か
 
-`simulator/sils/RESET_PLAN.md` §2 方針1は「実機データは不要」「旧 M7/M8（実機ログの再生・差分診断）はやめる」と定めている。これは vehicle がまだ一度も飛んでいなかった**立ち上げ期の規律**として正しかった——実機データが存在しない段階では、SILS は実機データに依存しない設計でなければ検証手段として成立しないからである。
+シミュレータが 3 つあると「なぜ複数あるのか」「どれを何に使うのか」「物理はどこから来ているのか」「実機と同じコードが動くのはどれか」という疑問が必ず出る。答えを一か所に置き、資料や実装がこれと食い違わないようにするのが本書の目的である。
 
-しかし現在（2026-07-22）は事情が変わった。実機飛行データが蓄積し（`logs/` 配下に約4.5ヶ月分・217個超のログファイル）、`firmware/vehicle/docs/development_roadmap.md` の **Phase 5（モデル校正の閉ループ運用／Model Fidelity）が進行中**である。RESET_PLAN 自身も §3 で「実機データの正しい使いどころは Model Fidelity を上げる場面だけ」と、後追いの精度向上としての実機データ活用を認めている。
+## 2. 3 つのシミュレータとその役割
 
-つまり方針は「矛盾」しているのではなく「フェーズが移行」しただけである。だが文書が未改訂のままだと、読み手には矛盾に見える。本書がこの交通整理を担う。
-
-## 2. シミュレーションの3層構造
-
-StampFly Ecosystem のシミュレーションは、目的の異なる3層で構成される。
-
-| | プラント物理 | 制御コード | 入力・外乱 |
+| | SILS | VPython 版 | Genesis 版 |
 |---|---|---|---|
-| **層1** | 線形低次 $G(s)$ | 伝達関数として扱う | 設計用の想定入力 |
-| **層2** | 線形低次 $G(s)$＋飽和等 | Python に移植した制御則 | 実機ログから再構成した実外乱・実指令 |
-| **層3** | 非線形6自由度（MuJoCo） | 実ファーム C++ そのもの | シナリオ（`.scn`）、将来は実機ログのリプレイ |
+| **役割** | **ファームウェアの開発と制御系の実装を、机上である程度完了させる**ための仕組み。飛ばす前の検証と合否判定 | **練習用**。比較的簡単で可読性の高い Python コードで、力学エンジン・3D 可視化・センサモデルなど「シミュレータの作り方」を学んでもらう | **強化学習**を行う上で使いやすいと判断し、選択肢として残している |
+| **動く制御コード** | 実機に書き込むのと同じ C++ ファームウェア（無改変） | Python に移植した制御則 | Python の制御則 |
+| **物理モデル** | MuJoCo（外部の物理エンジン。**物理計算にのみ使用**）＋自作のモータ・センサ・風モデル | 自作の 6 自由度剛体モデル（Python）＋センサモデル | Genesis（外部の高精度物理エンジン、GPU 並列） |
+| **可視化** | `sf sils gui`（ブラウザ。three.js の 3D と Plotly のグラフ）。レビュー動画は事後に MuJoCo の Python レンダラで生成（`--video`） | VPython（ブラウザ 3D） | Genesis の描画 |
+| **入力** | シナリオ `.scn`（操縦・外乱・故障の時系列）、キーボード操縦 | USB HID ジョイスティック（AtomS3 + Atom JoyStick） | スクリプト |
+| **合否判定** | `.expect` による自動判定、`sf sils regression`（CI） | なし | なし |
+| **場所・入口** | `simulator/sils/`、`sf sils build/scenario/gui` | `simulator/vpython/`、`sf sim run vpython` | `simulator/genesis/`、`sf sim run genesis` |
 
-### 層1（設計用線形モデル）
+### なぜ 1 つでは足りないか
 
-`sf sysid rate-fit` 等で実飛行ログから同定する軸別の低次モデル
+「実機のファームをそのまま動かして検証する」「中身を読んで作り方を学ぶ」「強化学習を回す」は要求が違い、1 つの実装では両立しない。SILS は決定論と実ファームとの同一性を最優先し、VPython 版は読みやすさを最優先し、Genesis 版は GPU 並列と学習との相性を優先する。3 つは §3 の物理パラメータを共有し、`sf params check` で食い違いを検出する。
 
-$$G(s) = \frac{b\, e^{-Ls}}{s(Ts+1)}$$
+### SILS の実現方法
 
-を制御系設計・ループ整形の正とする。実績（`analysis/reports/altlog_20260614T201629/REPORT.md`）:
+- **ファームウェアは無改変**: `firmware/vehicle`（および `vehicle_old`・`workshop`）のソースをそのまま PC 向けにコンパイルする。推定・制御だけでなく状態機械やフェイルセーフも含めて実機と同一（Code Identity）。パラメータも同じ表から読む（Parameter Identity）。
+- **OS の代わり**: ESP-IDF / FreeRTOS の代わりに、ホスト用の互換スタブ（`compat/`）と、単一トークン＋仮想時計の離散事象スケジューラである決定論的な疑似 RTOS（`rtos/`）の上で走らせる。同じ入力なら毎回同じ結果になる。
+- **制御対象**: MuJoCo の 6 自由度剛体モデルに、自作のモータ（電気機械 ODE）・センサ・風のモデルを載せ（`physics/`, `plant/`）、400 Hz でファームと歩調を合わせる。**MuJoCo は物理計算にのみ使い、実行中の描画には使わない**。MuJoCo の対話ビューアはモデルファイルを目視確認するための任意ビルドオプション（`-DSILS_MUJOCO_VIEWER=ON`）で、シナリオ実行には関与しない。
+- **試験の与え方**: シナリオ `.scn` に操縦入力・外乱・故障を時系列で書き、`.expect` の合格基準で PASS / FAIL を自動判定する。`sf sils regression` が CI で退行を検出する。
+- **学習者コードも同じ土俵**: `workshop` ターゲットでは `user_code.cpp` が同じプラントでループを閉じる（`sf lesson sils`）。
+- **できないこと**: 複数タスクの競合（並行処理の競合）と、実際の WiFi / ESP-NOW の物理層は、再現性のために処理を一本のループにまとめている構造上、原理的に再現できない（`simulator/sils/RESET_PLAN.md` §11）。実機でしか確かめられない。
 
-| 軸 | コヒーレンス（同定信頼度） | $L$ [ms] | PM（位相余裕） | GM（ゲイン余裕） |
-|---|---|---|---|---|
-| roll | 0.65（良） | 14.7 | 59° | 10.5 dB |
-| pitch | 0.57（良） | 8.4 | 54° | 12.4 dB |
-| yaw | 0.44（低信頼） | 11.0 | 56° | 10.2 dB |
+### 設計・解析の道具はシミュレータではない
 
-PM 54〜59°・GM 10〜12 dB は飛行が安定している事実と整合する。ヨー軸は反トルク零点を持つ4パラメータモデルで表される（`firmware/vehicle/docs/yaw_axis_model.md`）。交差周波数における位相リード予測 +20.5〜23.3°（パラメータ再測定前後の2値）は、フライト実測 +22〜32° のリードと帯域内で整合している。
+次の 2 つは以前「層 1・層 2」と呼んでいたが、機体を動かして見せる実行環境ではなく、設計と解析の道具である。本書では区別して扱う。
 
-### 層2（実ログ駆動オフライン再生）
+| 道具 | 中身 | 用途 | 場所・入口 |
+|---|---|---|---|
+| 設計用の線形モデル | 実飛行ログから同定した低次の伝達関数 $G(s)$ | ゲイン設計、ループ整形、仕様ベースの自動チューニング | `tools/sysid/`、`sf sysid fit` / `rate-fit` / `rate-tune` |
+| 実ログ駆動の再生 | 同定モデルと Python に移植した制御則を、実機ログから再構成した外乱・指令で駆動する閉ループ再生 | パラメータ変更の A/B 判定 | `analysis/scripts/` |
 
-`analysis/scripts/` 配下の Python 群。層1で同定したモデルと移植した制御則を、実機ログから再構成した実外乱・実指令で駆動する閉ループ再生であり、パラメータ変更の A/B 判定の正とする。実績:
+## 3. 共通の物理パラメータ
 
-- ヨーκ（抗力/推力比）修正のリプレイ一致: 0.0〜0.7%
-- ALT_HOLD 再生誤差: 約8%
-- 高度 DOB（外乱オブザーバ）設計: シム予測 −37〜−56% → 実機 −67%（`analysis/scripts/alt_dob_design/README.md`）
+質量・慣性・推力係数 $C_T$・反トルク係数 $C_Q$ などの機体物理パラメータの正本は `control/models/stampfly_physical.yaml` である。ファームウェア（`generated_params` 系ヘッダ）・SILS プラント・VPython 版・Genesis 版・`docs/architecture/stampfly-parameters.md` はここから生成または転記し、`sf params check` が転記の食い違いを検出する。値の実測履歴と採用根拠は `stampfly-parameters.md` に置く。
 
-### 層3（SILS）
+注意: `sf params check` は転記の一致しか見ない。「ファームの静的モータ曲線と SILS プラントの ODE が別のモータを表していた」（2026-08-22 判明）のような**モデル構造の不一致**は検出できないため、§5 の合否判定で数値的に確認する。
 
-MuJoCo（非線形6自由度の物理エンジン）＋実ファーム C++ を、Code Identity（SILS は本体と同じソースをそのままコンパイルして走らせる）・Param Identity（同じパラメータで走らせる）のもとで走らせる、状態機械・推定器・フェイルセーフを含むシステム全体の検証ベンチである。**新方針: プラントは実機同定値に一致する非線形モデルを目標とする**（合否は §4 のモデル一致ゲートで判定する）。
-
-### 層の関係
-
-層2は層3の簡略版ではなく、「層1モデルを実データ励振で駆動するもの」という独立した位置づけを持つ。層3に (a) 高忠実プラント、(b) 実機ログ入力リプレイ（§6 バックログ #9）が入った後は、層2は層3の高速・軸別の近似版という位置づけに収束していく。層1は制御設計用として恒久的に残る。
-
-## 3. 方針の変遷（立ち上げ期 → Model Fidelity 期）
+## 4. 実機データの扱い（立ち上げ期 → Model Fidelity 期）
 
 | 期間 | フェーズ | 実機データの扱い | 根拠文書 |
 |---|---|---|---|
 | 〜2026-06（初飛行前・SILS立ち上げ期） | 更地化・物理ベース SILS の再構築 | 実機データ不要。物理モデルの真値で機械的に検証（旧 M7/M8 の実機ログ再生・差分診断は廃止） | RESET_PLAN §2 方針1 |
-| 2026-06〜（実機飛行後・Model Fidelity 期＝現在） | development_roadmap Phase 3〜5 | 実機ログで層1同定・層2 A/B・層3プラント較正を行う。実機ログの再生・突き合わせは方針違反ではなく Phase 5 の本作業そのもの | development_roadmap Phase 5 |
+| 2026-06〜（実機飛行後・Model Fidelity 期＝現在） | development_roadmap Phase 3〜5 | 実機ログで線形モデルの同定・実ログ再生による A/B・SILS プラントの較正を行う。実機ログの再生・突き合わせは方針違反ではなく Phase 5 の本作業そのもの | development_roadmap Phase 5 |
 
 注: RESET_PLAN 方針2（アルゴリズムの中身に依存せず、実装でなくインターフェースに依存する）は期に依らず有効であり、本書はこれを変更しない。
 
-## 4. モデル一致ゲート（層3の合否判定）
+## 5. SILS のモデル一致の合否判定
 
 Code Identity のおかげで、実機同定に使ったのと同一の同定パイプライン（`sf sysid rate-fit` 等）を、SILS が生成したログにもそのまま適用できる。
 
@@ -103,13 +95,31 @@ Code Identity のおかげで、実機同定に使ったのと同一の同定パ
 >
 > **第2回計測（2026-07-26 計測, ODE プラント, `sf sils sysid-gate`）:** roll は b +27.2% / L_total +12.7% で **PASS**、pitch は b +26.6% / −1.5% で **PASS**（コヒーレンス 0.97〜0.99、良好）。yaw は b −18.2% は許容域内だが L_total が −100%（識別が退化）で **FAIL** — 実装した反トルク零点（$\tau_z\approx45.7$ ms、制御帯域内で 3.5 Hz のリード）を、現行の3パラメータ $(b,L,T)$ フィットでは表現できない構造的な問題。実機側の基準値自体も3パラフィット・コヒーレンス0.44の弱い基準である点に注意（バックログ#11 で対処予定）。
 
-## 5. 期に依らず変わらない規律
+## 6. 期に依らず変わらない規律
 
 - **制御パラメータ変更は必ず実フライトログを使った数値シミュレーションで裏付ける。** 「Ti を短くすれば改善する」のような定性推測だけで提案しない。シミュレーションの結果、逆効果であれば提案しない（`control_theory_overview.md` §5.5 の鉄則）。
 - **公称モデル1点への最適化をしない。** 実機はセッション間でドリフトする（同一ゲインで 5–8 Hz 帯の基準値が2.4〜2.7倍変動した実例がある）。トルク効き $\in[0.4, 0.7]$、むだ時間 $L \in [8, 15]$ ms、会場級外乱 0.2〜1 Hz を**摂動族**として持ち、ゲインの採否は族全体で悪化しないことを条件にする。
 - **SILS の原理的限界は SILS では検証できない。** 並行処理の競合（複数タスクが同時に走ることによる競合）や実 WiFi/ESP-NOW の物理層は、SILS の再現性のために本来並行する処理を一本のループにまとめている構造上、原理的に再現できない（RESET_PLAN §11）。実機並行性の検証は別途行う。
 
-## 6. SILS プラント改修バックログ（優先順）
+## 7. 強化学習に向けた物理エンジンの比較（MuJoCo と Genesis）
+
+今後、強化学習で「MuJoCo か Genesis か」という選択が出てくる。本リポジトリでの位置づけと、判断の観点を整理しておく。数値や対応状況は 2026 年 9 月時点の把握であり、採用時に最新版で再確認すること。
+
+| 観点 | MuJoCo | Genesis |
+|---|---|---|
+| 開発元・実装 | Google DeepMind。C 実装＋Python バインディング。Apache-2.0 | Genesis-Embodied-AI（大学・企業の共同）。Python / PyTorch 実装。Apache-2.0 |
+| 実行形態 | CPU 逐次実行が基本。GPU 大規模並列は別実装の MJX（JAX 版） | GPU 並列が前提。数千環境を一括で進め、微分可能 |
+| 物理の範囲 | 剛体・関節・接触が中心 | 剛体に加え流体・柔軟体・粒子などの複数物理（対応範囲は版により異なる、要確認） |
+| 決定論・再現性 | 単一スレッドで決定論的（SILS が要求する性質） | GPU 並列では演算順序により結果が揺れ得る（要確認） |
+| 強化学習の周辺整備 | 成熟。Gymnasium・dm_control・MuJoCo Playground など事例が多い | 新しい（2024 年 12 月公開）。学習例は同梱されるが周辺は発展途上 |
+| 本リポジトリでの現在の使い方 | SILS の物理（C API で実ファームと歩調を合わせる）。描画には使わない | `simulator/genesis/`（Python の制御則、モータ ODE の出典） |
+| 実ファームとの接続 | SILS が既に接続済み（C++ 同一ソース） | 接続する仕組みは無い。学習した方策をファームへ移す工程が別途要る |
+| 向く場面 | 実ファームと同じ物理で方策を検証したい、CPU で確実に回したい | 何千機を同時に学習させたい、微分可能性を使いたい |
+| 課題 | 大規模並列は MJX を別途用意する必要があり、C++ ファームとは接続できない | 決定論性と成熟度。SILS の合否判定に相当する物差しが無い |
+
+方針: 学習は Genesis（または MJX）で回し、得られた方策の検証は SILS（MuJoCo 物理、実ファーム）で行う、という分担が現実的である。両者の物理パラメータは §3 の正本で揃える。
+
+## 8. SILS プラント改修バックログ（優先順）
 
 | # | 作業 | 根拠・目標値 | 状態 |
 |---|---|---|---|
@@ -122,160 +132,178 @@ Code Identity のおかげで、実機同定に使ったのと同一の同定パ
 | 6 | フロー品質モデル（N3） | SQUAL（オプティカルフローの表面品質指標）固定100・無ノイズが POS_HOLD 初飛行発散の盲点だった（`firmware/vehicle/docs/poshold_journey.md`: 「Code Identity でも実機で動かない」盲点の実例）。Flow/Mag ノイズは N3 tier として後段に計画済み（`simulator/sils/RESET_PLAN.md` §13） | 未着手 |
 | 7 | バッテリサグの $R_{int}$ 実測較正 | 電圧依存推力誤差が高度ウォブルの主因（corr(V, 高度std)=−0.78、`analysis/reports/poshold_3min_battery_wobble_20260627.md`）。サグモデル自体は実装済みで閉ループ emu では既定 ON（2026-06-07, `b8fd27ea`）。残作業は内部抵抗 $R_{int}$（現状値 0.1 Ω は vpython 由来の仮値）の実測較正のみ | 未着手 |
 | 8 | N1 振動係数を現行 vehicle ログで再同定 | 現在の軸別係数（`vib_accel_k`/`vib_gyro_k`）は旧機（legacy `firmware/vehicle`）の hover02 ログ由来のシード値 | 未着手 |
-| 9 | 実機ログ入力リプレイ（`sf sils replay` 相当） | WireControl（テレメトリの制御入力構造体）50 Hz スティック入力を `.scn` シナリオへ変換し、実ログと同一プロットで比較する。層2→層3 収束の要 | 未着手 |
+| 9 | 実機ログ入力リプレイ（`sf sils replay` 相当） | WireControl（テレメトリの制御入力構造体）50 Hz スティック入力を `.scn` シナリオへ変換し、実ログと同一プロットで比較する。実ログ再生（解析）の結果を SILS で再現するための要 | 未着手 |
 | 10 | 関連文書の整合維持 | 本書と RESET_PLAN・development_roadmap の食い違いに気づいたら、本書を先に更新する | 継続 |
 | 11 | ヨー軸ゲートの4パラメータ化 | `rate_sysid` のヨーフィットを反トルク零点込みの4パラメータモデル（`firmware/vehicle/docs/yaw_axis_model.md`）へ拡張し、実機基準値（`analysis/reports/rate_sysid_reference/README.md` の `reference.json`）も同一パイプラインで再生成して同条件比較にする | 未着手 |
 | 12 | ファームヨートルク権限の再検討 | 新基準ホバー duty（≈0.7245）下での `rate.yaw.max_torque` 差動余裕を再検討する。SILS 回帰の pos_flight/pos_yaw/yaw_hold が known-fail（`sf sils regression` の xfail マーカー）として追跡中。実機 NT金沢問題（2026-07-17 治療）と同根の可能性がある | 未着手 |
 | 13 | 姿勢減衰余裕の調査 | calib（注入バイアス×新プラントの離陸動特性で 0.6-0.7 Hz 自励振動）・commloss_land_level（LANDING 水平化ゲート中のロール収束不足）で顕在化。バックログ#4（モータ不感帯）・#5（空気抵抗ゼロ）との関連を確認する。（2026-08-22 追記: #3 で判明したプラント推力過大[ホバー点でファーム指令の1.252倍、corr込みで機体重量の1.402倍]が本現象の一因だった可能性があり、thrust_efficiency 補正後に再検証する） | 未着手 |
 
-## 7. 関連文書マップ
+## 9. 関連文書マップ
 
 | 文書 | 何の正か |
 |---|---|
-| 本書 | シミュレーション方針（3層構造・フェーズ・モデル一致ゲート・バックログ） |
+| 本書 | シミュレーション方針（3 つのシミュレータの役割・SILS の実現方法・物理パラメータの正本・モデル一致の合否判定・バックログ） |
+| `simulator/README.md` | VPython 版・Genesis 版の使い方 |
+| `simulator/sils/README.md` | SILS ベンチの使い方（ターゲット・シナリオ・GUI） |
 | `simulator/sils/RESET_PLAN.md` | SILS ベンチの構造・立ち上げ経緯の記録（§2 方針1 は立ち上げ期の規律） |
 | `firmware/vehicle/docs/development_roadmap.md` | 開発工程全体（Phase 0〜6） |
 | `firmware/vehicle/docs/control_theory_overview.md` | 制御設計の規律・同定の教訓 |
 | `firmware/vehicle/docs/noise_and_vibration_model.md` | センサノイズモデル（N0〜N2、N3/N4 計画） |
 | `firmware/vehicle/docs/yaw_axis_model.md` | ヨー軸モデル |
 | `docs/architecture/stampfly-parameters.md` | 物理パラメータの値と実測履歴 |
-| `analysis/scripts/alt_dob_design/README.md` ほか `analysis/reports/` | 層2の実施記録 |
+| `analysis/scripts/alt_dob_design/README.md` ほか `analysis/reports/` | 実ログ駆動の再生の実施記録 |
 
 ---
 
 <a id="english"></a>
 
+> Established: 2026-07-22. Fully revised: 2026-09-08. Reason for revision: The first edition was written around a three-tier framework — "Tier 1: design-oriented linear model / Tier 2: log-driven replay / Tier 3: SILS" — but this was not the organisation the designer intended; it lined up things with different axes — design tools (models, analysis methods) and an execution environment (SILS) — in a single row. This revision treats the roles the designer assigned to each simulator as authoritative and abolishes the three-tier framework. The SILS model-match pass/fail check, the discipline, and the improvement backlog are carried forward as-is.
+
 ## 1. Overview
 
 ### About This Document
 
-This document defines the role of each simulation layer used in the StampFly Ecosystem — the design-oriented linear model, the log-driven offline replay, and the SILS (Software-In-the-Loop) bench — the policy on using real-flight data, and the pass criteria the SILS plant model must satisfy.
+This document defines the role and implementation method of each simulator in the StampFly Ecosystem (SILS, the VPython version, and the Genesis version), how the shared physical parameters are handled, how real-flight data is used, the pass/fail criteria the SILS plant (the physical model of the controlled object) must satisfy, and a comparison of physics engines for future reinforcement learning work. It is the single source of truth for the simulation policy; when it conflicts with another document, this document is corrected first.
 
 ### Target Audience
 
-- Developers who build or modify the SILS bench and simulator
-- Developers proposing control-parameter changes (who must follow the discipline in §5)
-- Future sessions (this document should make the history and current state of the policy traceable)
+- Developers who build and modify SILS and the simulators
+- Control designers who want to back up control-parameter changes with SILS or analysis
+- Educators who use the simulators as teaching material, and researchers considering applications to reinforcement learning
 
 ### Why This Document Is Needed
 
-`simulator/sils/RESET_PLAN.md` §2, Policy 1 states that "real-flight data is not needed" and that the old M7/M8 steps (replaying and diffing against real logs) were dropped. This was correct discipline for the **bring-up phase**, before vehicle had ever flown — with no real-flight data in existence, a SILS that depended on it could not have served as a verification method.
+With three simulators, the questions "why are there several?", "which one is used for what?", "where does the physics come from?", and "which one runs the same code as the real vehicle?" inevitably come up. The purpose of this document is to put the answers in one place and keep documents and implementations from diverging from it.
 
-That is no longer the situation as of 2026-07-22. Real-flight data has accumulated (roughly 4.5 months and 217+ log files under `logs/`), and `firmware/vehicle/docs/development_roadmap.md` Phase 5 (the closed-loop model-calibration operation, i.e. Model Fidelity) is now underway. RESET_PLAN itself acknowledges in §3 that the legitimate use of real-flight data is exactly to raise Model Fidelity — an after-the-fact refinement.
+## 2. The Three Simulators and Their Roles
 
-In other words, the policy has not "contradicted itself" — it has moved into a new phase. But an unrevised document makes that look like a contradiction. This document performs that reconciliation.
-
-## 2. The Three Simulation Layers
-
-The StampFly Ecosystem's simulation spans three layers with distinct purposes.
-
-| | Plant physics | Control code | Input / disturbance |
+| | SILS | VPython version | Genesis version |
 |---|---|---|---|
-| **Layer 1** | Low-order linear $G(s)$ | Treated as a transfer function | Design-intent inputs |
-| **Layer 2** | Low-order linear $G(s)$ + saturation etc. | Control law ported to Python | Real disturbance/commands reconstructed from flight logs |
-| **Layer 3** | Nonlinear 6-DOF (MuJoCo) | The real firmware C++ itself | Scenario files (`.scn`); future: real-log replay |
+| **Role** | A mechanism for **bringing firmware development and control-system implementation to a reasonable degree of completion on the desk (without flying)**. Verification and pass/fail checking before flight | **For practice**. Relatively simple, readable Python code for learning "how to build a simulator" — physics engine, 3D visualization, sensor models, and so on | Kept as an option because it is judged to be easy to use for **reinforcement learning** |
+| **Running control code** | The same C++ firmware that is flashed onto the real vehicle (unmodified) | Control law ported to Python | Control law in Python |
+| **Physical model** | MuJoCo (an external physics engine; **used only for physics computation**) plus in-house motor, sensor, and wind models | In-house 6-DOF rigid-body model (Python) plus a sensor model | Genesis (an external high-precision physics engine, GPU-parallel) |
+| **Visualization** | `sf sils gui` (browser-based; 3D via three.js and graphs via Plotly). Review videos are generated afterward with MuJoCo's Python renderer (`--video`) | VPython (browser 3D) | Genesis's rendering |
+| **Input** | Scenario `.scn` files (time series of stick input, disturbances, and faults), keyboard piloting | USB HID joystick (AtomS3 + Atom JoyStick) | Scripts |
+| **Pass/fail check** | Automatic judgment via `.expect` files, `sf sils regression` (CI) | None | None |
+| **Location / entry point** | `simulator/sils/`, `sf sils build/scenario/gui` | `simulator/vpython/`, `sf sim run vpython` | `simulator/genesis/`, `sf sim run genesis` |
 
-### Layer 1 (design-oriented linear model)
+### Why One Is Not Enough
 
-The per-axis low-order model identified from real-flight logs via `sf sysid rate-fit` etc.,
+"Run the real vehicle's firmware as-is to verify it," "read the internals to learn how it's built," and "run reinforcement learning" are different requirements that a single implementation cannot satisfy at once. SILS gives top priority to determinism and identity with the real firmware, the VPython version gives top priority to readability, and the Genesis version prioritizes GPU parallelism and compatibility with learning. All three share the physical parameters in §3, and `sf params check` detects discrepancies.
 
-$$G(s) = \frac{b\, e^{-Ls}}{s(Ts+1)}$$
+### How SILS Is Realised
 
-serves as the authority for control-system design and loop shaping. Results (`analysis/reports/altlog_20260614T201629/REPORT.md`):
+- **Firmware is unmodified**: The source of `firmware/vehicle` (and `vehicle_old`, `workshop`) is compiled for the PC as-is. Not only estimation and control but also the state machine and failsafe logic are identical to the real vehicle (Code Identity). Parameters are also read from the same table (Parameter Identity).
+- **In place of the OS**: Instead of ESP-IDF / FreeRTOS, the firmware runs on host-side compatibility stubs (`compat/`) and a deterministic pseudo-RTOS (`rtos/`) — a discrete-event scheduler with a single token and a virtual clock. The same input always produces the same result.
+- **Controlled object (plant)**: On top of MuJoCo's 6-DOF rigid-body model, in-house motor (electromechanical ODE), sensor, and wind models are layered (`physics/`, `plant/`), running in step with the firmware at 400 Hz. **MuJoCo is used only for physics computation, not for rendering during execution.** MuJoCo's interactive viewer is an optional build flag (`-DSILS_MUJOCO_VIEWER=ON`) for visually inspecting the model file, and plays no part in scenario execution.
+- **How tests are given**: Stick input, disturbances, and faults are written as a time series in a scenario `.scn` file, and PASS/FAIL is judged automatically against the pass criteria in an `.expect` file. `sf sils regression` detects regressions in CI.
+- **Learner code runs on the same ground**: In the `workshop` target, `user_code.cpp` closes the loop against the same plant (`sf lesson sils`).
+- **What it cannot do**: Contention between multiple tasks (concurrency contention) and the physical layer of actual WiFi / ESP-NOW cannot be reproduced, in principle, because of the structure that folds processing into a single loop for the sake of reproducibility (`simulator/sils/RESET_PLAN.md` §11). These can only be checked on the real vehicle.
 
-| Axis | Coherence (ID confidence) | $L$ [ms] | PM (phase margin) | GM (gain margin) |
-|---|---|---|---|---|
-| roll | 0.65 (good) | 14.7 | 59° | 10.5 dB |
-| pitch | 0.57 (good) | 8.4 | 54° | 12.4 dB |
-| yaw | 0.44 (low confidence) | 11.0 | 56° | 10.2 dB |
+### Design and Analysis Tools Are Not Simulators
 
-A PM of 54–59° and GM of 10–12 dB is consistent with the fact that this log came from stable flight. The yaw axis follows a 4-parameter model with a reaction-torque zero (`firmware/vehicle/docs/yaw_axis_model.md`). The predicted phase lead at the crossover frequency, +20.5–23.3° (two values from before/after a parameter re-measurement), falls within the flight-measured lead of +22–32°.
+The following two used to be called "Tier 1" and "Tier 2," but they are design and analysis tools, not execution environments that show the vehicle moving. This document treats them separately.
 
-### Layer 2 (log-driven offline replay)
-
-The Python scripts under `analysis/scripts/`. This closed-loop replay drives the Layer-1-identified model and the ported control law with real disturbance/commands reconstructed from flight logs, and serves as the authority for A/B judgment of parameter changes. Results:
-
-- Yaw κ (drag/thrust ratio) fix replay agreement: 0.0–0.7%
-- ALT_HOLD replay error: about 8%
-- Altitude DOB (disturbance observer) design: simulated prediction −37 to −56% → real flight −67% (`analysis/scripts/alt_dob_design/README.md`)
-
-### Layer 3 (SILS)
-
-MuJoCo (a nonlinear 6-DOF physics engine) plus the real firmware C++, run under Code Identity (the SILS compiles and runs the exact same source as the real firmware, unmodified) and Param Identity (both run with the same parameters). It is the verification bench for the whole system, including the state machine, estimator, and failsafes. **New policy: the plant should target a nonlinear model that matches real-hardware identification values** (pass/fail is judged by the model-match gate in §4).
-
-### Relationship Between the Layers
-
-Layer 2 is not a simplified version of Layer 3 — it stands on its own as "the Layer-1 model driven by real-data excitation." Once Layer 3 gains (a) a high-fidelity plant and (b) real-log input replay (backlog #9 in §6), Layer 2 will converge toward being a fast, per-axis approximation of Layer 3. Layer 1 remains permanently in place for control design.
-
-## 3. Evolution of the Policy (Bring-Up Phase → Model Fidelity Phase)
-
-| Period | Phase | Treatment of real-flight data | Governing document |
+| Tool | Content | Purpose | Location / entry point |
 |---|---|---|---|
-| Until 2026-06 (pre-first-flight, SILS bring-up) | Clean-slate rebuild of the physics-based SILS | No real-flight data needed. Verification is done mechanically against the true physical model (the old M7/M8 real-log replay/diff steps were dropped) | RESET_PLAN §2 Policy 1 |
-| 2026-06 onward (post-first-flight, Model Fidelity — current) | development_roadmap Phase 3–5 | Real logs are used for Layer-1 identification, Layer-2 A/B testing, and Layer-3 plant calibration. Replaying and comparing against real logs is not a policy violation — it is exactly the work of Phase 5 | development_roadmap Phase 5 |
+| Design-oriented linear model | A low-order transfer function $G(s)$ identified from real flight logs | Gain design, loop shaping, specification-based automatic tuning | `tools/sysid/`, `sf sysid fit` / `rate-fit` / `rate-tune` |
+| Log-driven replay | Closed-loop replay that drives the identified model and a control law ported to Python with disturbances and commands reconstructed from real-vehicle logs | A/B comparison of parameter changes | `analysis/scripts/` |
 
-Note: RESET_PLAN Policy 2 (independence from algorithm internals — depend on the interface, not the implementation) remains in effect regardless of phase; this document does not change it.
+## 3. Shared Physical Parameters
 
-## 4. The Model-Match Gate (Layer-3 Pass/Fail)
+The single source of truth for the vehicle's physical parameters — mass, inertia, thrust coefficient $C_T$, counter-torque coefficient $C_Q$, and so on — is `control/models/stampfly_physical.yaml`. The firmware (the `generated_params` family of headers), the SILS plant, the VPython version, the Genesis version, and `docs/architecture/stampfly-parameters.md` are generated from it or hand-copied from it, and `sf params check` detects discrepancies in the hand-copied values. The measurement history of the values and the rationale for adopting them are kept in `stampfly-parameters.md`.
 
-Thanks to Code Identity, the same identification pipeline used on real-hardware logs (`sf sysid rate-fit`, etc.) can be applied directly to logs generated by the SILS.
+Note: `sf params check` only checks that hand-copied values match; it cannot detect **a mismatch in model structure**, such as "the firmware's static motor curve and the SILS plant's ODE represented different motors" (discovered 2026-08-22). Such mismatches are confirmed numerically by the pass/fail check in §5.
+
+## 4. Handling Real-Flight Data (Startup Phase → Model Fidelity Phase)
+
+| Period | Phase | Handling of real-flight data | Basis document |
+|---|---|---|---|
+| Through 2026-06 (before first flight; SILS startup phase) | Clean-slate rebuild of a physics-based SILS | Real-flight data not required. Mechanical verification against the physical model's true values (the old M7/M8 real-log replay and differential diagnosis is discontinued) | RESET_PLAN §2, Policy 1 |
+| From 2026-06 (after real flight; Model Fidelity phase = present) | development_roadmap Phase 3–5 | Identify the linear model from real-flight logs, perform A/B comparison via log-driven replay, and calibrate the SILS plant. Replaying and cross-checking against real-flight logs is not a policy violation — it is precisely the work of Phase 5 itself | development_roadmap Phase 5 |
+
+Note: RESET_PLAN Policy 2 (not depending on the internals of an algorithm, depending on the interface rather than the implementation) remains valid regardless of phase; this document does not change it.
+
+## 5. SILS Model-Match Pass/Fail
+
+Thanks to Code Identity, the same identification pipeline used for real-vehicle identification (`sf sysid rate-fit`, etc.) can be applied as-is to logs generated by SILS.
 
 **Procedure:**
 
-1. Run a `rate-excite`-equivalent excitation inside the SILS
-2. Apply the same identification pipeline used on real hardware
+1. Perform excitation equivalent to `rate-excite` inside SILS
+2. Apply the same identification pipeline used for the real vehicle
 3. Extract $(b, L, T)$
-4. Compare against the real-hardware identified values
+4. Compare against the real-vehicle identified values
 
 **Pass criteria** (reusing the tolerances from development_roadmap Phase 3):
 
 | Metric | Tolerance |
 |---|---|
 | Step-response rise time constant | ±20% |
-| Gyro RMS | ±50% |
+| gyro RMS | ±50% |
 
-This gate is wired into the SILS regression test suite (automated tests that detect regressions), so every subsequent plant modification is judged numerically, both for improvement and for regression, every time.
+This gate is built into the SILS regression test (an automated test for detecting regressions), and the effect and degradation of every subsequent plant improvement is judged numerically each time.
 
-Pass/fail is judged independently per axis. **Roll/pitch reached the passing region in the 2026-07-26 measurement (below); yaw has not.** SILS-based gain verification is now more trustworthy for roll/pitch, but **until all axes pass**, verification via the §5 perturbation family (torque effectiveness $\in[0.4, 0.7]$, dead time $L \in [8, 15]$ ms, venue-grade disturbance 0.2–1 Hz) continues alongside SILS verification, and the principle of "no SILS-only optimization" remains in force. Directly optimizing against a SILS turbulence bench previously converged on a gain with negative phase margin on real hardware (`firmware/vehicle/docs/control_theory_overview.md` §5.4: a gain optimized to Td=0.08 on the SILS diverged to PM −375° on real hardware).
+Gate pass/fail is judged independently per axis. **Roll/pitch reached the passing range in the 2026-07-26 measurement (below) (yaw has not yet reached it).** Confidence in using SILS for gain verification has improved for the roll/pitch axes, but **until all axes pass**, verification using the perturbation family from §5 (torque authority $\in[0.4,0.7]$, dead time $L\in[8,15]$ ms, venue-scale disturbance 0.2〜1 Hz) is used together with SILS verification, maintaining the principle of "no SILS-only optimization." There is a lesson learned that directly optimizing against the SILS turbulence bench once converged on a gain whose phase margin went negative on the real vehicle (`firmware/vehicle/docs/control_theory_overview.md` §5.4: a gain optimized to Td=0.08 on SILS diverged to a phase margin of −375° on the real vehicle).
 
-> **First measurement (2026-07-22, `sf sils sysid-gate`, the old zero-dead-time / static-motor-curve plant):** FAILs on all axes — roll b +39.6% / L_total +39.0%, pitch b +109.7% / L_total +19.3%, yaw b −61.4% / L_total +95.7%. The lag **structure** is inverted vs. real hardware: the SILS is first-order-lag dominated (T≈20 ms = motor_tau, L≈1.5 ms) while the real machine is dead-time dominated (L≈11–16 ms, small T). With `--motor-delay 10`, L moves 1.5→10.6–12.2 ms exactly as designed, but L_total worsens to ~27 ms — matching requires the joint adjustment with backlog #2 (motor ODE) and #3 (coefficient recalibration), not delay alone. The yaw reference is the weakest of the three axes (3-parameter fit; see the note in `analysis/reports/rate_sysid_reference/README.md`).
+> **First measurement (2026-07-22, `sf sils sysid-gate`, old plant with zero dead time and a static motor curve):** All axes FAIL — roll b +39.6% / L_total +39.0%, pitch b +109.7% / L_total +19.3%, yaw b −61.4% / L_total +95.7%. The **structure** of the delay is opposite to the real vehicle: SILS is dominated by a first-order lag (T≈20ms=motor_tau, L≈1.5ms), while the real vehicle is dominated by dead time (L≈11〜16ms, small T). With `--motor-delay 10`, L moves from 1.5→10.6〜12.2ms as designed, but L_total worsens to around 27ms — matching requires simultaneous adjustment with backlog #2 (moving to a motor ODE) and #3 (coefficient recalibration), not the delay alone. Note that the real-vehicle reference value for yaw, derived from a 3-parameter fit, is the weakest (see the note in `analysis/reports/rate_sysid_reference/README.md`).
 >
-> **Second measurement (2026-07-26, ODE plant, `sf sils sysid-gate`):** roll **PASS**es at b +27.2% / L_total +12.7%; pitch **PASS**es at b +26.6% / −1.5% (coherence 0.97–0.99, good). Yaw's b −18.2% is within tolerance, but L_total is −100% (identification degenerates) → **FAIL** — a structural problem: the newly implemented anti-torque zero ($\tau_z\approx45.7$ ms, a lead at 3.5 Hz within the control bandwidth) cannot be represented by the current 3-parameter $(b,L,T)$ fit. Note the real-hardware reference itself is also a weak 3-parameter fit with coherence 0.44. To be addressed by backlog #11.
+> **Second measurement (measured 2026-07-26, ODE plant, `sf sils sysid-gate`):** roll: b +27.2% / L_total +12.7%, **PASS**; pitch: b +26.6% / −1.5%, **PASS** (coherence 0.97〜0.99, good). yaw: b −18.2% is within tolerance, but L_total is −100% (identification degenerate), **FAIL** — a structural problem in which the implemented counter-torque zero ($\tau_z\approx45.7$ ms, a 3.5 Hz lead within the control bandwidth) cannot be represented by the current 3-parameter $(b,L,T)$ fit. Note that the real-vehicle reference value itself is also a weak reference, being a 3-parameter fit with coherence 0.44 (to be addressed in backlog #11).
 
-## 5. Discipline That Does Not Change With Phase
+## 6. Discipline That Does Not Change With Phase
 
-- **Any control-parameter change must be backed by a numerical simulation using real flight logs.** Do not propose changes based on qualitative reasoning alone (e.g., "shortening Ti should help"). If simulation shows the change backfires, do not propose it (the rule in `control_theory_overview.md` §5.5).
-- **Do not optimize for a single nominal model.** Real hardware drifts between sessions (the same gain produced a 2.4–2.7x change in the 5–8 Hz band reference value across sessions). Carry torque effectiveness $\in[0.4, 0.7]$, dead time $L \in [8, 15]$ ms, and venue-grade disturbance at 0.2–1 Hz as a **perturbation family**, and accept a gain only if it does not degrade across the whole family.
-- **The SILS's inherent limitations cannot be verified within the SILS.** Concurrency conflicts (races between simultaneously running tasks) and the real WiFi/ESP-NOW physical layer cannot, in principle, be reproduced, because the SILS collapses what is normally concurrent processing into a single loop for reproducibility (RESET_PLAN §11). Real-hardware concurrency verification must be done separately.
+- **Control parameter changes must always be backed by numerical simulation using real flight logs.** Do not propose a change based only on a qualitative guess such as "shortening Ti should improve it." If the simulation shows the change is counterproductive, do not propose it (the iron rule in `control_theory_overview.md` §5.5).
+- **Do not optimize for a single nominal-model point.** The real vehicle drifts between sessions (there is an actual case where, with the same gain, the reference value in the 5–8 Hz band varied by a factor of 2.4〜2.7). Maintain torque authority $\in[0.4, 0.7]$, dead time $L \in [8, 15]$ ms, and venue-scale disturbance 0.2〜1 Hz as a **perturbation family**, and require that adopting a gain not degrade performance across the whole family.
+- **SILS's fundamental limitations cannot be verified with SILS.** Concurrency contention (contention arising from multiple tasks running at the same time) and the physical layer of actual WiFi/ESP-NOW cannot be reproduced, in principle, because of the structure that folds processing that is inherently concurrent into a single loop for SILS's reproducibility (RESET_PLAN §11). Verification of real-vehicle concurrency is carried out separately.
 
-## 6. SILS Plant Improvement Backlog (Priority Order)
+## 7. Physics Engines for Reinforcement Learning: MuJoCo vs Genesis
 
-| # | Item | Rationale / target value | Status |
+Going forward, the choice of "MuJoCo or Genesis" will come up for reinforcement learning. This section organizes their positioning in this repository and the points to consider when deciding. The figures and support status reflect the understanding as of September 2026; re-check against the latest version at the time of adoption.
+
+| Aspect | MuJoCo | Genesis |
+|---|---|---|
+| Developer / implementation | Google DeepMind. C implementation with Python bindings. Apache-2.0 | Genesis-Embodied-AI (a university/industry collaboration). Python/PyTorch implementation. Apache-2.0 |
+| Execution form | Basically sequential CPU execution. Large-scale GPU parallelism is provided by a separate implementation, MJX (the JAX version) | Assumes GPU parallelism. Advances thousands of environments in a batch, and is differentiable |
+| Scope of physics | Centered on rigid bodies, joints, and contact | Multiple physics domains in addition to rigid bodies — fluids, soft bodies, particles, etc. (coverage varies by version; needs checking) |
+| Determinism / reproducibility | Deterministic on a single thread (the property SILS requires) | With GPU parallelism, results can vary with computation order (needs checking) |
+| Reinforcement-learning ecosystem | Mature. Many examples such as Gymnasium, dm_control, MuJoCo Playground | New (released December 2024). Training examples are bundled, but the surrounding ecosystem is still developing |
+| Current usage in this repository | SILS's physics (kept in step with the real firmware via the C API). Not used for rendering | `simulator/genesis/` (Python control law; source of the motor ODE) |
+| Connection to the real firmware | Already connected via SILS (identical C++ source) | There is no mechanism to connect it. A separate process is needed to transfer a learned policy to the firmware |
+| Where it fits | When you want to verify a policy under the same physics as the real firmware, or want to run reliably on CPU | When you want to train thousands of instances at once, or want to use differentiability |
+| Challenges | Large-scale parallelism requires setting up MJX separately, and it cannot be connected to the C++ firmware | Determinism and maturity. There is no yardstick equivalent to SILS's pass/fail check |
+
+Policy: a realistic division of labor is to run training with Genesis (or MJX) and verify the resulting policy with SILS (MuJoCo physics, real firmware). The physical parameters of both are kept aligned via the single source of truth in §3.
+
+## 8. SILS Plant Improvement Backlog (Priority Order)
+
+| # | Task | Basis / target value | Status |
 |---|---|---|---|
-| 0 | Implement the model-match gate (§4) | The yardstick for every other item. Highest priority | **Implemented (2026-07-22)** — `sf sils sysid-gate` |
-| 1 | Add transport delay | Current SILS effective lag is ~5 ms vs. 8.4–14.7 ms on real hardware. Once the gate is in place, measure the SILS's current $L$ and set the difference as transport delay in the duty→thrust path | **Implemented (2026-07-22, default OFF)** — `sf sils scenario --motor-delay`. **Found unnecessary after the motor-ODE conversion (#2): stacking it on top of the ODE plant WORSENS L_total (measured 2026-07-26). Kept default OFF** |
-| 2 | Convert the motor model to an ODE | Port the electromechanical ODE from `simulator/genesis/motor_model.py`: $\dot\omega = \bigl[-(D_m + K_m^2/R_m)\omega - C_Q\omega^2 - Q_f + K_m V/R_m\bigr]/J_{mp}$. Measured values: $J_{mp}=1.375\times10^{-8}$ kg·m², $C_Q=4.10\times10^{-11}$ N·m·s²/rad², $\omega_{hover}\approx3670$ rad/s, hover-point effective time constant $\tau_{eff}\approx17.5$ ms | **Implemented (2026-07-26)** — RK4 integration with the measured parameter family ($C_Q=4.10\times10^{-11}$, $J_{mp}=1.375\times10^{-8}$, $K_m=5.682\times10^{-4}$, $R_m=0.593$, $D_m\approx0$, $Q_f=9.507\times10^{-6}$). Anti-torque is $C_Q\omega^2+J_{mp}\dot\omega$ (physically reproduces the yaw zero). (Added 2026-08-22: this measured family, `measured_2026_07`, turned out to describe a different motor than the static curve `legacy_motor_curve` still used by firmware; unifying the two awaits the bench measurement in #3) |
-| 3 | Recalibrate the $C_T$/$C_Q$/thrust_efficiency triple (firmware Ct switch) | The 2026-07-15 thrust-stand measurement of $C_T$ was retracted (2026-08-03) for lacking a valid simultaneous voltage/RPM/thrust measurement on the new propeller. At the time of retraction, the firmware (`actuator.cpp`'s `MOTOR_CT`) already numerically matched the provisional adopted value $C_T=1.00\times10^{-8}$, which was taken at the time to mean this task was resolved — that judgment turned out to be wrong (see Status) | **Reopened (2026-08-22)** — the 2026-08-03 "Resolved" verdict was wrong. The retirement of the static Am/Bm/Cm curve (2026-07-26) applied only to the SILS plant; the firmware's thrust→duty path (`thrustToDuty()` in `firmware/vehicle/components/sf_actuator/actuator.cpp`) still uses the static curve today, so the firmware/SILS-plant divergence had never actually closed. The firmware's static curve is an algebraic restatement of the SSOT `legacy_motor_curve` family ($R_m=0.34$, $K_m=6.125\times10^{-4}$, $C_Q=9.71\times10^{-11}$; exactly reproduced via $A_m=R_mC_Q/K_m$, $C_m=R_mQ_f/K_m$), while the SILS ODE plant uses the `measured_2026_07` family ($R_m=0.593$, $K_m=5.682\times10^{-4}$, $C_Q=4.10\times10^{-11}$) — the two describe different motors. At the hover point the plant produced 1.252× the firmware's commanded thrust; with `hover.thrust_corr=1.12` layered on top, the plant delivered 1.402× the vehicle's weight in thrust, but this mismatch had been coincidentally cancelled by the value carried in the plant's `thrust_efficiency`. db65e0e5 (2026-08-03, the Ct retraction) removed that cancellation, so 20 of 33 `sf sils regression` scenarios failed from 2026-08-03 through 2026-08-22 (undetected by CI because main was unpushed). **2026-08-22 fix:** folded `hover.thrust_corr`'s 1.12 into the firmware's static curve ($A_m$×1.12, $B_m$×$\sqrt{1.12}$, $C_m$ unchanged — an identity transform for duty output across the whole thrust range), restoring `hover.thrust_corr`'s default to 1.00. Added a new `flight_anchored_motor_curve` family to the SSOT, which the firmware now mirrors (`legacy_motor_curve`'s measured record is kept unchanged). Set the SILS plant's `thrust_efficiency` to 0.7133 (=1/1.402, an explicit single coefficient standing in for the gap between the idealized ODE and the flight-proven firmware+hardware combination). Recalibrated the SILS scenarios' STABILIZE throttle by ×0.8386 (ALT/POS throttle is a climb-rate command and is unchanged). Result: `sf sils regression` recovered to 28 PASS + 5 KNOWN-FAIL (33 total). **Still open:** whether `legacy_motor_curve` or `measured_2026_07` is the true description of the new propeller remains undecided (needs a bench V-ω-T simultaneous co-measurement — same follow-up task as before). `thrust_efficiency=0.7133` is a provisional value until that measurement lands; once it does, the two families should unify into a single motor model and `thrust_efficiency` should become 1.0 |
-| 4 | Motor dead-band / low-duty nonlinearity | Needed to reproduce the ~0.9 Hz limit cycle seen on real hardware. Identify from the bench data in `analysis/datasets/motor_sweep_20260714/` (3 airframes, props on/off) | Not started |
-| 5 | Add aerodynamic drag | The current MuJoCo plant has zero drag. Use the real-log-identified values from `sf sysid drag` | Not started |
-| 6 | Flow-quality model (N3) | A fixed SQUAL (optical-flow surface-quality metric) of 100 with no noise was the blind spot behind the first POS_HOLD real-flight divergence (`firmware/vehicle/docs/poshold_journey.md`: a concrete case of "passes Code-Identity SILS yet fails on hardware"). Flow/mag noise is already planned as the N3 tier for a later stage (`simulator/sils/RESET_PLAN.md` §13) | Not started |
-| 7 | Calibrate battery-sag $R_{int}$ from measurement | Voltage-dependent thrust error is the leading cause of altitude wobble (corr(V, altitude std) = −0.78, `analysis/reports/poshold_3min_battery_wobble_20260627.md`). The sag model itself is already implemented and already defaults ON in the closed-loop emulator (since 2026-06-07, `b8fd27ea`). The remaining work is only to calibrate the internal resistance $R_{int}$ from measurement (the current 0.1 Ω is a placeholder carried over from the vpython model) | Not started |
-| 8 | Re-identify the N1 vibration coefficients on current-vehicle logs | The current per-axis coefficients (`vib_accel_k`/`vib_gyro_k`) are seed values taken from the legacy `firmware/vehicle` hover02 log | Not started |
-| 9 | Real-log input replay (`sf sils replay`-equivalent) | Convert WireControl (the telemetry control-input struct) 50 Hz stick input into `.scn` scenarios, and compare against the real log on the same plots. The key step for Layer-2 → Layer-3 convergence | Not started |
-| 10 | Keep related documents consistent | If a discrepancy is noticed between this document and RESET_PLAN / development_roadmap, update this document first | Ongoing |
-| 11 | 4-parameterize the yaw-axis gate | Extend the `rate_sysid` yaw fit to the 4-parameter model that includes the anti-torque zero (`firmware/vehicle/docs/yaw_axis_model.md`), and regenerate the real-hardware reference (`reference.json` in `analysis/reports/rate_sysid_reference/README.md`) through the same pipeline for an apples-to-apples comparison | Not started |
-| 12 | Revisit firmware yaw torque authority | Re-examine the `rate.yaw.max_torque` differential headroom under the new reference hover duty (≈0.7245). SILS regression's pos_flight/pos_yaw/yaw_hold are being tracked as known-fail (xfail marker in `sf sils regression`). May share a root cause with the real-hardware NT-Kanazawa issue (treated 2026-07-17) | Not started |
-| 13 | Investigate attitude damping margin | Surfaced by calib (0.6–0.7 Hz self-oscillation from injected bias × the new plant's takeoff dynamics) and commloss_land_level (insufficient roll convergence during LANDING leveling). Check for a relationship with backlog #4 (motor dead-band) and #5 (zero aerodynamic drag). (Added 2026-08-22: the plant thrust excess found in #3 [1.252× the firmware-commanded thrust at hover, 1.402× vehicle weight once thrust_corr was included] may have contributed to this; re-verify after the thrust_efficiency fix) | Not started |
+| 0 | Implementing the model-match gate (§4) | The yardstick for every improvement. Highest priority | **Implemented (2026-07-22)** — `sf sils sysid-gate` |
+| 1 | Adding dead time | Current SILS effective lag ~5 ms vs. real vehicle 8.4〜14.7 ms. Measure SILS's current $L$ with the gate, and make it possible to configure the difference as a transport delay in the duty→thrust path | **Implemented (2026-07-22, default OFF)** — `sf sils scenario --motor-delay`. **Found that after moving to an ODE, no additional delay is needed (stacking it worsens L_total, measured 2026-07-26). Default OFF is maintained** |
+| 2 | Moving the motor model to an ODE | Port the electromechanical ODE from `simulator/genesis/motor_model.py`, $\dot\omega = \bigl[-(D_m + K_m^2/R_m)\omega - C_Q\omega^2 - Q_f + K_m V/R_m\bigr]/J_{mp}$, to SILS. Measured values: $J_{mp}=1.375\times10^{-8}$ kg·m², $C_Q=4.10\times10^{-11}$ N·m·s²/rad², $\omega_{hover}\approx3670$ rad/s, hover-point effective time constant $\tau_{eff}\approx17.5$ ms | **Implemented (2026-07-26)** — RK4 integration with the measured family ($C_Q=4.10\times10^{-11}$, $J_{mp}=1.375\times10^{-8}$, $K_m=5.682\times10^{-4}$, $R_m=0.593$, $D_m\approx0$, $Q_f=9.507\times10^{-6}$). Counter-torque is $C_Q\omega^2+J_{mp}\dot\omega$ (physically reproducing the yaw zero). (Added 2026-08-22: this measured family, `measured_2026_07`, turned out to describe a different motor from `legacy_motor_curve`, the static curve the firmware uses. Unification awaits the bench measurement in #3) |
+| 3 | Recalibrating the $C_T$/$C_Q$/thrust_efficiency triplet (firmware Ct switchover) | The $C_T$ measured on the 2026-07-15 thrust stand was withdrawn (2026-08-03) because it lacks a valid simultaneous measurement of voltage, rotation speed, and thrust for the new propeller. At the time of withdrawal, the firmware (`MOTOR_CT` in `actuator.cpp`) numerically matched the provisionally adopted value $C_T=1.00\times10^{-8}$, so this task was judged resolved at the time — but that judgment was wrong (see the status column for details) | **Reopened (2026-08-22)** — The "resolved" judgment of 2026-08-03 was wrong. The retirement of the static curve Am/Bm/Cm (2026-07-26) applied only to the SILS-plant side; the firmware's thrust→duty path (`thrustToDuty()`, `firmware/vehicle/components/sf_actuator/actuator.cpp`) still uses the static curve, and the divergence between the firmware and the SILS plant had not disappeared. The firmware's static curve is an algebraic restatement of the SSOT `legacy_motor_curve` ($R_m=0.34$, $K_m=6.125\times10^{-4}$, $C_Q=9.71\times10^{-11}$) — exactly reproduced via $A_m=R_mC_Q/K_m$, $C_m=R_mQ_f/K_m$ — while the SILS ODE plant is `measured_2026_07` ($R_m=0.593$, $K_m=5.682\times10^{-4}$, $C_Q=4.10\times10^{-11}$): the two describe different motors. At the hover point, the plant produced 1.252 times the firmware's commanded thrust, and with `hover.thrust_corr=1.12` applied on top, this became 1.402 times the vehicle weight in thrust — but the plant's `thrust_efficiency` happened to cancel this inconsistency. db65e0e5 (2026-08-03, withdrawal of Ct) removed that cancellation, and between 2026-08-03 and 2026-08-22, 20 of the 33 `sf sils regression` scenarios were failing (undetected by CI because main had not been pushed). **2026-08-22 fix:** folded the `hover.thrust_corr` factor of 1.12 into the firmware's static curve ($A_m$×1.12, $B_m$×$\sqrt{1.12}$, $C_m$ unchanged — a transformation that leaves the duty output identical across the whole thrust range), and restored the `hover.thrust_corr` default to 1.00. Added `flight_anchored_motor_curve` to the SSOT and made the firmware a copy of it (the measurement record of `legacy_motor_curve` is kept unchanged in value). Set the SILS plant's `thrust_efficiency` to 0.7133 (=1/1.402, an explicit coefficient representing the difference between the ideal ODE and the flight-proven firmware + real vehicle). Recalibrated the STABILIZE throttle in SILS scenarios by ×0.8386 (ALT/POS are unaffected since they command climb rate). Result: `sf sils regression` recovered to 28 PASS + 5 KNOWN-FAIL (33 total). **Unresolved:** it remains undecided which of `legacy_motor_curve` / `measured_2026_07` reflects the actual new propeller (awaiting a bench measurement of V-ω-T simultaneously across all three quantities — the same as the follow-on task). `thrust_efficiency=0.7133` is a provisional value until that measurement is complete; afterward, the two families should be unified into a single motor model and `thrust_efficiency` should become 1.0 |
+| 4 | Motor dead zone / low-duty nonlinearity | Needed to reproduce the real vehicle's ~0.9 Hz limit cycle. Identify from bench data in `analysis/datasets/motor_sweep_20260714/` (3 units, 2 conditions with/without propeller) | Not started |
+| 5 | Adding aerodynamic drag | Currently the MuJoCo plant has zero drag. Use the value identified from real logs by `sf sysid drag` | Not started |
+| 6 | Flow-quality model (N3) | A fixed SQUAL (the optical-flow surface-quality indicator) of 100 with no noise was a blind spot behind the POS_HOLD divergence on the first flight (`firmware/vehicle/docs/poshold_journey.md`: a concrete example of the blind spot "even with Code Identity, it doesn't work on the real vehicle"). Flow/Mag noise is already planned as the N3 tier for a later stage (`simulator/sils/RESET_PLAN.md` §13) | Not started |
+| 7 | Measurement-based calibration of the battery-sag $R_{int}$ | Voltage-dependent thrust error is the main cause of altitude wobble (corr(V, altitude std)=−0.78, `analysis/reports/poshold_3min_battery_wobble_20260627.md`). The sag model itself is already implemented and is default ON in the closed-loop emulator (2026-06-07, `b8fd27ea`). The only remaining work is measurement-based calibration of the internal resistance $R_{int}$ (the current value of 0.1 Ω is a provisional value taken from the VPython version) | Not started |
+| 8 | Re-identifying the N1 vibration coefficients from current vehicle logs | The current per-axis coefficients (`vib_accel_k`/`vib_gyro_k`) are seed values derived from the hover02 log of the old airframe (legacy `firmware/vehicle`) | Not started |
+| 9 | Real-vehicle log input replay (equivalent to `sf sils replay`) | Convert 50 Hz stick input from WireControl (the telemetry control-input struct) into a `.scn` scenario and compare it against the real log on the same plot. The key piece for reproducing, in SILS, the results of real-log replay (analysis) | Not started |
+| 10 | Maintaining consistency of related documents | When a discrepancy is noticed between this document and RESET_PLAN / development_roadmap, update this document first | Ongoing |
+| 11 | Extending the yaw-axis gate to a 4-parameter model | Extend the `rate_sysid` yaw fit to a 4-parameter model that includes the counter-torque zero (`firmware/vehicle/docs/yaw_axis_model.md`), and regenerate the real-vehicle reference value (`reference.json` in `analysis/reports/rate_sysid_reference/README.md`) with the same pipeline so the comparison is made under matching conditions | Not started |
+| 12 | Reconsidering firmware yaw torque authority | Reconsider the `rate.yaw.max_torque` differential margin under the new reference hover duty (≈0.7245). SILS regression's pos_flight/pos_yaw/yaw_hold are being tracked as known-fail (an xfail marker in `sf sils regression`). May share the same root cause as the real-vehicle NT Kanazawa issue (remedied 2026-07-17) | Not started |
+| 13 | Investigating attitude damping margin | Manifested in calib (0.6〜0.7 Hz self-excited oscillation from the interaction of injected bias with the new plant's takeoff dynamics) and commloss_land_level (insufficient roll convergence during the LANDING leveling gate). Check the relationship with backlog #4 (motor dead zone) and #5 (zero aerodynamic drag). (Added 2026-08-22: the excessive plant thrust found in #3 [1.252× the firmware's commanded thrust at the hover point, 1.402× the vehicle weight once `hover.thrust_corr` is included] may have been a contributing factor in this phenomenon; re-verify after the thrust_efficiency correction) | Not started |
 
-## 7. Related Document Map
+## 9. Related Document Map
 
-| Document | Authority for |
+| Document | Authoritative for |
 |---|---|
-| This document | Simulation policy (three-layer structure, phases, model-match gate, backlog) |
-| `simulator/sils/RESET_PLAN.md` | SILS bench structure and the bring-up history (§2 Policy 1 is bring-up-phase discipline) |
+| This document | Simulation policy (the role of the three simulators, how SILS is realised, the single source of truth for physical parameters, the SILS model-match pass/fail check, the backlog) |
+| `simulator/README.md` | How to use the VPython and Genesis versions |
+| `simulator/sils/README.md` | How to use the SILS bench (targets, scenarios, GUI) |
+| `simulator/sils/RESET_PLAN.md` | The record of the SILS bench's structure and startup history (§2 Policy 1 is the discipline for the startup phase) |
 | `firmware/vehicle/docs/development_roadmap.md` | The overall development process (Phase 0–6) |
-| `firmware/vehicle/docs/control_theory_overview.md` | Control-design discipline and identification lessons |
+| `firmware/vehicle/docs/control_theory_overview.md` | Control-design discipline and lessons from identification |
 | `firmware/vehicle/docs/noise_and_vibration_model.md` | Sensor noise model (N0–N2, N3/N4 planned) |
 | `firmware/vehicle/docs/yaw_axis_model.md` | The yaw-axis model |
-| `docs/architecture/stampfly-parameters.md` | Physical-parameter values and measurement history |
-| `analysis/scripts/alt_dob_design/README.md` and other `analysis/reports/` entries | Layer-2 execution records |
+| `docs/architecture/stampfly-parameters.md` | Physical parameter values and measurement history |
+| `analysis/scripts/alt_dob_design/README.md` and others in `analysis/reports/` | Records of log-driven replay work |
