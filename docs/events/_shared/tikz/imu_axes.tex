@@ -1,5 +1,6 @@
 \documentclass[border=5pt]{standalone}
 \usepackage{tikz}
+\usepackage{graphicx}
 \usetikzlibrary{arrows.meta, calc, decorations.markings}
 
 \begin{document}
@@ -17,6 +18,27 @@
     },
   ]
 
+  % ============================================================
+  % Airframe body: rendered image, not hand-drawn TikZ shapes.
+  % The body used to be a hand-drawn square plate + four rotor
+  % circles + a red nose triangle. It is now a PNG rendering of the
+  % real StampFly CAD model (landing/assets/model/*.stl), produced
+  % by scripts/render_stampfly_iso.py using EXACTLY the same
+  % elevation/azimuth camera as the projection below, so the
+  % rendered body and the axis arrows/labels/rotation arcs drawn
+  % here stay pixel-aligned. See that script for the STL ->
+  % FRD-frame mapping and the mm-per-TikZ-unit derivation. Re-run it
+  % whenever ElevDeg/AzimDeg change.
+  % 機体本体: 手描きのTikZ図形ではなくレンダリング画像を使用する。
+  % 以前は手描きの正方形プレート＋ローター4円＋赤い前方三角形
+  % だったが、現在は実物のStampFly CADモデル
+  % (landing/assets/model/*.stl) を scripts/render_stampfly_iso.py で
+  % レンダリングしたPNGに置き換えている。下記の投影と全く同じ
+  % 仰角・方位角のカメラを使っているため、レンダリングした機体と
+  % ここで描く軸矢印・ラベル・回転円弧はピクセル単位で位置が揃う。
+  % STL→FRD座標系への対応・mm/TikZ単位の導出は同スクリプトを参照。
+  % ElevDeg/AzimDeg を変更した場合は同スクリプトを再実行すること。
+  %
   % ============================================================
   % True orthographic (parallel) projection of the FRD body frame
   % X=forward, Y=right, Z=down (right-handed).
@@ -93,10 +115,16 @@
   % Geometry constants (all named, no bare magic numbers)
   % 幾何パラメータ（マジックナンバー無し、全て名前付き）
   \pgfmathsetmacro{\AL}{4.5}          % axis arrow length / 軸矢印の長さ
-  \pgfmathsetmacro{\BodyHalf}{1.15}   % body plate half-diagonal / 機体プレート半対角長
-  \pgfmathsetmacro{\RotorR}{0.5}      % rotor disk radius / ローター円半径
-  \pgfmathsetmacro{\NoseLen}{0.4}     % front marker length beyond edge / 前方マーカーの突出量
-  \pgfmathsetmacro{\NoseHalfW}{0.4}   % front marker half width / 前方マーカーの半幅
+  % BodyHalf (the old hand-drawn plate's half-diagonal, 1.15 units)
+  % now lives only in scripts/render_stampfly_iso.py as
+  % BODY_HALF_UNITS -- it fixes the mm-per-TikZ-unit scale of the
+  % rendered body image below and must stay in sync with that
+  % script if the airframe geometry or camera changes.
+  % BodyHalf（旧・手描きプレートの半対角長、1.15単位）は
+  % scripts/render_stampfly_iso.py の BODY_HALF_UNITS としてのみ
+  % 残っている。下のレンダリング画像のmm/TikZ単位スケールを決める
+  % 値であり、機体形状やカメラを変更する場合は同スクリプトと
+  % 一致させること。
   % Rotation-arc placement was chosen, and verified numerically in
   % Python, so that the 270-degree circle (radius ArcR, centered at
   % ArcCenterDist along the axis) stays clear of all four rotor
@@ -110,41 +138,32 @@
   \pgfmathsetmacro{\ArcCenterDist}{3.2} % rotation-arc center distance along axis / 回転円弧中心の軸上距離
   \pgfmathsetmacro{\ArcR}{0.65}        % rotation-arc radius / 回転円弧の半径
 
-  % ---- Body plate: square in the XY (horizontal) plane, corners
-  % at world coordinates (+-BodyHalf, +-BodyHalf, 0). FR/FL/RL/RR
-  % name the four corners (Front/Rear, Right/Left).
-  % ---- 機体プレート: XY平面（水平面）上の正方形。コーナーは世界
-  % 座標で (±BodyHalf, ±BodyHalf, 0)。FR/FL/RL/RRは前後左右のコーナー名。
-  \pgfmathsetmacro{\FRx}{\BodyHalf*\Xx+\BodyHalf*\Yx}
-  \pgfmathsetmacro{\FRy}{\BodyHalf*\Xy+\BodyHalf*\Yy}
-  \pgfmathsetmacro{\FLx}{\BodyHalf*\Xx-\BodyHalf*\Yx}
-  \pgfmathsetmacro{\FLy}{\BodyHalf*\Xy-\BodyHalf*\Yy}
-  \pgfmathsetmacro{\RLx}{-\BodyHalf*\Xx-\BodyHalf*\Yx}
-  \pgfmathsetmacro{\RLy}{-\BodyHalf*\Xy-\BodyHalf*\Yy}
-  \pgfmathsetmacro{\RRx}{-\BodyHalf*\Xx+\BodyHalf*\Yx}
-  \pgfmathsetmacro{\RRy}{-\BodyHalf*\Xy+\BodyHalf*\Yy}
-
-  \fill[bodycolor!10] (\FRx,\FRy) -- (\FLx,\FLy) -- (\RLx,\RLy) -- (\RRx,\RRy) -- cycle;
-  \draw[bodycolor, line width=1.2pt] (\FRx,\FRy) -- (\FLx,\FLy) -- (\RLx,\RLy) -- (\RRx,\RRy) -- cycle;
-
-  % ---- Rotor disks: true circles of radius RotorR lying in the XY
-  % plane, centered on each body corner. Parametrised in 3D as
-  % corner + RotorR*(cos(t) X + sin(t) Y) and projected by taking
-  % the same combination of the projected \Xx/\Xy, \Yx/\Yy vectors
-  % -- the projection is an ellipse, exactly as a circle on a
-  % tilted plane appears under parallel projection.
-  % ---- ローター円盤: XY平面上にある半径RotorRの真円。各機体コーナー
-  % を中心とする。3D では corner + RotorR*(cos(t) X + sin(t) Y) と
-  % パラメータ表示し、投影済みの \Xx/\Xy, \Yx/\Yy を同じ組み合わせで
-  % 使って投影する（平行投影された傾いた平面上の円は楕円になる）。
-  \foreach \Ccx/\Ccy in {\FRx/\FRy, \FLx/\FLy, \RLx/\RLy, \RRx/\RRy} {
-    \draw[bodycolor, thin, fill=bodycolor!8]
-      ({\Ccx+\RotorR*\Xx*cos(0)+\RotorR*\Yx*sin(0)},
-       {\Ccy+\RotorR*\Xy*cos(0)+\RotorR*\Yy*sin(0)})
-      \foreach \a in {6,12,...,360} {
-        -- ({\Ccx+\RotorR*\Xx*cos(\a)+\RotorR*\Yx*sin(\a)},
-            {\Ccy+\RotorR*\Xy*cos(\a)+\RotorR*\Yy*sin(\a)})
-      } -- cycle;
+  % ---- Airframe body image: rendered StampFly CAD model, placed so
+  % its own origin (the body center) coincides with TikZ (0,0), the
+  % same point the axis arrows below originate from. The PNG is
+  % generated with an image extent of exactly [-3, 3] x [-3, 3] TikZ
+  % units (see scripts/render_stampfly_iso.py), so an anchor=center
+  % node at (0,0) with width=6cm reproduces that extent exactly.
+  % Drawn BEFORE the axis arrows/labels/arcs so they render on top
+  % of the body. \IfFileExists picks the right relative path whether
+  % this file is compiled standalone (cwd = this directory) or
+  % \input from the Beamer deck (cwd = .../slides).
+  % ---- 機体本体の画像: レンダリングしたStampFly CADモデル。画像自身の
+  % 原点（機体中心）が、下の軸矢印の始点と同じTikZ座標(0,0)に一致する
+  % よう配置する。PNGの画像範囲はちょうど[-3, 3]×[-3, 3]TikZ単位
+  % （scripts/render_stampfly_iso.py参照）なので、(0,0)に
+  % anchor=centerで置いたwidth=6cmのnodeで、その範囲を正確に再現できる。
+  % 軸矢印・ラベル・回転円弧より先に描き、それらが機体の上に重なる
+  % ようにする。\IfFileExistsで、このファイルを単体コンパイル（カレント
+  % ディレクトリ=このディレクトリ）する場合と、Beamerデッキから
+  % \input する場合（カレントディレクトリ=.../slides）のどちらでも
+  % 正しい相対パスを選ぶ。
+  \IfFileExists{stampfly_frd_iso.png}{
+    \node[inner sep=0, anchor=center] at (0,0)
+      {\includegraphics[width=6cm]{stampfly_frd_iso.png}};
+  }{
+    \node[inner sep=0, anchor=center] at (0,0)
+      {\includegraphics[width=6cm]{../../_shared/tikz/stampfly_frd_iso.png}};
   }
 
   % ---- Three body axes, drawn from the origin (body center) ----
@@ -164,25 +183,13 @@
   \node[font=\Large\bfseries, axisZ, right, inner sep=2pt]
     at ({\AL*\Zx},{\AL*\Zy}) {Z (Down)};
 
-  % ---- Front marker: small triangle on the front edge (FR-FL),
-  % base at world (BodyHalf, +-NoseHalfW, 0), apex projecting
-  % further forward at world (BodyHalf+NoseLen, 0, 0). Its base
-  % midpoint sits exactly on the X-axis line (both are points along
-  % world +X), so it is drawn AFTER the X axis: the marker's opaque
-  % fill then paints over the line at that crossing, keeping the
-  % marker readable as one solid shape instead of being bisected by
-  % the axis stroke.
-  % ---- 前方マーカー: 前縁(FR-FL)上の小さな三角形。底辺は世界座標で
-  % (BodyHalf, ±NoseHalfW, 0)、頂点はさらに前方の
-  % (BodyHalf+NoseLen, 0, 0) に投影される。底辺の中点はちょうど
-  % X軸の直線上にある（どちらも世界+X上の点のため）ので、X軸を
-  % 描いた後に描く。マーカーの不透明な塗りがその交点で線の上を
-  % 上塗りし、軸線でマーカーが分断されずに1つの塗りつぶし形状として
-  % 読めるようにする。
-  \fill[axisX!75]
-    ({\BodyHalf*\Xx-\NoseHalfW*\Yx}, {\BodyHalf*\Xy-\NoseHalfW*\Yy}) --
-    ({\BodyHalf*\Xx+\NoseHalfW*\Yx}, {\BodyHalf*\Xy+\NoseHalfW*\Yy}) --
-    ({(\BodyHalf+\NoseLen)*\Xx}, {(\BodyHalf+\NoseLen)*\Xy}) -- cycle;
+  % (The hand-drawn front-marker triangle that used to sit on the
+  % X-axis here is gone -- the rendered body image already shows the
+  % real airframe's front, so a separate synthetic marker would be
+  % redundant.)
+  % （X軸上にあった手描きの前方マーカー三角形は削除した。レンダリング
+  % した機体画像がすでに実機の前方を示しているため、別途合成の
+  % マーカーを描くのは冗長なため。）
 
   % === Rotation arrows =========================================
   % Each is a true 3D circle of radius ArcR, centered at

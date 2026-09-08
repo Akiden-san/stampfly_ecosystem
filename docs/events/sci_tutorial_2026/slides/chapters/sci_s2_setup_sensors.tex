@@ -58,9 +58,8 @@
 
 % ------------------------------------------------------------------
 \begin{frame}{開発環境の導入: 機体とペアリング}
-  \begin{block}{書き込みは \code{sf flash vehicle} / \code{sf flash controller} で行う}
-    \small 本講座の操作はすべて sf CLI で行う。参考: ブラウザから公開済みファームウェアを書き込む Web Flasher もある（本講座では使わない）\\
-    \url{https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/}
+  \begin{block}{書き込みは \texttt{sf flash vehicle} / \texttt{sf flash controller} で行う}
+    本講座の操作はすべて \texttt{sf} CLI で行う
   \end{block}
 
   \vspace{0.5em}
@@ -322,7 +321,7 @@ void loop_400Hz(float dt) {
 
   \vspace{0.15em}
 
-  {\scriptsize 疎通確認: \code{sf telemetry}（受信できれば OK，IP 指定不要）。
+  {\scriptsize 接続の確認: \code{sf telemetry}（受信できれば OK，IP 指定不要）。
   会場の WiFi ではなく機体自身が出す AP に繋ぐ（機体ごとに SSID が異なる）}
 \end{frame}
 

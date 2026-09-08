@@ -182,9 +182,9 @@ sf sils gui
   </p></div></div></div>
 <p>  <span class="fs-small"> 違いはこの2点だけ。<code class="tex-code">sf</code> コマンド自体（<code class="tex-code">sf build</code>、<code class="tex-code">sf lesson</code> 等）とワークフローは3 OSで完全に同一</span>
 </p></div><footer class="slide-footer"><span class="footer-session">Session 2: 環境構築とセンサ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">35 / 155</span></footer></section>
-<section class="slide content" id="s-036" data-title="開発環境の導入: 機体とペアリング" data-session="S2"><header class="slide-header"><h2>開発環境の導入: 機体とペアリング</h2></header><div class="slide-body"><div class="block block"><h3 class="block-title">書き込みは <code class="tex-code">sf flash vehicle</code> / <code class="tex-code">sf flash controller</code> で行う</h3><div class="block-body"><div class="fs-small"><p> 本講座の操作はすべて sf CLI で行う。参考: ブラウザから公開済みファームウェアを書き込む Web Flasher もある（本講座では使わない）<br>
-    <a class="tex-url" href="https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/" target="_blank" rel="noopener">https://m5fly-kanazawa.github.io/stampfly_ecosystem/flash/</a>
-  </p></div></div></div>
+<section class="slide content" id="s-036" data-title="開発環境の導入: 機体とペアリング" data-session="S2"><header class="slide-header"><h2>開発環境の導入: 機体とペアリング</h2></header><div class="slide-body"><div class="block block"><h3 class="block-title">書き込みは <code class="tex-texttt">sf flash vehicle</code> / <code class="tex-texttt">sf flash controller</code> で行う</h3><div class="block-body"><p>
+    本講座の操作はすべて <code class="tex-texttt">sf</code> CLI で行う
+  </p></div></div>
 <div class="block example"><h3 class="block-title">コントローラのペアリング（初回のみ）</h3><div class="block-body"><div class="fs-footnotesize"><ol><li> コントローラの LCD パネルボタンを押しながら電源を入れる
       </li><li> StampFly 本体のボタンを <span class="warn">3 秒以上</span>押し続け、ビープが鳴ったら離す（5 秒以上押し続けるとシステムリセット）
       </li><li> 双方がビープしたらペアリング完了。以降は電源を入れるだけで自動再接続する
@@ -282,7 +282,7 @@ void loop_400Hz(float dt) {
     PC の WiFi 設定で選び，既定パスワード <code class="tex-texttt">stampfly</code> を入力。
     IP は既定 <code class="tex-texttt">192.168.10.1</code>（DJI Tello 互換サブネット）
   </p></div></div></div>
-<p>  <span class="fs-scriptsize"> 疎通確認: <code class="tex-code">sf telemetry</code>（受信できれば OK，IP 指定不要）。
+<p>  <span class="fs-scriptsize"> 接続の確認: <code class="tex-code">sf telemetry</code>（受信できれば OK，IP 指定不要）。
   会場の WiFi ではなく機体自身が出す AP に繋ぐ（機体ごとに SSID が異なる）</span>
 </p></div><footer class="slide-footer"><span class="footer-session">Session 2: 環境構築とセンサ</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">47 / 155</span></footer></section>
 <section class="slide content later" id="s-048" data-title="データ取得経路② sf telemetry" data-session="S2"><header class="slide-header"><h2>データ取得経路② sf telemetry</h2><span class="later-badge">あとで読む</span></header><div class="slide-body"><div class="block block"><h3 class="block-title">コード変更なしでライブ表示</h3><div class="block-body"><div class="fs-small"><p> 機体は状態推定値を常時 50 Hz で送信している。受信して表示するだけなら実習コードの変更は不要
