@@ -576,15 +576,14 @@ ws::motor_mixer(ws::rc_throttle(),
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{なぜ閉ループデータから開ループ同定ができるか\later}
-  \begin{block}{$K_p$ が既知なら，閉ループデータから開ループプラントを復元できる}
+\begin{frame}{閉ループのログから開ループを同定できる理由\later}
+  \begin{block}{ログにプラントの入力と出力が両方入っているから}
     \footnotesize
     \setlength{\abovedisplayskip}{2pt}\setlength{\belowdisplayskip}{2pt}%
-    レートループは P 制御で飛ばしている（実習5・7）。$K_p$ は自分で設定した
-    既知の値なので，Data Stream に残る目標値と計測値から，プラントへの
-    入力そのものを逆算できる:
+    Data Stream には 400\,Hz で 4 モータの duty（入力）とジャイロ（出力）がそろって記録される。
+    ミキサを逆算すれば軸ごとの入力 $u(t)$ が直接得られ，制御器が P でも PID でも同定できる:
     \[
-      u(t) = K_p\bigl(\text{rate\_ref}(t) - \text{gyro}(t)\bigr), \qquad
+      u(t) = \frac{1}{4k}\bigl(-d_{FR} - d_{RR} + d_{RL} + d_{FL}\bigr)\ (\text{ロール}), \qquad
       y(t) = \text{gyro}(t)
     \]
     候補の $K,\tau_m$ でモデル出力 $\hat y(t)$ をシミュレーションし，実測
@@ -593,9 +592,8 @@ ws::motor_mixer(ws::rc_throttle(),
       J(K,\tau_m) = \sum_t \bigl(\hat y(t) - y(t)\bigr)^2
     \]
   \end{block}
-
-  {\footnotesize \code{sf sysid fit} はこれに加え，ホバリング区間の自動検出，
-  短いセグメントへの分割，結果の統計処理（中央値・不確かさ）を自動で行う}
+  {\scriptsize 閉ループで飛ばすのは，制御なしには飛べない機体を励振の間も安定に保つため。
+  duty の無い古いログでは既知の $K_p$ から $u=K_p(\text{rate\_ref}-\text{gyro})$ を逆算する経路（\code{--kp}）に切り替わる}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -617,7 +615,7 @@ ws::motor_mixer(ws::rc_throttle(),
     \item \code{sf lesson build}
     \item \code{sf lesson flash}
     \item 飛行しながら \code{sf log wifi -o flight.csv}
-    \item \code{sf sysid fit flight.csv --kp 0.5 --plot}
+    \item \code{sf sysid fit flight.csv --plot}
   \end{enumerate}
 
   {\footnotesize 確認: 同定結果 $K,\tau_m$ が実習 6 の理論値と数\%の誤差で一致する。
@@ -628,7 +626,7 @@ ws::motor_mixer(ws::rc_throttle(),
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{同定結果と理論値の比較}
   \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{出力例}
-sf sysid fit flight.csv --kp 0.5 --plot
+sf sysid fit flight.csv --plot
   Roll  K= 98.5 (ref:102.0, err:3.4%) tau_m=0.019 R2=0.94
   Pitch K= 72.1 (ref: 70.0, err:3.0%) tau_m=0.021 R2=0.91
   \end{sflisting}

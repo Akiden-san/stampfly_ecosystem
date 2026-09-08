@@ -36,7 +36,7 @@
 
 ## 3. システム同定の確認
 
-- [ ] 実習7 の手順（`ws::set_rate_target()` を呼ぶ実習コード）でログを取得 → `sf sysid fit flight.csv --kp 0.5 --plot` が実行でき，Roll/Pitch の $K$, $\tau_m$ が実習6 の理論値（$K_{roll}=102$, $K_{pitch}=70$）に近い値で出ること
+- [ ] 実習7 の手順（`ws::set_rate_target()` を呼ぶ実習コード）でログを取得 → `sf sysid fit flight.csv --plot` が実行でき，Roll/Pitch の $K$, $\tau_m$ が実習6 の理論値（$K_{roll}=102$, $K_{pitch}=70$）に近い値で出ること
 - [ ] 同じログで `sf sysid rate-fit flight.csv --axis roll` が実行でき，$(b, L, T)$ が妥当な値（$L$ が数ms〜十数ms程度）で出ること
 
 **NG時の代替:** 同定が収束しない場合，事前取得済みの参照ログ（`analysis/reports/rate_sysid_reference/` 等）を使ったデモに切り替え，当日ログでの実演は「一緒に打つ」ではなく「見るだけ」にする。
@@ -102,7 +102,7 @@
 
 ## 3. System Identification Check
 
-- [ ] Using Exercise 7's procedure (student code calling `ws::set_rate_target()`), `sf sysid fit flight.csv --kp 0.5 --plot` runs and returns roll/pitch $K$, $\tau_m$ close to the Exercise 6 theoretical values ($K_{roll}=102$, $K_{pitch}=70$)
+- [ ] Using Exercise 7's procedure (student code calling `ws::set_rate_target()`), `sf sysid fit flight.csv --plot` runs and returns roll/pitch $K$, $\tau_m$ close to the Exercise 6 theoretical values ($K_{roll}=102$, $K_{pitch}=70$)
 - [ ] The same log works with `sf sysid rate-fit flight.csv --axis roll`, returning a plausible $(b, L, T)$ ($L$ on the order of single-digit to low-double-digit ms)
 
 **Fallback:** if identification does not converge, demo with a pre-captured reference log (e.g. under `analysis/reports/rate_sysid_reference/`) and present the day's own log as "watch only" rather than live.

@@ -87,7 +87,7 @@ sf lesson build && sf lesson flash
 sf lesson switch sci2026:7
 sf lesson build && sf lesson flash
 sf log wifi -o flight.csv     # 離陸してスティック操作しながら取得
-sf sysid fit flight.csv --kp 0.5 --plot
+sf sysid fit flight.csv --plot
 ```
 
 **観察ポイント:** 同定した $K$, $\tau_m$ と実習 6 の理論値を比較する。
@@ -243,7 +243,7 @@ After `sf lesson switch sci2026:7`, set `Kp` in `user_code.cpp` and call `ws::se
 sf lesson switch sci2026:7
 sf lesson build && sf lesson flash
 sf log wifi -o flight.csv     # take off and move the sticks while capturing
-sf sysid fit flight.csv --kp 0.5 --plot
+sf sysid fit flight.csv --plot
 ```
 
 **Watch for:** compare the identified $K$, $\tau_m$ against the Exercise 6 theoretical values.
