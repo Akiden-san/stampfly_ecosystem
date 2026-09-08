@@ -18,6 +18,7 @@
 | `sim_hal/` | 合成センサを返す SILS 用 HAL ラッパー（`bmi270_wrapper` ＝ P1.1、残り ＝ P1.2） |
 | `models/` | 機体の MJCF（`quad_smoke.xml`／`demo_drop.xml` ＝ P1.0、StampFly 完全版 ＝ P1.2） |
 | `smoke/` | スモークテスト（`mujoco_smoke`・`cores_smoke` ＝ P1.0、`rtos_smoke` ＝ P1.1） |
+| `scenarios/` | `*.scn`（入力シナリオ）／`*.expect`（合否判定）のペア。書き方は [`docs/scenario_tutorial.md`](docs/scenario_tutorial.md) 参照 |
 
 ### エミュレータターゲット（vehicle / vehicle_old / workshop）
 
@@ -170,7 +171,7 @@ A physics-based, MuJoCo, algorithm-independent SILS (Software-in-the-Loop) bench
 
 ### Emulator targets (vehicle / vehicle_old / workshop)
 
-`sf sils build --target <name>` and `sf sils scenario <scn> --target <name>` pick one of three firmwares (all link the same, unmodified firmware sources onto the same MuJoCo Plant / virtual board infrastructure).
+`sf sils build --target <name>` and `sf sils scenario <scn> --target <name>` pick one of three firmwares (all link the same, unmodified firmware sources onto the same MuJoCo Plant / virtual board infrastructure). Scenario (`*.scn`) and assertion (`*.expect`) pairs live in `scenarios/` — see [`docs/scenario_tutorial.md`](docs/scenario_tutorial.md) for how to write your own.
 
 | target | executable | what it is |
 |--------|-----------|------------|

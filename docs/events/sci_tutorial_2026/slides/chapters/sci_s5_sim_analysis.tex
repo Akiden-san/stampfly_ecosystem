@@ -171,6 +171,42 @@ sf sils gui
 \end{frame}
 
 % ------------------------------------------------------------------
+\begin{frame}[fragile]{.scn と .expect の書き方\later}
+  {\scriptsize \textbf{.scn は入力の台本，.expect は合格条件。}どちらも UTF-8 のテキストで，
+  同じ名前で \code{simulator/sils/scenarios/} に置く。GUI は .scn を保存できるが .expect を作る画面は無い（手書き）。
+  .expect が無ければ終了コードだけで判定}
+
+  \vspace{-0.2em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      \begin{sflisting}[basicstyle=\ttfamily\tiny]{my\_roll\_step.scn（時刻は ms）}
+# t  ch  thr  roll pitch yaw  arm hold rate
+  0  rc  2048 2048 2048 2048  0   4000 50   # calib
+  +  rc  2048 2048 2048 2048  1   500  50   # ARM
+  +  rc  3243 2048 2048 2048  1   2000 50   # takeoff
+  +  rc  3176 2600 2048 2048  1   1000 50   # roll +8deg
+  +  rc  3176 2048 2048 2048  1   1500 50   # settle
+      \end{sflisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{sflisting}[basicstyle=\ttfamily\tiny]{my\_roll\_step.expect（in は秒）}
+exit 0
+log_contains any "Takeoff complete"
+metric tilt_max > 8.0 in 6.5 7.5
+metric tilt_max < 6.0 in 8.7 9.0
+metric duty_max < 0.9 in 6.5 9.0
+      \end{sflisting}
+    \end{column}
+  \end{columns}
+
+  \vspace{-0.3em}
+  {\scriptsize \code{sf sils scenario simulator/sils/scenarios/my\_roll\_step.scn --target vehicle} で
+  PASS/FAIL と実測値（\code{tilt\_max=11.1}）が出る。しきい値は先に .expect 無しで走らせ，実測に余裕を持たせて決める。
+  \code{+} は直前イベントの終了直後，rc の列は 12 bit 生値（中立 2048）。
+  全文法と手順: \code{simulator/sils/docs/scenario\_tutorial.md}}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}[fragile]{実習 8 (2/2): 自分の PID を SILS で飛ばす}
   \vspace{0.15em}
   {\small 見るだけ ｜ \textcolor{sfblue}{\textbf{一緒に打つ}} ｜ 帰宅後に再現}

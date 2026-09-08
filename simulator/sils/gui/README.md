@@ -49,6 +49,7 @@ sf sils gui            # ブラウザが自動で開く（http://127.0.0.1:8765�
 - 「⠿」をドラッグで並べ替え、「✕」で削除。
 - 「.scn を表示」で生成されるファイル内容を確認。「💾 .scn 保存」で `scenarios/` に保存。
 - 編集すると自動的に「カスタム実行」になり、編集後のイベント列で走ります。
+- `.scn` の文法・合否判定 `.expect`（GUI には保存機能なし、手書きが必要）の書き方は [`../docs/scenario_tutorial.md`](../docs/scenario_tutorial.md) を参照。
 
 ### パラメータを変えて試す
 
@@ -96,7 +97,9 @@ sf sils gui        # opens the browser at http://127.0.0.1:8765
   (truth vs estimate), check the PASS/FAIL gates.
 - **Build/edit**: the "シナリオ作成" tab — add events (rc/wind/fault/handle…), set each
   event's time (`0`=abs ms, `+`=right after the previous, `+500`=500 ms after). Save to
-  `scenarios/` or just run the edited list.
+  `scenarios/` or just run the edited list. For the `.scn` grammar and how to write the
+  matching `.expect` (no GUI support for that — hand-write it), see
+  [`../docs/scenario_tutorial.md`](../docs/scenario_tutorial.md).
 - **Parameters**: the "パラメータ" tab — edit any of the 54 firmware params; only the
   changed ones are applied to the run (no rebuild), via `SILS_EMU_PARAMS_FILE`.
 
