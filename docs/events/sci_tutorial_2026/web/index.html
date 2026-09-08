@@ -625,7 +625,7 @@ ws::motor_mixer(ws::rc_throttle(),
     （<span class="math-inline">\(K\)</span>，<span class="math-inline">\(\tau_m\)</span>）を推定する。これまでのフレームで導いた理論モデルと，実機の
     フライトデータが一致するかを検証する
   </p></div></div></div></div><footer class="slide-footer"><span class="footer-session">Session 4: PID 姿勢安定化</span><span class="footer-title">StampFly Ecosystem</span><span class="footer-page">92 / 155</span></footer></section>
-<section class="slide content later" id="s-093" data-title="同定に使う入力と出力はログに記録されている" data-session="S4"><header class="slide-header"><h2>同定に使う入力と出力はログに記録されている</h2><span class="later-badge">あとで読む</span></header><div class="slide-body"><div class="block block"><h3 class="block-title">入力（モータ duty）と出力（ジャイロ）を 400 Hz で記録する</h3><div class="block-body"><div class="fs-footnotesize"><p>
+<section class="slide content later" id="s-093" data-title="同定に使う入力と出力はログに記録されている" data-session="S4"><header class="slide-header"><h2>同定に使う入力と出力はログに記録されている</h2><span class="later-badge">あとで読む</span></header><div class="slide-body"><div class="block block"><h3 class="block-title">記録した入力と出力から最小二乗フィットで <span class="math-inline">\(K,\tau_m\)</span> を求める</h3><div class="block-body"><div class="fs-footnotesize"><p>
     
     Data Stream には 400 Hz で 4 モータの duty（入力）とジャイロ（出力）がそろって記録される。
     ミキサを逆算すれば軸ごとの入力 <span class="math-inline">\(u(t)\)</span> が直接得られ，制御器が P でも PID でも同定できる:
