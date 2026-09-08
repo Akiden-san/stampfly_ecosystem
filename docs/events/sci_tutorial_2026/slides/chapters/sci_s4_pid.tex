@@ -119,7 +119,7 @@
 \begin{frame}[fragile]{実習 5: レート P 制御で初飛行}
   \vspace{0.15em}
 
-  {\footnotesize \textcolor{sfblue}{\textbf{見るだけ}} ｜ 一緒に打つ ｜ 帰宅後に再現}
+  {\footnotesize コード: \textcolor{sfblue}{\textbf{一緒に打つ}} ｜ 飛行: \textcolor{sfblue}{\textbf{見るだけ}}（講師） ｜ 帰宅後に再現}
 
   \vspace{0.3em}
 
@@ -133,12 +133,11 @@
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
     \item \code{sf lesson switch sci2026:5}
     \item \code{sf lesson edit} で TODO を埋めて保存（\api{ws::gyro\_x/y/z()}，\api{ws::rc\_roll/pitch/yaw()}）
-    \item \code{sf lesson build}
-    \item \code{sf lesson flash}
-    \item 確認: 講師が完成コード（$K_p=0.5$）で飛ばす。スティック追従とわずかな振動を見る
+    \item \code{sf lesson build}（ここまで各自）
+    \item 飛行は講師が完成コード（$K_p=0.5$）で行う。スティック追従とわずかな振動を見る
   \end{enumerate}
 
-  {\footnotesize 帰宅後に自分の $K_p$ で飛ばして再現する}
+  {\footnotesize 帰宅後に \code{sf lesson flash} して自分の $K_p$ で飛ばして再現する}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -733,10 +732,10 @@ sf sysid fit flight.csv --kp 0.5 --plot
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{実習 8: PID 制御}
+\begin{frame}[fragile]{実習 8 (1/2): PID 制御}
   \vspace{0.15em}
 
-  {\footnotesize \textcolor{sfblue}{\textbf{見るだけ}} ｜ 一緒に打つ ｜ 帰宅後に再現}
+  {\footnotesize コード: \textcolor{sfblue}{\textbf{一緒に打つ}} ｜ 飛行: \textcolor{sfblue}{\textbf{見るだけ}}（講師） ｜ 帰宅後に再現}
 
   \vspace{0.3em}
 
@@ -749,12 +748,11 @@ sf sysid fit flight.csv --kp 0.5 --plot
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
     \item \code{sf lesson switch sci2026:8}
     \item \code{sf lesson edit} で軸ごとに I 項・D 項・アンチワインドアップを追加して保存
-    \item \code{sf lesson build}
-    \item \code{sf lesson flash}
-    \item 確認: 実習 5（P のみ）と比べて定常偏差とオーバーシュートの変化を見る
+    \item \code{sf lesson build}（ここまで各自。書いたコードは Session 5 の実習 8 (2/2) で SILS で飛ばす）
+    \item 飛行は講師が行う。実習 5（P のみ）と比べて定常偏差とオーバーシュートの変化を見る
   \end{enumerate}
 
-  {\footnotesize 帰宅後に自分のゲインで再現する}
+  {\footnotesize 実習 8 (2/2) まで別の実習へ切り替えない（切り替えると \code{user\_code.cpp} が上書きされる。上書き前に \code{my\_code/} へ自動退避）。帰宅後に自分のゲインで再現する}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -971,7 +969,7 @@ sf sysid fit flight.csv --kp 0.5 --plot
     \item \code{sf monitor} + Teleplot で \code{cf\_roll} と \code{eskf\_roll} を比較
   \end{enumerate}
 
-  {\footnotesize 確認: 機体を手で傾け，両者が近い挙動をすることを見る。帰宅後に $\alpha$ を変えて再現する}
+  {\footnotesize 確認: 機体を手で傾け，両者が近い挙動をすることを見る。当日は実習 8 のコードを残すため切り替えず講師の画面で見る。飛行しないので帰宅後に $\alpha$ を変えて安全に再現できる}
 \end{frame}
 
 % ------------------------------------------------------------------

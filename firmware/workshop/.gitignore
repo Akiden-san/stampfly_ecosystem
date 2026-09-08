@@ -6,3 +6,7 @@
 # `sf lesson switch <N>` でレッスンごとに上書きされる作業用ファイル。
 # git では追跡しない。
 main/user_code.cpp
+
+# Learner edits saved by `sf lesson switch` before overwriting user_code.cpp
+# `sf lesson switch` が user_code.cpp を上書きする前に退避した学習者の編集
+my_code/

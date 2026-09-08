@@ -580,6 +580,44 @@ def run_list(args: argparse.Namespace) -> int:
     return result
 
 
+def _is_seed_content(content: str) -> bool:
+    """True if `content` equals some lesson's student.cpp or solution.cpp
+    (i.e. it carries no learner edits).
+    `content` がどれかのレッスンの student.cpp / solution.cpp と一致する
+    （＝学習者の編集が入っていない）なら True。
+    """
+    if not content:
+        return True
+    for _num, _name, lesson_dir in _discover_lessons():
+        for fname in ("student.cpp", "solution.cpp"):
+            fpath = lesson_dir / fname
+            if fpath.exists() and fpath.read_text(encoding="utf-8") == content:
+                return True
+    return False
+
+
+def _backup_edited_user_code(user_code: Path) -> Optional[Path]:
+    """Before `sf lesson switch` overwrites user_code.cpp, save a copy of it
+    under firmware/workshop/my_code/ if it contains learner edits (its
+    content matches no lesson seed). Returns the backup path, or None.
+    `sf lesson switch` が user_code.cpp を上書きする前に、学習者の編集が
+    入っていれば（どのレッスンの雛形とも一致しなければ）
+    firmware/workshop/my_code/ に退避する。退避先のパス、無ければ None。
+    """
+    if not user_code.exists():
+        return None
+    content = user_code.read_text(encoding="utf-8")
+    if _is_seed_content(content):
+        return None
+    from datetime import datetime
+    backup_dir = paths.workshop() / "my_code"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup = backup_dir / f"user_code_{stamp}.cpp"
+    shutil.copyfile(user_code, backup)
+    return backup
+
+
 def _current_user_code() -> str:
     """Read user_code.cpp's current content, or "" if not switched yet.
 
@@ -879,6 +917,14 @@ def run_switch(args: argparse.Namespace) -> int:
     # `sf build workshop` / `sf sils build --target workshop` が切替後のコードを
     # 再コンパイルせずに済ませてしまうことがあった。更新時刻が新しくなるので、
     # 切替後に `touch` は一切不要。
+    # Keep the learner's edits: an edited user_code.cpp is saved to
+    # firmware/workshop/my_code/ before it is overwritten.
+    # 学習者の編集を守る: 編集済みの user_code.cpp は上書き前に
+    # firmware/workshop/my_code/ に退避する。
+    backup = _backup_edited_user_code(dst)
+    if backup is not None:
+        console.warning(f"Edited user_code.cpp saved to {backup.relative_to(paths.root())}")
+        console.print("  編集済みの user_code.cpp を上書き前に退避しました")
     shutil.copyfile(src, dst)
 
     # Clean build directory to ensure the new user_code.cpp is compiled

@@ -198,25 +198,24 @@ sf sils gui
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}[fragile]{実習: 自分の PID を SILS で飛ばす}
+\begin{frame}[fragile]{実習 8 (2/2): 自分の PID を SILS で飛ばす}
   \vspace{0.15em}
   {\small 見るだけ ｜ \textcolor{sfblue}{\textbf{一緒に打つ}} ｜ 帰宅後に再現}
 
   \vspace{0.2em}
 
   \begin{enumerate}\footnotesize\setlength{\itemsep}{0pt}
-    \item 実習8の解答（または S4 で書いた自分のコード）に切り替える
+    \item Session 4 の実習 8 (1/2) で書いた自分のコードのまま（切り替え不要）。書き切れなかった人は解答に切り替える
     \item \code{sf lesson sils} を実行し，合否判定を確認する
   \end{enumerate}
 
   \begin{sflisting}[basicstyle=\ttfamily\scriptsize]{コマンド}
-sf lesson switch sci2026:8 --solution
 sf lesson sils
   \end{sflisting}
 
   \vspace{-2.5mm}
 
-  {\scriptsize 自分のコードで試す場合は\code{--solution}を付けずに切り替えるだけでよい。
+  {\scriptsize 解答で試す場合は先に \code{sf lesson switch sci2026:8 --solution} を打つ。
   合格基準（\code{.expect}）: 離陸（真値高度 $>0.1$\,m）と傾き $15^\circ$ 未満
   （発散しない）。実測 alt\_max $\approx 0.64$\,m，tilt\_max $0^\circ$，判定 PASS。
   \warn{注:} 実習コードの SILS は \code{sf lesson sils} を使う（\code{sf sils gui} は vehicle 本体向け）}
