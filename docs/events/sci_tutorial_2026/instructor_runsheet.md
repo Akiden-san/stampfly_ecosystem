@@ -86,7 +86,7 @@ void loop_400Hz(float dt) {
 
 全17フレーム中、実演・実習は2件（新設のTDMA解説フレームが1枚増え16→17）。**安全（p.57）**: 机上で実施し、モータ回転中は手を近づけない。Duty は0.15以下に固定（ファーム側では強制されないため必ず目視確認）。ARMは機体ボタンの単クリックまたはコントローラのみで行い、コード内で自動ARMしない。
 
-新設の p.63「TDMAで30機を同時に飛ばす」はTDMA（時分割多重アクセス、Time Division Multiple Access）の原理と、非重複3チャンネル（1/6/11ch）で理論上30機まで運用できることを説明する参照フレームで、当日は実演しない。DXH2026講座で10台を1/6/11chに4/3/3台で分散運用した実績が紹介されており、教室で複数機体が同時に飛ぶ場合の混信対策として質疑応答に使える。
+新設の p.63「TDMAで30機を同時に飛ばす」はTDMA（時分割多重アクセス、Time Division Multiple Access）の原理と、非重複3チャンネル（1/6/11ch）で理論上30機まで運用できることを説明する参照フレームで、当日は実演しない。教室で複数機体が同時に飛ぶ場合の混信対策として質疑応答に使える。
 
 | 種別 | ページ | 内容 | 使うコマンド | 期待する結果 | 所要目安 | 事前準備・注意 | 代替 |
 |------|--------|------|-------------|-------------|---------|---------------|------|
@@ -332,7 +332,7 @@ void loop_400Hz(float dt) {
 
 Of 17 frames, 2 are demonstration/hands-on frames (a new TDMA explainer frame grew this session from 16 to 17). **Safety (p.57):** do this on a table, keeping hands clear of the spinning motors throughout. Duty capped at 0.15 (not enforced by the firmware, so verify visually). ARM only via a single click of the body button or the controller, never auto-armed in code.
 
-The new p.63 "Flying 30 Vehicles at Once with TDMA" is a reference frame explaining TDMA (Time Division Multiple Access) and how three non-overlapping channels (1/6/11) support up to 30 vehicles in theory. It is not demoed on the day; it cites a real deployment (10 vehicles split 4/3/3 across channels 1/6/11 at the DXH2026 course) and can be used if asked about running many vehicles in one classroom.
+The new p.63 "Flying 30 Vehicles at Once with TDMA" is a reference frame explaining TDMA (Time Division Multiple Access) and how three non-overlapping channels (1/6/11) support up to 30 vehicles in theory. It is not demoed on the day; it can be used if asked about running many vehicles in one classroom.
 
 | Type | Page | Content | Command | Expected result | Rough time | Prep & pitfalls | Fallback |
 |------|------|---------|---------|------------------|-----------|------------------|----------|
