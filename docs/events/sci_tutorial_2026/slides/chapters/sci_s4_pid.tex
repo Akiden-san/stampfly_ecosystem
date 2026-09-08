@@ -656,6 +656,33 @@ sf sysid fit flight.csv --plot
 % ==============================================================================
 
 % ------------------------------------------------------------------
+\begin{frame}{PID 制御器の 3 つの形式と本資料での呼び名}
+  \begin{table}
+    \centering\scriptsize
+    \renewcommand{\arraystretch}{1.15}
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{p{30mm}p{50mm}p{20mm}p{34mm}}
+      \hline
+      \textbf{形式} & \textbf{伝達関数} & \textbf{パラメータ} & \textbf{使われる場面} \\
+      \hline
+      並列形（独立ゲイン形） & $C(s)=K_p+K_i/s+K_d s$ & $K_p,K_i,K_d$ & 教科書の導入，実習 8 の実習コード \\
+      理想形（ISA 標準形，非干渉形） & $C(s)=K_p\bigl(1+1/(T_i s)+T_d s\bigr)$ & $K_p,T_i,T_d$ & 市販の調節計，vehicle ファームウェア \\
+      直列形（干渉形） & $C(s)=K_p'\bigl(1+1/(T_i' s)\bigr)(1+T_d' s)$ & $K_p',T_i',T_d'$ & 古いアナログ調節計 \\
+      \hline
+    \end{tabular}
+  \end{table}
+
+  {\scriptsize 並列形と理想形は同じ制御器の書き方の違いで，$K_i=K_p/T_i$，$K_d=K_p T_d$ で換算できる。
+  理想形は積分時間・微分時間という時間の単位で効きを表すので，時定数と比べながら調整しやすい}
+
+  \begin{block}{本資料での呼び名}
+    \scriptsize vehicle ファームウェアは\textbf{理想形}に不完全微分を加えた
+    $C(s)=K_p\bigl(1+\frac{1}{T_i s}+\frac{T_d s}{\eta T_d s+1}\bigr)$（パラメータ \code{rate.<axis>.kp/ti/td}），
+    実習 8 の実習コードは\textbf{並列形}。以後この 2 つの名前で呼ぶ
+  \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
 \begin{frame}{PID 制御器の構成}
   \begin{center}
     \adjustbox{max width=0.72\textwidth, max height=0.58\textheight}{\input{../../_shared/tikz/pid_block}}
@@ -670,7 +697,7 @@ sf sysid fit flight.csv --plot
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{工学形式パラメータ $K_p,T_i,T_d,\eta$\later}
+\begin{frame}{理想形のパラメータ $K_p,T_i,T_d,\eta$\later}
   \begin{table}
     \centering\footnotesize
     \begin{tabular}{ll >{\raggedright\arraybackslash}p{58mm}}
@@ -687,14 +714,13 @@ sf sysid fit flight.csv --plot
 
   \vspace{0.5em}
 
-  {\footnotesize この形式（$K_p,T_i,T_d,\eta$）は\textbf{工学形式}と呼ばれ，
-  vehicle 実装の \code{rate.<axis>.kp/ti/td} パラメータがそのまま使う形。
+  {\footnotesize 理想形（ISA 標準形）のパラメータで，vehicle 実装の \code{rate.<axis>.kp/ti/td} がそのまま使う形。
   積分・微分の「効き方」を時間の単位で直感的に調整できるのが利点}
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{教科書形式との対応と実習8の解答ゲイン\later}
-  \begin{block}{工学形式 $\leftrightarrow$ 教科書形式（直接ゲイン）}\footnotesize
+\begin{frame}{並列形との対応と実習 8 の解答ゲイン}
+  \begin{block}{理想形 $\leftrightarrow$ 並列形（独立ゲイン）}\footnotesize
     \[
       K_i = \frac{K_p}{T_i}, \qquad K_d = K_p \cdot T_d
       \qquad\Bigl(\text{逆に}\;\; T_i=\frac{K_p}{K_i},\;\; T_d=\frac{K_d}{K_p}\Bigr)
@@ -703,7 +729,7 @@ sf sysid fit flight.csv --plot
 
   \vspace{0.3em}
 
-  {\footnotesize 実習 8 のコードは工学形式ではなく，教科書形式の直接ゲイン
+  {\footnotesize 実習 8 のコードは理想形ではなく，並列形の直接ゲイン
   $(K_p,K_i,K_d)$ を使う}
 
   \vspace{0.3em}
