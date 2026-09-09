@@ -2005,6 +2005,35 @@ def fit_plant(
                 rmse_values.append(rmse)
 
     if not K_estimates:
+        # 2026-09-10: --mixer is meaningless for 'indirect' (it never
+        # reconstructs u_plant at all, see the branch above), so don't
+        # point a FIR-auto-Kp/indirect user at it -- that used to be the
+        # only advice this message gave, which is actively misleading for
+        # the now-default 'auto' path (peer session stampfly-ecosystem-40,
+        # 2026-09-10: hit this on a weakly-excited log and found the
+        # --mixer suggestion "a bit off the mark").
+        # 2026-09-10: --mixer は 'indirect' には無関係（上の分岐の通り
+        # u_plant を一切復元しない）ので、FIR自動Kp/indirect 経路の
+        # ユーザーをそちらに誘導しない -- 以前はこのメッセージの唯一の助言が
+        # それで、既定になった 'auto' 経路には的外れになっていた
+        # （stampfly-ecosystem-40、2026-09-10: 弱励振ログでこれに当たり
+        # 「--mixer への言及は少し的外れ」と報告）。
+        if resolved_mode == 'indirect':
+            kp_note = (f"Kp={kp:.4g} auto-estimated via FIR regression "
+                       f"(R^2={kp_auto_r_squared:.3f} for that estimate) -- "
+                       "sanity-check it against what you actually configured "
+                       "and pass --kp explicitly to override it if it looks "
+                       "wrong"
+                       if kp_source == 'fir_auto'
+                       else f"Kp={kp:.4g} given via --kp")
+            raise ValueError(
+                f"Fitting failed for all segments (indirect closed-loop fit, "
+                f"{kp_note}). Most likely the flight had too little "
+                "excitation to resolve K/tau_m even with a good Kp -- "
+                "re-fly with continuous, large-amplitude, quasi-random "
+                "stick motion on this axis. --mixer is NOT the issue here "
+                "(indirect never reconstructs u_plant from duty)."
+            )
         raise ValueError(
             "Fitting failed for all segments. Check data quality and Kp "
             "value -- if this is a --input duty fit, also check --mixer: "
