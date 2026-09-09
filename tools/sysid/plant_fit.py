@@ -234,6 +234,12 @@ _DUTY_COLS: Tuple[str, str, str, str] = (
 # の setMixerOutput と数値まで一致させた原典の再現）。
 _MIXER_K: float = 0.25 / 3.7
 
+# Gyro-magnitude sanity bound for automatic crash/anomaly truncation in
+# _load_axis_data() -- see that function for the full rationale/calibration.
+# _load_axis_data() の自動クラッシュ/異常検知トランケーション用ジャイロ
+# 振幅の妥当性しきい値 -- 根拠・較正は同関数のコメント参照。
+_GYRO_CRASH_MAX_RAD_S: float = 10.0
+
 
 def _duty_differential_legacy_linear(
     duty_fr: np.ndarray, duty_rr: np.ndarray, duty_rl: np.ndarray, duty_fl: np.ndarray,
@@ -661,6 +667,12 @@ class PlantFitResult:
                                   # when kp_source == 'fir_auto'; a rough
                                   # confidence signal for the auto-estimated
                                   # Kp, NOT the plant fit's own r_squared.
+    crash_truncated_at: Optional[float] = None  # flight-log time [s] where
+                                  # _load_axis_data()'s automatic crash/
+                                  # anomaly truncation cut the data, or None
+                                  # if no truncation happened. Everything at
+                                  # or after this time was excluded from
+                                  # fitting.
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
@@ -691,6 +703,7 @@ class PlantFitResult:
             'kp_source': self.kp_source,
             'kp_auto_r_squared': (round(self.kp_auto_r_squared, 4)
                                    if self.kp_auto_r_squared is not None else None),
+            'crash_truncated_at': self.crash_truncated_at,
             'n_segments': self.n_segments,
             'n_segments_excitation_dropped': self.n_segments_excitation_dropped,
             'target_excitation_note': self.target_excitation_note,
@@ -1214,7 +1227,7 @@ def _load_axis_data(
     mixer: str = 'legacy',
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, str,
            Optional[np.ndarray], Optional[str], str,
-           Optional[np.ndarray], Optional[np.ndarray], bool]:
+           Optional[np.ndarray], Optional[np.ndarray], bool, Optional[float]]:
     """
     Load and extract axis-specific plant I/O from a flight-log CSV.
     CSV から軸固有のプラント入出力を読み込み・抽出する。
@@ -1276,6 +1289,13 @@ def _load_axis_data(
         はファームが0x4Bエントリを送っていれば（ctrl_output_available=True）
         CSVの ctrl_output_torque_<axis> 列から得た軸別の指令トルク（ミキサー
         手前）、無ければ None/False。
+        Also returns crash_truncated_at: the flight-log time [s] at which
+        automatic crash/anomaly truncation cut the data (see the "Automatic
+        crash/anomaly truncation" comment above the return statement), or
+        None when no truncation happened.
+        crash_truncated_at も返す: 自動クラッシュ/異常検知トランケーションが
+        データを切り捨てたフライトログ内の時刻[s]（return 文の上の
+        コメント参照）、切り捨てが起きなければ None。
     """
     import csv as _csv
 
@@ -1491,6 +1511,52 @@ def _load_axis_data(
                 ctrl_output_available = True
                 ctrl_output_torque = candidate
 
+    # Automatic crash/anomaly truncation (2026-09-10, real lesson_07 test
+    # flights): a violent tumble/impact spikes |gyro| far beyond anything a
+    # controlled flight -- even an aggressive P-control transient -- ever
+    # produces, but throttle typically stays > 0.3 through it (motors still
+    # spinning), so _find_flight_segments()'s throttle-only criterion does
+    # NOT exclude it. Left alone, a crash tail silently corrupts whichever
+    # segment(s) straddle it (this is exactly what was previously found and
+    # worked around by hand: test7_2.csv, manually restricting to t<21.5s --
+    # see "実習7 同定ログ比較" artifact). Automate that: truncate everything
+    # from the FIRST implausible sample onward. _GYRO_CRASH_MAX_RAD_S=10 is
+    # deliberately generous (BMI270 noise floor here is ~0.003 rad/s, so
+    # this is >3000-sigma -- zero risk of tripping on sensor noise) and
+    # empirically robust: on the real crash this was calibrated against, the
+    # first exceedance lands at the SAME instant (t=22.69s, all 3 axes) for
+    # any threshold from 3 to 12 rad/s, so the exact cutoff value is not
+    # sensitive within that whole range.
+    # 自動クラッシュ/異常検知トランケーション（2026-09-10、実際の実習7
+    # テスト飛行）: 激しいタンブル/衝突は |gyro| を制御された飛行（積極的な
+    # P制御の過渡応答すら含め）では絶対に出ない大きさまで跳ね上げるが、
+    # throttle は大抵 0.3 を超えたままなので（モータは回り続ける）、
+    # _find_flight_segments() のスロットルのみの判定では除外されない。
+    # 放置すると、クラッシュ区間にまたがるセグメントを静かに汚染する（まさに
+    # 以前手作業で見つけて回避した現象 -- test7_2.csv を t<21.5s に手動制限、
+    # 「実習7 同定ログ比較」アーティファクト参照）。それを自動化する: 最初に
+    # あり得ない値が出たサンプル以降を全て切り捨てる。_GYRO_CRASH_MAX_RAD_S
+    # =10 は意図的に余裕を持たせてある（ここでのBMI270ノイズ床は
+    # 約0.003rad/sなので、これは3000シグマ超 -- センサノイズで誤発火する
+    # 心配は皆無）上、実証的にも頑健（この較正に使った実際のクラッシュでは、
+    # 3〜12 rad/s のどの閾値でも最初の超過は全3軸とも同じ瞬間 t=22.69s に
+    # 発生し、この範囲内なら閾値の正確な値に結果は左右されない）。
+    crash_truncated_at: Optional[float] = None
+    anomaly = np.abs(gyro) > _GYRO_CRASH_MAX_RAD_S
+    if np.any(anomaly):
+        crash_idx = int(np.argmax(anomaly))
+        crash_truncated_at = float(time_s[crash_idx])
+        time_s = time_s[:crash_idx]
+        target = target[:crash_idx]
+        gyro = gyro[:crash_idx]
+        throttle = throttle[:crash_idx]
+        if duty_diff is not None:
+            duty_diff = duty_diff[:crash_idx]
+        if actual_torque_diag is not None:
+            actual_torque_diag = actual_torque_diag[:crash_idx]
+        if ctrl_output_torque is not None:
+            ctrl_output_torque = ctrl_output_torque[:crash_idx]
+
     # Apply time range filter
     # 時間範囲フィルタを適用
     if time_range is not None:
@@ -1508,7 +1574,8 @@ def _load_axis_data(
             ctrl_output_torque = ctrl_output_torque[mask]
 
     return (time_s, target, gyro, throttle, dt, fmt, duty_diff, duty_quality,
-            duty_reason, actual_torque_diag, ctrl_output_torque, ctrl_output_available)
+            duty_reason, actual_torque_diag, ctrl_output_torque, ctrl_output_available,
+            crash_truncated_at)
 
 
 def _find_flight_segments(
@@ -1617,7 +1684,7 @@ def fit_plant(
     # Load data
     # データ読み込み
     (time_s, target_raw, gyro, throttle, dt, fmt, duty_diff, duty_quality, duty_reason,
-     actual_torque_diag, ctrl_output_torque, ctrl_output_available) = (
+     actual_torque_diag, ctrl_output_torque, ctrl_output_available, crash_truncated_at) = (
         _load_axis_data(filepath, axis, fs, time_range, mixer=mixer)
     )
 
@@ -2082,6 +2149,7 @@ def fit_plant(
         target_excitation_note=target_excitation_note,
         kp_source=kp_source,
         kp_auto_r_squared=kp_auto_r_squared,
+        crash_truncated_at=crash_truncated_at,
     )
 
 
@@ -2112,7 +2180,7 @@ def compute_fit_timeseries(
             'residual': y_measured - y_simulated
     """
     (time_s, target_raw, gyro, throttle, dt, fmt, duty_diff, _duty_quality, _duty_reason,
-     _actual_torque_diag, ctrl_output_torque, _ctrl_output_available) = (
+     _actual_torque_diag, ctrl_output_torque, _ctrl_output_available, _crash_truncated_at) = (
         _load_axis_data(filepath, result.axis, fs, time_range, mixer=result.mixer)
     )
 

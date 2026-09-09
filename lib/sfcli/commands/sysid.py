@@ -712,6 +712,12 @@ def run_fit(args: argparse.Namespace) -> int:
         else:
             mode_desc = f"Kp reconstruction (Kp={r.kp_used})"
         console.print(f"         input: {mode_desc}  units: K [{K_unit}]")
+        if r.crash_truncated_at is not None:
+            console.warning(
+                f"         crash/anomaly detected: gyro exceeded the sanity "
+                f"bound at t={r.crash_truncated_at:.2f}s -- everything from "
+                "there on was automatically excluded from fitting"
+            )
         if r.duty_reason:
             console.print(f"         duty check: {r.duty_reason}")
         # Mixer-gain diagnostic (rate-sysid design memo, 2026-09-09, §07/§08):
