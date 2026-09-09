@@ -978,10 +978,24 @@ def _simulate_closed_loop(
     z = np.empty(n)
     omega[0] = omega0
     z[0] = kp * (target[0] - omega0)
-    for i in range(1, n):
-        u_prev = kp * (target[i - 1] - omega[i - 1])
-        z[i] = alpha * z[i - 1] + gain * u_prev
-        omega[i] = omega[i - 1] + 0.5 * dt * (z[i - 1] + z[i])
+    # A candidate K near the top of the wide vehicle-scale K_bounds
+    # (1, 1e9), tried by the optimizer while probing on a poor-quality
+    # segment, can overflow float64 in this loop -- objective() below
+    # already checks np.all(np.isfinite(y_sim)) and rejects such a
+    # candidate with a large penalty, so silence the resulting (harmless,
+    # but noisy/confusing for a live tutorial audience) RuntimeWarning
+    # rather than let numpy print it.
+    # 探索境界（vehicle尺度の K_bounds=(1, 1e9)）の上限付近の候補を、質の
+    # 低いセグメントで最適化器が試すと、このループで float64 がオーバー
+    # フローすることがある -- 下の objective() は既に
+    # np.all(np.isfinite(y_sim)) を確認し、そのような候補を大きなペナルティ
+    # で棄却するので、無害だが（実習の場では紛らわしい）RuntimeWarning を
+    # numpy に出させず抑制する。
+    with np.errstate(over='ignore', invalid='ignore'):
+        for i in range(1, n):
+            u_prev = kp * (target[i - 1] - omega[i - 1])
+            z[i] = alpha * z[i - 1] + gain * u_prev
+            omega[i] = omega[i - 1] + 0.5 * dt * (z[i - 1] + z[i])
 
     return omega
 
@@ -1138,9 +1152,13 @@ def _estimate_kp_fir(
 
     Args:
         e: target(t) - gyro(t) [rad/s], full-length (same length as u)
-        u: reconstructed control effort (duty_diff -- LEGACY duty-
-            differential scale only; see fit_plant()'s auto ladder for why
-            control_output/torque is not used as this function's `u`)
+        u: the control effort to regress against e -- fit_plant()'s auto
+            ladder passes actual_torque_diag [Nm] (the REAL applied torque
+            from the vehicle physical-inversion, valid regardless of which
+            mixer actually flew) so the returned kp_est comes out in true
+            physical units, comparable directly to firmware/vehicle's
+            rate.<axis>.kp -- NOT duty_diff, whose scale depends on the
+            --mixer that was assumed
         throttle: flight-activity signal for _find_flight_segments()
         seg_samples: segment length in samples (same as fit_plant()'s
             segment_length * fs)
@@ -1706,6 +1724,26 @@ def fit_plant(
     # and 'duty'/'control_output' still require the SAME
     # duty_quality=='duty50' guard as before (never silently fit a stale
     # 50Hz-forward-filled staircase).
+    #
+    # 2026-09-10, second pass (prompted by a sharp "shouldn't mixer gain and
+    # plant gain be separable?" question): the FIR auto-Kp estimate's `u` is
+    # actual_torque_diag -- the REAL applied torque [Nm] from the vehicle
+    # (physical B^-1 + motor-curve) inversion -- NOT duty_diff. That
+    # inversion is a statement about the fixed StampFly HARDWARE (motor
+    # curve + arm geometry), true regardless of which mixer the FIRMWARE
+    # that flew actually used, and it is computed whenever genuine 400Hz
+    # duty exists (same precondition as duty_diff -- see
+    # _load_axis_data()'s "actual torque" comment). Using it instead of
+    # duty_diff means the auto-estimated Kp (and therefore K, tau_m) comes
+    # out in TRUE PHYSICAL units [Nm/(rad/s)], comparable directly to
+    # firmware/vehicle's rate.roll/pitch/yaw.kp -- cleanly separating the
+    # PLANT's real gain from whichever mixer model (legacy linear,
+    # firmware/vehicle's actual B^-1+motor-curve, or a learner's own)
+    # happened to fly, instead of baking in the assumed --mixer's specific
+    # scale the way a duty_diff-based estimate would. This also means
+    # 'auto' now works correctly on firmware/vehicle logs too, not just
+    # firmware/workshop ones -- --mixer only still matters for the
+    # DIRECT-fit fallback modes ('duty'/'control_output') below.
     # 入力モードを解決する — モジュール docstring 参照。2026-09-10 改訂
     # （本日のチュートリアル締切対応）: 旧ラダーは --kp を手入力しない限り
     # 直接法（control_output/duty、u -> y）を 'indirect' より優先していた
@@ -1720,6 +1758,24 @@ def fit_plant(
     # Kp が（手入力・自動推定とも）一切得られない場合のみ、直接法へ縮退する
     # -- 'duty'/'control_output' は従来通り duty_quality=='duty50' ガード
     # （50Hz前方補完の階段状データを黙ってフィットしない）を維持する。
+    #
+    # 2026-09-10 追補（「ミキサーゲインとプラントゲインを分けられるはずでは」
+    # という鋭い指摘を受けて）: FIR自動Kp推定の `u` は duty_diff ではなく
+    # actual_torque_diag -- vehicle（物理的なB^-1＋モータ曲線）逆算による
+    # 実際に加わったトルク[Nm]。この逆算は固定されたStampFlyハードウェア
+    # （モータ曲線＋アーム幾何）についての事実であり、実際に飛んだファーム
+    # のミキサーが何であったかとは無関係で、本物の400Hz dutyがあれば常に
+    # 計算される（duty_diffと同じ前提条件 -- _load_axis_data() の「実
+    # トルク」コメント参照）。duty_diffの代わりにこれを使うことで、自動
+    # 推定Kp（ひいてはK, tau_m）は真の物理単位[Nm/(rad/s)]で得られ、
+    # firmware/vehicle の rate.roll/pitch/yaw.kp と直接比較可能になる --
+    # 実際に飛んだミキサーモデル（legacy線形、firmware/vehicleの実際の
+    # B^-1＋モータ曲線、学習者自作）が何であれ、その想定スケールを埋め込む
+    # duty_diffベースの推定とは違い、プラント本来のゲインをきれいに分離
+    # する。これにより 'auto' は firmware/workshop ログだけでなく
+    # firmware/vehicle ログでも正しく動くようになる -- --mixer が意味を
+    # 持つのは、以下の直接法フォールバック（'duty'/'control_output'）の
+    # 場合のみになる。
     if input_mode not in ('auto', 'control_output', 'duty', 'indirect', 'kp'):
         raise ValueError(
             f"Unknown input_mode: {input_mode!r}. Choose from: auto, "
@@ -1728,15 +1784,16 @@ def fit_plant(
     seg_samples = int(segment_length * (1.0 / dt))
     kp_source: Optional[str] = 'user' if kp is not None else None
     kp_auto_r_squared: Optional[float] = None
+    kp_auto_vehicle_scale = False
     resolved_mode = input_mode
     if resolved_mode == 'auto':
         if kp is not None:
             resolved_mode = 'indirect'
         else:
             kp_auto: Optional[float] = None
-            if duty_diff is not None and duty_quality == 'duty400':
+            if actual_torque_diag is not None:
                 target_for_kp = target_raw if fmt == "stream" else target_raw * rate_max
-                est = _estimate_kp_fir(target_for_kp - gyro, duty_diff, throttle, seg_samples)
+                est = _estimate_kp_fir(target_for_kp - gyro, actual_torque_diag, throttle, seg_samples)
                 if est is not None:
                     kp_est, kp_r2, _n_fir = est
                     if kp_est > 0.0 and kp_r2 > _KP_AUTO_R2_FLOOR:
@@ -1744,6 +1801,7 @@ def fit_plant(
             if kp_auto is not None:
                 kp = kp_auto
                 kp_source = 'fir_auto'
+                kp_auto_vehicle_scale = True
                 resolved_mode = 'indirect'
             elif ctrl_output_available:
                 resolved_mode = 'control_output'
@@ -1931,7 +1989,15 @@ def fit_plant(
     # resolved_mode=='duty' かつ mixer=='vehicle' の場合に成り立つ。'kp'
     # モードは常に duty差動スケール（そちらの u_plant は構成上 legacy
     # ミキサーの u_plant と直接比較可能）。
-    use_vehicle_scale = resolved_mode == 'control_output' or (resolved_mode == 'duty' and mixer == 'vehicle')
+    # 'indirect' via FIR auto-Kp is ALSO vehicle/torque-scale now (kp_auto_
+    # vehicle_scale, set above): the auto-estimate's u was actual_torque_diag
+    # [Nm], not the legacy duty-differential scale an explicit --kp implies.
+    # 'indirect' が FIR自動Kp経由の場合も（kp_auto_vehicle_scale）vehicle/
+    # トルク尺度になる: 自動推定の u は actual_torque_diag[Nm] であり、
+    # 明示的な --kp が前提とする legacy の duty差動スケールではないため。
+    use_vehicle_scale = (resolved_mode == 'control_output'
+                          or (resolved_mode == 'duty' and mixer == 'vehicle')
+                          or (resolved_mode == 'indirect' and kp_auto_vehicle_scale))
     ref_gains = REFERENCE_PLANT_GAINS_VEHICLE if use_vehicle_scale else REFERENCE_PLANT_GAINS
     ref_K = ref_gains.get(axis, 100.0)
     # Vehicle-scale K sits ~1e5 (1/I_axis); bound wide around it rather than
@@ -2133,13 +2199,19 @@ def fit_plant(
         # 'control_output' u_plant is always torque-scale [Nm], same
         # reference gains as --mixer vehicle (see to_dict()'s ref_gains
         # selection) -- report 'vehicle' even though no mixer was actually
-        # inverted, so to_dict() picks REFERENCE_PLANT_GAINS_VEHICLE.
+        # inverted, so to_dict() picks REFERENCE_PLANT_GAINS_VEHICLE. Same
+        # reasoning for 'indirect' with a FIR-auto-estimated Kp
+        # (kp_auto_vehicle_scale): that Kp came from actual_torque_diag
+        # [Nm], so K is torque-scale too.
         # 'control_output' の u_plant は常にトルク尺度[Nm]、--mixer vehicle
         # と同じ参照ゲイン（to_dict() の ref_gains 選択参照）— 実際には
         # ミキサーを逆算していなくても 'vehicle' と報告し、to_dict() が
-        # REFERENCE_PLANT_GAINS_VEHICLE を選ぶようにする。
+        # REFERENCE_PLANT_GAINS_VEHICLE を選ぶようにする。FIR自動推定Kpの
+        # 'indirect'（kp_auto_vehicle_scale）も同じ理由: その Kp は
+        # actual_torque_diag[Nm] 由来なので K もトルク尺度になる。
         mixer=('vehicle' if resolved_mode == 'control_output'
-               else mixer if resolved_mode == 'duty' else 'legacy'),
+               else mixer if resolved_mode == 'duty'
+               else 'vehicle' if kp_auto_vehicle_scale else 'legacy'),
         duty_quality=duty_quality,
         duty_reason=duty_reason,
         mixer_gain=mixer_gain,
@@ -2260,6 +2332,17 @@ def selftest(verbose: bool = True) -> bool:
 
     axis = 'roll'
     K_true = REFERENCE_PLANT_GAINS[axis]   # 102.0 [rad/s^2 per duty]
+    # Needed early: 'auto' now resolves to 'indirect' with a FIR-auto Kp
+    # estimated from actual_torque_diag [Nm] even on this legacy-mixer
+    # synthetic flight (see fit_plant()'s auto ladder, 2026-09-10 second
+    # pass), so its K comes out VEHICLE/torque-scale -- compared against
+    # this reference, not K_true, in _check() below.
+    # 早期に必要: 'auto' はこの legacy ミキサーの合成飛行でも、
+    # actual_torque_diag[Nm] から推定したFIR自動Kpで 'indirect' に解決
+    # される（fit_plant() の auto ラダー、2026-09-10 第2弾参照）ため、その
+    # K は vehicle/トルク尺度になる -- 下の _check() では K_true ではなく
+    # こちらと比較する。
+    K_true_vehicle = REFERENCE_PLANT_GAINS_VEHICLE[axis]   # ~1/Ixx [rad/s^2/Nm]
     tau_m_true = 0.02                      # [s] -- L06 nominal motor lag
     kp = 0.5
     fs = 400.0
@@ -2463,26 +2546,38 @@ def selftest(verbose: bool = True) -> bool:
               f"R^2={result_stair_kp.r_squared:.3f}")
 
     def _check(result, label):
-        K_err = abs(result.K / K_true - 1.0)
+        # 'indirect' via FIR auto-Kp reports mixer=='vehicle' (see
+        # fit_plant()'s use_vehicle_scale/mixer= construction) because its
+        # K came from actual_torque_diag [Nm], not the legacy duty-
+        # differential scale -- compare against the matching reference.
+        # FIR自動Kp経由の 'indirect' は mixer=='vehicle' と報告される
+        # （fit_plant() の use_vehicle_scale/mixer= 構築参照）。その K は
+        # actual_torque_diag[Nm] 由来で legacy の duty差動スケールではない
+        # ため、対応する参照値と比較する。
+        ref_K = K_true_vehicle if result.mixer == 'vehicle' else K_true
+        K_err = abs(result.K / ref_K - 1.0)
         tau_err = abs(result.tau_m / tau_m_true - 1.0)
         passed = K_err < 0.15 and tau_err < 0.30 and result.r_squared > 0.9
         if verbose:
-            print(f"[{label}] fit: K={result.K:.1f} ({K_err * 100:.1f}% err)  "
+            print(f"[{label}] fit: K={result.K:.1f} (ref={ref_K:.1f}, "
+                  f"{K_err * 100:.1f}% err)  "
                   f"tau_m={result.tau_m * 1000:.1f} ms ({tau_err * 100:.1f}% err)  "
                   f"R^2={result.r_squared:.3f}  n_segments={result.n_segments}  "
-                  f"input_mode={result.input_mode}")
+                  f"input_mode={result.input_mode}  mixer={result.mixer}")
         return passed
 
     if verbose:
-        print(f"true : K={K_true:.1f} [rad/s^2/duty]  tau_m={tau_m_true * 1000:.1f} ms")
+        print(f"true : K={K_true:.1f} [rad/s^2/duty] / K_vehicle={K_true_vehicle:.1f} "
+              f"[rad/s^2/Nm]  tau_m={tau_m_true * 1000:.1f} ms")
     ok_kp = _check(result_kp, 'kp')
     ok_duty = _check(result_duty, 'duty')
     ok_auto = (_check(result_auto, 'auto')
                and result_auto.input_mode == 'indirect'
-               and result_auto.kp_source == 'fir_auto')
+               and result_auto.kp_source == 'fir_auto'
+               and result_auto.mixer == 'vehicle')
     if verbose:
         print(f"[auto] kp_source={result_auto.kp_source}  "
-              f"kp_used={result_auto.kp_used:.4f} (true={kp:.4f})  "
+              f"kp_used={result_auto.kp_used:.6g} [Nm/(rad/s)]  "
               f"kp_auto_r2={result_auto.kp_auto_r_squared}")
     ok_indirect = _check(result_indirect, 'indirect') and result_indirect.input_mode == 'indirect'
 
@@ -2509,7 +2604,7 @@ def selftest(verbose: bool = True) -> bool:
     # ノミナルへフォールバックするバグがあればここでスケール誤差として
     # 現れる）を証明する -- 上の "duty" ケースが順方向 ws_internal ミキサー
     # で得ているのと同じ健全性チェック。
-    K_true_vehicle = REFERENCE_PLANT_GAINS_VEHICLE[axis]   # ~1/Ixx [rad/s^2/Nm]
+    # (K_true_vehicle defined earlier, near K_true -- ok_auto needs it too)
     kp_vehicle = 1.0e-3    # [Nm/(rad/s)] -- same order as firmware rate.roll.kp
     vbat_true = 3.85       # [V] -- deliberately != V_BATT_NOMINAL (3.7)
     thrust_hover_total = 0.4   # [N] -- arbitrary in-flight value (> the 0.3
@@ -2778,9 +2873,10 @@ def selftest(verbose: bool = True) -> bool:
     # 全ゼロ control_output を避けるだけでなく、'indirect' まで解決する
     # こと。上の ok_auto と同じ精度チェックを、control_output列は存在するが
     # 死んでいる同じ legacy スケールのフライトに対して行う。
-    K_err_ws = abs(result_ws_zero.K / K_true - 1.0)
+    K_err_ws = abs(result_ws_zero.K / K_true_vehicle - 1.0)
     ok_ws_zero = (result_ws_zero.input_mode == 'indirect'
                   and result_ws_zero.kp_source == 'fir_auto'
+                  and result_ws_zero.mixer == 'vehicle'
                   and K_err_ws < 0.15 and result_ws_zero.r_squared > 0.9)
     if verbose:
         print(f"[workshop-zero-torque regression] auto resolved to "
