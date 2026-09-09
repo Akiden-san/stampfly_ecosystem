@@ -34,10 +34,10 @@
       \hline
       \code{sf log wifi} & WiFi 経由で 400\,Hz テレメトリ取得（\code{capture} は旧ファーム専用） \\
       \code{sf log viz/analyze}  & ログ可視化・解析 \\
-      \code{sf sim run vpython/genesis} & シミュレータ起動（S5） \\
-      \code{sf sils build/scenario/gui} & SILS ベンチ（S5） \\
+      \code{sf sim run vpython/genesis} & シミュレータ起動（セッション5） \\
+      \code{sf sils build/scenario/gui} & SILS ベンチ（セッション5） \\
       \code{sf sysid fit}        & 閉ループ P 制御ログからプラント同定（実習7） \\
-      \code{sf sysid rate-fit/rate-tune} & 閉ループ同定（ETFE + フィット）と仕様ベース PID 設計（S4） \\
+      \code{sf sysid rate-fit/rate-tune} & 閉ループ同定（ETFE + フィット）と仕様ベース PID 設計（セッション4） \\
       \code{sf sysid noise}      & 静止センサログから Allan 分散でノイズ特性を推定 \\
       \code{sf params check}     & 物理パラメータ整合検査 \\
       \code{sf upgrade}          & 最新版を pull し環境を再同期 \\
@@ -130,7 +130,7 @@
       StampFly の WiFi が見つからない & 電源が入っていない & バッテリーを確認，電源を入れ直す \\
       接続しても通信できない & IP アドレスが違う & \code{192.168.10.1} を確認 \\
       離陸しない & キャリブレーション未実施 & \code{sf cal gyro} を実行 \\
-      振動する & PID ゲインが高すぎる & ゲインを下げる（S4 参照） \\
+      振動する & PID ゲインが高すぎる & ゲインを下げる（セッション4参照） \\
       シミュレータに自動フォールバック & WiFi 未接続 & 意図的ならそのまま使用可 \\
       \hline
     \end{tabular}
@@ -168,14 +168,14 @@
     \setlength{\tabcolsep}{4pt}
     \begin{tabular}{l>{\raggedright\arraybackslash}p{40mm}>{\raggedright\arraybackslash}p{33mm}>{\raggedright\arraybackslash}p{55mm}}
       \hline
-      & \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
+      \textbf{セッション} & \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
       \hline
-      S1 & \code{sf sim run vpython}        & シミュレータ操縦        & \code{docs/\allowbreak commands/\allowbreak sf-sim.md} \\
-      S1 & \code{sf sils gui}               & SILS の体験             & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
-      S2 & \code{sf lesson switch sci2026:2} & IMU センサ（実習2）    & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak architecture.md \S2} \\
-      S2 & \code{sf log wifi/viz}           & テレメトリ取得と可視化  & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
-      S3 & \code{sf lesson switch sci2026:3} & モータ制御（実習3）     & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak hardware\_init.md} \\
-      S3 & \code{sf lesson switch sci2026:4} & コントローラ入力（実習4） & \code{protocol/\allowbreak spec/}（ControlPacket） \\
+      1 & \code{sf sim run vpython}        & シミュレータ操縦        & \code{docs/\allowbreak commands/\allowbreak sf-sim.md} \\
+      1 & \code{sf sils gui}               & SILS の体験             & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
+      2 & \code{sf lesson switch sci2026:2} & IMU センサ（実習2）    & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak architecture.md \S2} \\
+      2 & \code{sf log wifi/viz}           & テレメトリ取得と可視化  & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
+      3 & \code{sf lesson switch sci2026:3} & モータ制御（実習3）     & \code{firmware/\allowbreak vehicle/\allowbreak docs/\allowbreak hardware\_init.md} \\
+      3 & \code{sf lesson switch sci2026:4} & コントローラ入力（実習4） & \code{protocol/\allowbreak spec/}（ControlPacket） \\
       \hline
     \end{tabular}
   \end{table}
@@ -188,12 +188,12 @@
     \setlength{\tabcolsep}{4pt}
     \begin{tabular}{l>{\raggedright\arraybackslash}p{40mm}>{\raggedright\arraybackslash}p{33mm}>{\raggedright\arraybackslash}p{55mm}}
       \hline
-      & \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
+      \textbf{セッション} & \textbf{コマンド} & \textbf{扱う内容} & \textbf{文書} \\
       \hline
-      S4 & \code{sf lesson switch sci2026:8} & PID 制御（実習8）       & 本資料 S4「PID 制御器の構成」〜「ARM 遷移時の積分リセット」 \\
-      S4 & \code{sf sysid fit}              & システム同定（実習7）    & 本資料 S4「システム同定の考え方」〜「同定結果と理論値の比較」 \\
-      S5 & \code{sf sils gui}               & SILS ブラウザ実験環境   & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
-      S5 & \code{sf log viz}                & ログ解析                & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
+      4 & \code{sf lesson switch sci2026:8} & PID 制御（実習8）       & 本資料セッション4「PID 制御器の構成」〜「ARM 遷移時の積分リセット」 \\
+      4 & \code{sf sysid fit}              & システム同定（実習7）    & 本資料セッション4「システム同定の考え方」〜「同定結果と理論値の比較」 \\
+      5 & \code{sf sils gui}               & SILS ブラウザ実験環境   & \code{simulator/\allowbreak sils/\allowbreak gui/\allowbreak README.md} \\
+      5 & \code{sf log viz}                & ログ解析                & \code{docs/\allowbreak guides/\allowbreak flight-log-viz.md} \\
       \hline
     \end{tabular}
   \end{table}

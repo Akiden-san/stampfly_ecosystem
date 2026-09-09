@@ -221,15 +221,15 @@ sf sils gui
 
 | 実習 | セッション | `lesson_manifest.yaml` 上の内部名 | 参加者が書くもの（関数名など） |
 |------|-----------|---------------------------|-------------------------------|
-| 実習1 | S2 | environment_setup | なし（環境確認とビルド確認のみ。`sf doctor`の実行とビルド・書き込みが中心で、コード記述は発生しない） |
-| 実習2 | S2 | imu_sensor | `loop_400Hz`内で`ws::print(">gyro_x:%.3f", ws::gyro_x())`等、IMU値をTeleplot形式で出力 |
-| 実習3 | S3 | motor_control | `loop_400Hz`内で`ws::motor_set_duty(id, duty)`を各モータへ直接指定 |
-| 実習4 | S3 | controller_input | `ws::rc_throttle/roll/pitch/yaw()`を読み、`ws::motor_mixer(T,R,P,Y)`で4モータへ配分 |
-| 実習5 | S4 | rate_p_control | 目標角速度との誤差（`re`/`pe`/`ye`）を計算し、`Kp_rp*re`等を`ws::motor_mixer`に渡す比例制御 |
-| 実習6 | S4 | system_modeling | なし（座学のみ、実機操作なし。実測パラメータ$K$, $\tau_m$から$\zeta=0.7$設計の$K_p$を計算する） |
-| 実習7 | S4 | system_identification | 角速度目標を計算した直後に`ws::set_rate_target(roll,pitch,yaw)`を呼び、Data Streamの`rate_ref_*`に記録 |
-| 実習8 | S4 | pid_control | 理想微分から不完全微分フィルタへの置換（`alpha`, `a`, `b`, `d_filt`の計算） |
-| 実習9 | S4 | attitude_estimation | 相補フィルタ $\hat\theta_k=\alpha(\hat\theta_{k-1}+\omega\Delta t)+(1-\alpha)\theta_{accel}$ を自作（変数`cf_roll`等）し、`ws::estimated_roll()`と比較 |
+| 実習1 | セッション2 | environment_setup | なし（環境確認とビルド確認のみ。`sf doctor`の実行とビルド・書き込みが中心で、コード記述は発生しない） |
+| 実習2 | セッション2 | imu_sensor | `loop_400Hz`内で`ws::print(">gyro_x:%.3f", ws::gyro_x())`等、IMU値をTeleplot形式で出力 |
+| 実習3 | セッション3 | motor_control | `loop_400Hz`内で`ws::motor_set_duty(id, duty)`を各モータへ直接指定 |
+| 実習4 | セッション3 | controller_input | `ws::rc_throttle/roll/pitch/yaw()`を読み、`ws::motor_mixer(T,R,P,Y)`で4モータへ配分 |
+| 実習5 | セッション4 | rate_p_control | 目標角速度との誤差（`re`/`pe`/`ye`）を計算し、`Kp_rp*re`等を`ws::motor_mixer`に渡す比例制御 |
+| 実習6 | セッション4 | system_modeling | なし（座学のみ、実機操作なし。実測パラメータ$K$, $\tau_m$から$\zeta=0.7$設計の$K_p$を計算する） |
+| 実習7 | セッション4 | system_identification | 角速度目標を計算した直後に`ws::set_rate_target(roll,pitch,yaw)`を呼び、Data Streamの`rate_ref_*`に記録 |
+| 実習8 | セッション4 | pid_control | 理想微分から不完全微分フィルタへの置換（`alpha`, `a`, `b`, `d_filt`の計算） |
+| 実習9 | セッション4 | attitude_estimation | 相補フィルタ $\hat\theta_k=\alpha(\hat\theta_{k-1}+\omega\Delta t)+(1-\alpha)\theta_{accel}$ を自作（変数`cf_roll`等）し、`ws::estimated_roll()`と比較 |
 
 ## 10. スライドとMarkdown資料の間で見つかった不整合（参考）
 
@@ -467,15 +467,15 @@ sf sils gui
 
 | Exercise | Session | Internal name in `lesson_manifest.yaml` | What participants write (function names, etc.) |
 |----------|---------|------------------------------|---------------------------------------------------|
-| Exercise 1 | S2 | environment_setup | None (environment and build check only; centers on running `sf doctor` and building/flashing, no code written) |
-| Exercise 2 | S2 | imu_sensor | In `loop_400Hz`, print IMU values Teleplot-style with `ws::print(">gyro_x:%.3f", ws::gyro_x())` etc. |
-| Exercise 3 | S3 | motor_control | In `loop_400Hz`, drive each motor directly with `ws::motor_set_duty(id, duty)` |
-| Exercise 4 | S3 | controller_input | Read `ws::rc_throttle/roll/pitch/yaw()` and distribute to the four motors with `ws::motor_mixer(T,R,P,Y)` |
-| Exercise 5 | S4 | rate_p_control | Compute the rate error (`re`/`pe`/`ye`) against target and feed `Kp_rp*re` etc. into `ws::motor_mixer` as proportional control |
-| Exercise 6 | S4 | system_modeling | None (lecture only, no hardware; compute the $K_p$ for a $\zeta=0.7$ design from the measured $K$, $\tau_m$) |
-| Exercise 7 | S4 | system_identification | Call `ws::set_rate_target(roll,pitch,yaw)` right after computing the rate target, logging it into the Data Stream's `rate_ref_*` |
-| Exercise 8 | S4 | pid_control | Replace the ideal derivative with an incomplete-derivative filter (computing `alpha`, `a`, `b`, `d_filt`) |
-| Exercise 9 | S4 | attitude_estimation | Hand-write a complementary filter $\hat\theta_k=\alpha(\hat\theta_{k-1}+\omega\Delta t)+(1-\alpha)\theta_{accel}$ (e.g. a `cf_roll` variable) and compare it against `ws::estimated_roll()` |
+| Exercise 1 | Session 2 | environment_setup | None (environment and build check only; centers on running `sf doctor` and building/flashing, no code written) |
+| Exercise 2 | Session 2 | imu_sensor | In `loop_400Hz`, print IMU values Teleplot-style with `ws::print(">gyro_x:%.3f", ws::gyro_x())` etc. |
+| Exercise 3 | Session 3 | motor_control | In `loop_400Hz`, drive each motor directly with `ws::motor_set_duty(id, duty)` |
+| Exercise 4 | Session 3 | controller_input | Read `ws::rc_throttle/roll/pitch/yaw()` and distribute to the four motors with `ws::motor_mixer(T,R,P,Y)` |
+| Exercise 5 | Session 4 | rate_p_control | Compute the rate error (`re`/`pe`/`ye`) against target and feed `Kp_rp*re` etc. into `ws::motor_mixer` as proportional control |
+| Exercise 6 | Session 4 | system_modeling | None (lecture only, no hardware; compute the $K_p$ for a $\zeta=0.7$ design from the measured $K$, $\tau_m$) |
+| Exercise 7 | Session 4 | system_identification | Call `ws::set_rate_target(roll,pitch,yaw)` right after computing the rate target, logging it into the Data Stream's `rate_ref_*` |
+| Exercise 8 | Session 4 | pid_control | Replace the ideal derivative with an incomplete-derivative filter (computing `alpha`, `a`, `b`, `d_filt`) |
+| Exercise 9 | Session 4 | attitude_estimation | Hand-write a complementary filter $\hat\theta_k=\alpha(\hat\theta_{k-1}+\omega\Delta t)+(1-\alpha)\theta_{accel}$ (e.g. a `cf_roll` variable) and compare it against `ws::estimated_roll()` |
 
 ## 10. Inconsistencies Found Between the Slides and the Markdown Companions (For Reference)
 

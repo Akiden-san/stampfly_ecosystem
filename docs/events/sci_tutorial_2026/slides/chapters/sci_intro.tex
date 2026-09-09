@@ -41,11 +41,11 @@
       },
       cycarr/.style={-{Stealth[length=2.6mm]}, line width=1.1pt, draw=sfgray!70},
     ]
-    \node[\cycDesignStyle] (design) at (90:38mm)  {設計\\{\footnotesize\normalfont S1}};
-    \node[\cycImplStyle]   (impl)   at (18:38mm)  {実装\\{\footnotesize\normalfont S2 \textperiodcentered\ S3}};
-    \node[\cycExpStyle]    (exp)    at (-54:38mm) {実験\\{\footnotesize\normalfont S4}};
-    \node[\cycAnaStyle]    (ana)    at (234:38mm) {解析\\{\footnotesize\normalfont S5}};
-    \node[\cycEduStyle]    (edu)    at (162:38mm) {教育\\{\footnotesize\normalfont S5}};
+    \node[\cycDesignStyle] (design) at (90:38mm)  {設計\\{\footnotesize\normalfont セッション1}};
+    \node[\cycImplStyle]   (impl)   at (18:38mm)  {実装\\{\footnotesize\normalfont セッション2\textperiodcentered\ 3}};
+    \node[\cycExpStyle]    (exp)    at (-54:38mm) {実験\\{\footnotesize\normalfont セッション4}};
+    \node[\cycAnaStyle]    (ana)    at (234:38mm) {解析\\{\footnotesize\normalfont セッション5}};
+    \node[\cycEduStyle]    (edu)    at (162:38mm) {教育\\{\footnotesize\normalfont セッション5}};
 
     \draw[cycarr] (design) to[bend left=18] (impl);
     \draw[cycarr] (impl)   to[bend left=18] (exp);
@@ -149,7 +149,7 @@ install.bat
       \resizebox{0.84\columnwidth}{!}{\scisessionmap{0}}
 
       \vspace{0.1em}
-      {\scriptsize S2・S3 は「実装」、S5 は「解析・教育」を担当}
+      {\scriptsize セッション2・3は「実装」、セッション5は「解析・教育」を担当}
     \end{column}
     \begin{column}{0.45\textwidth}
       \small
@@ -160,13 +160,13 @@ install.bat
         \centering\footnotesize
         \begin{tabular}{ll}
           \hline
-          S1 & 10:05 -- 11:00 \\
-          S2 & 11:00 -- 12:00 \\
+          セッション1 & 10:05 -- 11:00 \\
+          セッション2 & 11:00 -- 12:00 \\
           \multicolumn{2}{c}{(昼休み)} \\
-          S3 & 13:00 -- 14:00 \\
-          S4 & 14:00 -- 15:00 \\
+          セッション3 & 13:00 -- 14:00 \\
+          セッション4 & 14:00 -- 15:00 \\
           \multicolumn{2}{c}{(休憩)} \\
-          S5 & 15:30 -- 16:30 \\
+          セッション5 & 15:30 -- 16:30 \\
           \hline
         \end{tabular}
       \end{table}

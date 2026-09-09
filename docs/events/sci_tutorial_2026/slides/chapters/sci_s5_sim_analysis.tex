@@ -11,7 +11,7 @@
 \providecommand{\scisessionmap}[1]{}
 
 % ------------------------------------------------------------------
-\begin{frame}{地図: 今ここ}
+\begin{frame}{開発サイクルの地図と今の位置（セッション5）}
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
       \centering
@@ -19,7 +19,7 @@
     \end{column}
     \begin{column}{0.47\textwidth}
       \small
-      S4 で飛ばした結果を，本セッションではシミュレータと解析ツールで
+      セッション4で飛ばした結果を，本セッションではシミュレータと解析ツールで
       裏付ける。「実験」の次にくる「解析」と「教育」のフェーズにあたる。
 
       \vspace{0.5em}
@@ -48,7 +48,7 @@
 
   \begin{alertblock}{本セッションの立ち位置}
     \small
-    S4 までは1機の StampFly を飛ばす話だった。ここからは，飛ばさずに
+    セッション4までは1機の StampFly を飛ばす話だった。ここからは，飛ばさずに
     検証する方法と，1機から先の広がりを扱う
   \end{alertblock}
 \end{frame}
@@ -278,7 +278,7 @@ sf log analyze flight.csv
   \end{sflisting}
 
   {\footnotesize 詳しい手順は \code{docs/guides/flight-log-viz.md}。取得 $\to$ 可視化 $\to$
-  解析の流れは S4 のシステム同定と同じログを使い回せる}
+  解析の流れはセッション4のシステム同定と同じログを使い回せる}
 \end{frame}
 
 % ------------------------------------------------------------------
@@ -435,7 +435,7 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
 \begin{frame}{再現性の3原則\later}
   \vspace{0.3em}
 
-  {\small S1 で見た開発の3原則を，再現性の観点から振り返る}
+  {\small セッション1で見た開発の3原則を，再現性の観点から振り返る}
 
   \vspace{0.3em}
 
@@ -478,7 +478,7 @@ printf("roll=%.1f pitch=%.1f yaw=%.1f\n",
   \begin{itemize}\small
     \item \textbf{MPC・適応制御}: 今日扱った PID の先にある発展的な制御手法
     \item \textbf{ESKF・オートチューン}: 15状態 ESKF の実装，
-          S4 の rate-fit/rate-tune と同じ設計を機体内で行う \code{sf\_autotune}
+          セッション4の rate-fit/rate-tune と同じ設計を機体内で行う \code{sf\_autotune}
     \item \textbf{高度・位置ループ}: レート/姿勢カスケードの外側に
           ALT\_HOLD/POS\_HOLD が乗る。外乱オブザーバ（\code{altitude.dob.fc}）も
           パラメータで opt-in できる
