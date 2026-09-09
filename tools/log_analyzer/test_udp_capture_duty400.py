@@ -307,6 +307,100 @@ def test_save_stream_csv_vbat_empty_without_status_packets():
             assert row['vbat'] == ''
 
 
+def _ctrl_output400_entry(samples):
+    """[id][size][payload] for kPktCtrlOutput400. `samples` is 8
+    (thrust, torque_roll, torque_pitch, torque_yaw) tuples."""
+    payload = b''.join(struct.pack('<4f', *s) for s in samples)
+    assert len(payload) == 128
+    return bytes([udp_capture.PKT_CTRL_OUTPUT400, 128]) + payload
+
+
+# =============================================================================
+# kPktCtrlOutput400 (0x4B) -- the PRE-MIXER commanded thrust+torque, the
+# mixer-agnostic plant input for `sf sysid fit`/`rate-fit` (see
+# plant_fit.py's module docstring and docs/events/sci_tutorial_2026 rate-
+# sysid design memo, 2026-09-09). Mirrors the duty400 tests above.
+# kPktCtrlOutput400（0x4B）-- ミキサー手前の指令推力+トルク、
+# `sf sysid fit`/`rate-fit` のミキサー非依存なプラント入力。上の duty400
+# テスト群を模す。
+# =============================================================================
+
+def test_ctrl_output400_entry_decodes_8_samples_paired_with_imu_timestamps():
+    samples = [(0.3 + 0.01 * i, 0.01 * i, -0.02, 0.03) for i in range(N)]
+    pkt, imu_ts = build_unified(1, entries=_ctrl_output400_entry(samples), entry_count=1)
+
+    results = udp_capture.parse_packet(pkt)
+    co_samples = [s for pid, s in results if pid == udp_capture.PKT_CTRL_OUTPUT400]
+    assert len(co_samples) == N
+
+    for i, s in enumerate(co_samples):
+        assert s['timestamp_us'] == imu_ts[i]
+        assert abs(s['ctrl_output_thrust'] - samples[i][0]) < 1e-5
+        assert abs(s['ctrl_output_torque_roll'] - samples[i][1]) < 1e-5
+        assert abs(s['ctrl_output_torque_pitch'] - samples[i][2]) < 1e-5
+        assert abs(s['ctrl_output_torque_yaw'] - samples[i][3]) < 1e-5
+
+
+def test_packet_without_ctrl_output400_entry_parses_fine_no_samples():
+    """Old/other firmware without the 0x4B entry must still parse cleanly --
+    the fallback trigger for the duty-based (--mixer) reconstruction."""
+    pkt, _ = build_unified(2, entries=b'', entry_count=0)
+    results = udp_capture.parse_packet(pkt)
+    co_samples = [s for pid, s in results if pid == udp_capture.PKT_CTRL_OUTPUT400]
+    assert co_samples == []
+
+
+def test_save_stream_csv_writes_ctrl_output_when_present():
+    cap = udp_capture.UDPTelemetryCapture()
+    ts0, dt = 1_000_000, 2500
+    _seed_imu_and_rate_ref(cap, ts0, dt)
+    for i in range(N):
+        ts = ts0 + i * dt
+        cap.samples[udp_capture.PKT_CTRL_OUTPUT400].append({
+            'timestamp_us': ts,
+            'ctrl_output_thrust': 0.35,
+            'ctrl_output_torque_roll': 0.001,
+            'ctrl_output_torque_pitch': -0.002,
+            'ctrl_output_torque_yaw': 0.0005,
+        })
+
+    with tempfile.TemporaryDirectory() as td:
+        csv_path = Path(td) / "stream.csv"
+        cap.save_stream_csv(str(csv_path))
+        with open(csv_path) as f:
+            rows = list(csv.DictReader(f))
+
+        assert len(rows) == N
+        for row in rows:
+            assert abs(float(row['ctrl_output_thrust']) - 0.35) < 1e-6
+            assert abs(float(row['ctrl_output_torque_roll']) - 0.001) < 1e-6
+            assert abs(float(row['ctrl_output_torque_pitch']) - (-0.002)) < 1e-6
+            assert abs(float(row['ctrl_output_torque_yaw']) - 0.0005) < 1e-6
+            assert int(row['ctrl_output_rate_hz']) == 400
+
+
+def test_save_stream_csv_ctrl_output_empty_without_entry():
+    """No control_output entry (older/other firmware) must leave the 4 data
+    columns empty (not zero -- a real zero command is a valid value) and
+    ctrl_output_rate_hz == 0, so plant_fit.py can tell 'not recorded' apart
+    from 'commanded zero'."""
+    cap = udp_capture.UDPTelemetryCapture()
+    ts0, dt = 1_000_000, 2500
+    _seed_imu_and_rate_ref(cap, ts0, dt)
+
+    with tempfile.TemporaryDirectory() as td:
+        csv_path = Path(td) / "stream.csv"
+        cap.save_stream_csv(str(csv_path))
+        with open(csv_path) as f:
+            rows = list(csv.DictReader(f))
+
+        assert len(rows) == N
+        for row in rows:
+            assert row['ctrl_output_thrust'] == ''
+            assert row['ctrl_output_torque_roll'] == ''
+            assert int(row['ctrl_output_rate_hz']) == 0
+
+
 def _run_all():
     tests = [
         test_duty400_entry_decodes_8_samples_paired_with_imu_timestamps,
@@ -317,6 +411,10 @@ def _run_all():
         test_save_stream_csv_falls_back_to_50hz_ctrl_ref_when_no_duty400,
         test_save_stream_csv_forward_fills_vbat_from_status_packets,
         test_save_stream_csv_vbat_empty_without_status_packets,
+        test_ctrl_output400_entry_decodes_8_samples_paired_with_imu_timestamps,
+        test_packet_without_ctrl_output400_entry_parses_fine_no_samples,
+        test_save_stream_csv_writes_ctrl_output_when_present,
+        test_save_stream_csv_ctrl_output_empty_without_entry,
     ]
     failures = 0
     for t in tests:

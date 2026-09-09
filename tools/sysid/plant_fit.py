@@ -444,6 +444,25 @@ _DUTY_RATE_HZ_COL = 'duty_rate_hz'
 # _thrust_from_duty() だけが必要とする列 -- --mixer legacy は読まない。
 _VBAT_COL = 'vbat'
 
+# Data Stream CSV columns carrying the PRE-MIXER commanded thrust+torque
+# (kPktCtrlOutput400/0x4B, 400Hz, forward-filled at rate ctrl_output_rate_hz)
+# -- see udp_capture.py save_stream_csv(). Appended AFTER vbat, so absent in
+# a CSV from an older udp_capture.py. The mixer-agnostic 'control_output'
+# input mode and the mixer-gain diagnostic (§07/§08 of the rate-sysid design
+# memo, 2026-09-09) both read these.
+# Data Stream CSV のミキサー手前の指令推力+トルク列
+# （kPktCtrlOutput400/0x4B、400Hz、ctrl_output_rate_hzのレートで前方補完）
+# -- udp_capture.py の save_stream_csv() 参照。vbat の後ろに追記するため、
+# 旧い udp_capture.py の CSV には無い。ミキサー非依存の 'control_output'
+# 入力モードと、ミキサーゲイン診断（2026-09-09 レート同定設計メモ §07/§08）
+# の両方がこれらを読む。
+_CTRL_OUTPUT_TORQUE_COL = {
+    'roll': 'ctrl_output_torque_roll',
+    'pitch': 'ctrl_output_torque_pitch',
+    'yaw': 'ctrl_output_torque_yaw',
+}
+_CTRL_OUTPUT_RATE_HZ_COL = 'ctrl_output_rate_hz'
+
 # Heuristic threshold for CSVs WITHOUT the duty_rate_hz column: if more than
 # this fraction of rows repeat the previous row's 4 duties exactly, the data
 # looks like a 50Hz-forward-filled staircase (a genuine 50Hz CtrlRef entry
@@ -454,6 +473,56 @@ _VBAT_COL = 'vbat'
 # 50Hz CtrlRef エントリは400Hz中約8行連続で同一値、重複率約87.5%）とみなす
 # （本物の400Hz duty はビット単位で繰り返すことがほぼ無い）。
 _DUTY_STAIRSTEP_FRACTION_THRESHOLD = 0.5
+
+
+def _mixer_conversion_factor(
+    candidate: np.ndarray,
+    actual_torque: np.ndarray,
+) -> Optional[Tuple[float, float]]:
+    """
+    Robust regression between a candidate u_plant proxy and the duty-derived
+    ACTUAL torque (_duty_differential_vehicle(), the real motor-curve
+    inversion -- a statement about StampFly's hardware, not about which
+    firmware's mixer flew). The slope is the mixer's static gain/conversion
+    factor `c`: see the rate-sysid design memo (docs/events/sci_tutorial_2026,
+    2026-09-09), §07 "K_measured = physical gain (K=1/I) x mixer gain (c)"
+    and §08 "measure c from the log".
+
+    Two calling conventions, same math:
+      - candidate = control_output.torque [Nm] (commanded, pre-mixer) ->
+        `c` is DIMENSIONLESS, ~1 for a mixer whose motor-curve model matches
+        reality (e.g. firmware/vehicle's flight-anchored curve).
+      - candidate = _duty_differential_legacy_linear()'s output (arbitrary
+        duty-differential units, no physical meaning of its own -- --mixer
+        legacy's u_plant) -> `c` is a CONVERSION FACTOR [Nm per legacy
+        duty-unit], with no "should be 1" expectation. Useful to rescale
+        firmware/workshop's lesson_06-style duty-differential K into the
+        physical 1/I scale -- see auto-memory
+        project_workshop_mixer_unification_deferred.md.
+
+    候補の u_plant プロキシと、duty から逆算した実トルク
+    （_duty_differential_vehicle()、実モータ曲線逆算 -- どのファームの
+    ミキサーが飛んだかでなく StampFly の実ハードウェアについての事実）との
+    頑健な回帰。傾きがミキサーの静的ゲイン/換算係数 `c`（2026-09-09
+    レート同定設計メモ §07「K_measured = 物理ゲイン(K=1/I) x
+    ミキサーゲイン(c)」・§08「ログから c を測る」参照）。
+
+    Args:
+        candidate: candidate u_plant proxy, same length as actual_torque
+        actual_torque: _duty_differential_vehicle() output [Nm]
+
+    Returns:
+        (slope, r_squared), or None if candidate has too little independent
+        variation to regress (e.g. a near-constant signal).
+    """
+    if len(candidate) < 8 or len(actual_torque) < 8 or np.std(candidate) < 1e-9:
+        return None
+    slope, intercept = np.polyfit(candidate, actual_torque, 1)
+    predicted = slope * candidate + intercept
+    ss_res = np.sum((actual_torque - predicted) ** 2)
+    ss_tot = np.sum((actual_torque - np.mean(actual_torque)) ** 2)
+    r_squared = 1.0 - ss_res / ss_tot if ss_tot > 1e-12 else 0.0
+    return float(slope), float(r_squared)
 
 
 def _classify_duty_source(
@@ -526,6 +595,14 @@ class PlantFitResult:
                                          # _classify_duty_source()
     duty_reason: str = ''     # human-readable reason for duty_quality, always
                                # shown so the input-mode choice is explained
+    mixer_gain: Optional[float] = None       # slope from _mixer_conversion_factor(),
+                                              # None when not computable (see
+                                              # mixer_gain_label for what it means)
+    mixer_gain_r_squared: Optional[float] = None
+    mixer_gain_label: str = ''   # e.g. "c (control_output vs duty-derived
+                                  # actual torque, dimensionless)" or "legacy
+                                  # duty-unit -> real torque [Nm/unit]" --
+                                  # empty when mixer_gain is None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
@@ -549,6 +626,9 @@ class PlantFitResult:
             'mixer': self.mixer,
             'duty_quality': self.duty_quality,
             'duty_reason': self.duty_reason,
+            'mixer_gain': self.mixer_gain,
+            'mixer_gain_r_squared': self.mixer_gain_r_squared,
+            'mixer_gain_label': self.mixer_gain_label,
             'kp_used': self.kp_used,
             'n_segments': self.n_segments,
             'estimated': {
@@ -694,18 +774,41 @@ def _fit_segment(
     n_init = min(10, len(y_seg) - 1)
     z0 = float(y_seg[n_init] - y_seg[0]) / (n_init * dt)
 
+    # BOTH params are log-transformed, not just tau_m. K_bounds spans up to
+    # 9 orders of magnitude for --mixer vehicle / --input control_output
+    # (REFERENCE_PLANT_GAINS_VEHICLE ~1e5, bounds (1, 1e9)) -- L-BFGS-B's
+    # finite-difference gradient step is sized for O(1)-scale variables, so
+    # an UNTRANSFORMED K at that magnitude gets a numerically negligible
+    # gradient and the optimizer silently fails to move away from K_init at
+    # all (discovered 2026-09-10: a synthetic fit with K_init deliberately
+    # != K_true converged to EXACTLY K_init, not the true optimum -- a
+    # previous 'vehicle'-mode selftest could not catch this because it
+    # happened to seed K_init == K_true). Log-transforming K puts it on the
+    # same O(1)-ish footing as log(tau_m) regardless of the physical scale.
+    # KもtauMと同じく対数変換する（tau_mだけでなく）。K_bounds は --mixer
+    # vehicle / --input control_output で最大9桁に及ぶ
+    # （REFERENCE_PLANT_GAINS_VEHICLE ~1e5、bounds (1, 1e9)）—— L-BFGS-B の
+    # 数値差分勾配ステップは O(1) スケール変数向けに設計されているため、
+    # 変換なしの K がこの桁だと勾配が数値的に無視できるほど小さくなり、
+    # 最適化器が K_init から全く動かず黙って失敗する（2026-09-10発見: K_init
+    # を意図的に K_true と違えた合成データのフィットが、真の最適値ではなく
+    # K_init そのものに収束した —— 従来の 'vehicle' モードのselftestは
+    # たまたま K_init == K_true で種付けしていたためこれを検出できなかった）。
+    # K を対数変換すれば、物理的な桁に関わらず log(tau_m) と同様 O(1) 相当の
+    # 足場に乗る。
     def objective(params):
-        K = params[0]
+        K = np.exp(params[0])
         tau_m = np.exp(params[1])  # log transform ensures tau_m > 0
         y_sim = _simulate_plant(K, tau_m, u_seg, dt, omega0, z0)
         return np.mean((y_sim - y_seg) ** 2)
 
+    log_K_bounds = (np.log(K_bounds[0]), np.log(K_bounds[1]))
     try:
         result = minimize(
             objective,
-            x0=[K_init, np.log(tau_m_init)],
+            x0=[np.log(K_init), np.log(tau_m_init)],
             method='L-BFGS-B',
-            bounds=[K_bounds, (np.log(0.003), np.log(0.5))],
+            bounds=[log_K_bounds, (np.log(0.003), np.log(0.5))],
             options={'maxiter': 200},
         )
     except Exception:
@@ -714,7 +817,7 @@ def _fit_segment(
     if not result.success and result.fun > 1.0:
         return None
 
-    K_opt = result.x[0]
+    K_opt = np.exp(result.x[0])
     tau_m_opt = np.exp(result.x[1])
 
     # Compute fit quality metrics
@@ -773,7 +876,8 @@ def _load_axis_data(
     time_range: Optional[Tuple[float, float]] = None,
     mixer: str = 'legacy',
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, str,
-           Optional[np.ndarray], Optional[str], str]:
+           Optional[np.ndarray], Optional[str], str,
+           Optional[np.ndarray], Optional[np.ndarray], bool]:
     """
     Load and extract axis-specific plant I/O from a flight-log CSV.
     CSV から軸固有のプラント入出力を読み込み・抽出する。
@@ -820,6 +924,21 @@ def _load_axis_data(
         duty_quality も None（duty_reason に理由）。mixer='vehicle' で
         `vbat` 列が無い場合、duty_reason に V_BATT_NOMINAL フォールバックの
         旨も追記する。
+        Also returns (actual_torque_diag, ctrl_output_torque,
+        ctrl_output_available): actual_torque_diag is ALWAYS the
+        vehicle-inversion "real torque" (see _duty_differential_vehicle())
+        when genuine 400Hz duty is present, regardless of `mixer` -- a
+        diagnostic signal, not the primary duty_diff. ctrl_output_torque is
+        the axis's PRE-MIXER commanded torque from the CSV's
+        ctrl_output_torque_<axis> column when the firmware sent the 0x4B
+        entry (ctrl_output_available True), else None/False.
+        (actual_torque_diag, ctrl_output_torque, ctrl_output_available) も
+        返す: actual_torque_diag は本物の400Hz dutyがあれば `mixer` に
+        関わらず常に vehicle逆算「実トルク」（_duty_differential_vehicle()
+        参照）-- 主経路の duty_diff ではなく診断用信号。ctrl_output_torque
+        はファームが0x4Bエントリを送っていれば（ctrl_output_available=True）
+        CSVの ctrl_output_torque_<axis> 列から得た軸別の指令トルク（ミキサー
+        手前）、無ければ None/False。
     """
     import csv as _csv
 
@@ -905,42 +1024,68 @@ def _load_axis_data(
     duty_diff: Optional[np.ndarray] = None
     duty_quality: Optional[str] = None
     duty_reason = "no motor_duty_FR/RR/RL/FL columns in CSV"
+    actual_torque_diag: Optional[np.ndarray] = None
     if all(c in cols for c in _DUTY_COLS):
         duty_fr = np.array([col(r, 'motor_duty_FR') for r in rows])
         duty_rr = np.array([col(r, 'motor_duty_RR') for r in rows])
         duty_rl = np.array([col(r, 'motor_duty_RL') for r in rows])
         duty_fl = np.array([col(r, 'motor_duty_FL') for r in rows])
 
-        if mixer == 'vehicle':
-            # vbat is forward-filled from the 1Hz PKT_STATUS entry (see
-            # udp_capture.py save_stream_csv()); fall back to the nominal 1S
-            # LiPo voltage when absent (older CSV / no PKT_STATUS received)
-            # or implausible, and say so in duty_reason.
-            # vbat は1Hz PKT_STATUSエントリからの前方補完（udp_capture.py の
-            # save_stream_csv() 参照）。無い場合（旧CSV/PKT_STATUS未受信）や
-            # 非現実的な値の場合は公称1S LiPo電圧にフォールバックし、
-            # duty_reason にその旨を記す。
-            vbat_note = ''
-            if _VBAT_COL in cols:
-                vbat = np.array([col(r, _VBAT_COL, default=0.0) for r in rows])
-                bad = vbat < _V_BATT_MIN
-                if np.any(bad):
-                    vbat = np.where(bad, _V_BATT_NOMINAL, vbat)
-                    vbat_note = (
-                        f" ({int(np.sum(bad))}/{len(vbat)} rows had no/implausible "
-                        f"vbat -- used the nominal {_V_BATT_NOMINAL}V there)"
-                    )
-            else:
-                vbat = np.full(len(rows), _V_BATT_NOMINAL)
+        # vbat is forward-filled from the 1Hz PKT_STATUS entry (see
+        # udp_capture.py save_stream_csv()); fall back to the nominal 1S
+        # LiPo voltage when absent (older CSV / no PKT_STATUS received) or
+        # implausible, and say so in duty_reason. Computed UNCONDITIONALLY
+        # (not just for mixer=='vehicle') because the vehicle-inversion
+        # "actual torque" diagnostic below (§08 of the rate-sysid design
+        # memo, 2026-09-09) needs it regardless of which mixer produced the
+        # PRIMARY duty_diff -- comparing a candidate u_plant against this
+        # actual torque is how the mixer's gain/conversion factor gets
+        # measured straight from the log, for ANY firmware's duty.
+        # vbat は1Hz PKT_STATUSエントリからの前方補完（udp_capture.py の
+        # save_stream_csv() 参照）。無い場合（旧CSV/PKT_STATUS未受信）や
+        # 非現実的な値の場合は公称1S LiPo電圧にフォールバックし、
+        # duty_reason にその旨を記す。mixer=='vehicle' のときだけでなく
+        # 常に計算する -- 下の vehicle逆算「実トルク」診断（2026-09-09 レート
+        # 同定設計メモ §08）は、どちらのミキサーが主経路の duty_diff を
+        # 作ったかに関わらず必要になる。候補の u_plant をこの実トルクと
+        # 比較することで、どのファームの duty からでもミキサーのゲイン/
+        # 換算係数をログだけから測定できる。
+        vbat_note = ''
+        if _VBAT_COL in cols:
+            vbat = np.array([col(r, _VBAT_COL, default=0.0) for r in rows])
+            bad = vbat < _V_BATT_MIN
+            if np.any(bad):
+                vbat = np.where(bad, _V_BATT_NOMINAL, vbat)
                 vbat_note = (
-                    f" (no vbat column in CSV -- used the nominal "
-                    f"{_V_BATT_NOMINAL}V throughout; re-capture with a current "
-                    "udp_capture.py for the real battery-sag-corrected fit)"
+                    f" ({int(np.sum(bad))}/{len(vbat)} rows had no/implausible "
+                    f"vbat -- used the nominal {_V_BATT_NOMINAL}V there)"
                 )
+        else:
+            vbat = np.full(len(rows), _V_BATT_NOMINAL)
+            vbat_note = (
+                f" (no vbat column in CSV -- used the nominal "
+                f"{_V_BATT_NOMINAL}V throughout; re-capture with a current "
+                "udp_capture.py for the real battery-sag-corrected fit)"
+            )
+
+        if mixer == 'vehicle':
             duty_diff = _duty_differential_vehicle(duty_fr, duty_rr, duty_rl, duty_fl, vbat, axis)
         else:
             duty_diff = _duty_differential_legacy_linear(duty_fr, duty_rr, duty_rl, duty_fl, axis)
-            vbat_note = ''
+
+        # Diagnostic-only "actual torque" via the vehicle (real motor-curve)
+        # inversion -- this is a statement about the REAL StampFly hardware
+        # (motor curve + geometry), not about which firmware's mixer flew, so
+        # it is always computed once real 400Hz duty is available. When
+        # mixer=='vehicle' this duplicates duty_diff exactly (same call);
+        # kept as its own array for a uniform diagnostic code path either way.
+        # 診断専用の「実トルク」— vehicle（実モータ曲線）逆算。実StampFly
+        # ハードウェア（モータ曲線＋ジオメトリ）についての事実であり、どの
+        # ファームのミキサーが飛んだかとは無関係なので、本物の400Hz dutyが
+        # あれば常に計算する。mixer=='vehicle' のときは duty_diff と全く
+        # 同じ計算になる（同じ呼び出し）が、診断側のコード経路を統一するため
+        # 別配列として持つ。
+        actual_torque_diag = _duty_differential_vehicle(duty_fr, duty_rr, duty_rl, duty_fl, vbat, axis)
 
         duty_rate_hz_col = (
             np.array([col(r, _DUTY_RATE_HZ_COL) for r in rows])
@@ -950,6 +1095,37 @@ def _load_axis_data(
             duty_fr, duty_rr, duty_rl, duty_fl, duty_rate_hz_col,
         )
         duty_reason += vbat_note
+        if duty_quality != 'duty400':
+            # The vehicle motor-curve inversion needs genuine 400Hz duty --
+            # a 50Hz-forward-filled staircase is too coarse for either the
+            # primary vehicle fit or the diagnostic (same reasoning as
+            # fit_plant()'s --input duty rejection of duty50).
+            # vehicle のモータ曲線逆算には本物の400Hz duty が要る -- 50Hz
+            # 前方補完の階段状データは主経路のvehicleフィットにも診断にも
+            # 粗すぎる（fit_plant() の --input duty が duty50 を拒否するのと
+            # 同じ理由）。
+            actual_torque_diag = None
+
+    # --- control_output: PRE-MIXER commanded thrust+torque (kPktCtrlOutput400
+    # /0x4B), when the firmware sent it -- see udp_capture.py save_stream_csv()
+    # and the rate-sysid design memo (docs/events/sci_tutorial_2026,
+    # 2026-09-09). Mixer-agnostic plant input: reading this needs no --mixer
+    # selection and no nonlinear duty->thrust inversion at all.
+    # control_output: ミキサー手前の指令推力+トルク（kPktCtrlOutput400/
+    # 0x4B）、ファームが送っていれば -- udp_capture.py の save_stream_csv()、
+    # レート同定設計メモ（docs/events/sci_tutorial_2026、2026-09-09）参照。
+    # ミキサー非依存のプラント入力: 読むのに --mixer の選択も非線形な
+    # duty->thrust逆算も一切要らない。
+    ctrl_output_torque: Optional[np.ndarray] = None
+    ctrl_output_available = False
+    if (_CTRL_OUTPUT_RATE_HZ_COL in cols
+            and all(c in cols for c in _CTRL_OUTPUT_TORQUE_COL.values())):
+        rate_hz_col = np.array([col(r, _CTRL_OUTPUT_RATE_HZ_COL) for r in rows])
+        ctrl_output_available = len(rate_hz_col) > 0 and float(np.median(rate_hz_col)) >= 200.0
+        if ctrl_output_available:
+            ctrl_output_torque = np.array(
+                [col(r, _CTRL_OUTPUT_TORQUE_COL[axis]) for r in rows]
+            )
 
     # Apply time range filter
     # 時間範囲フィルタを適用
@@ -962,8 +1138,13 @@ def _load_axis_data(
         throttle = throttle[mask]
         if duty_diff is not None:
             duty_diff = duty_diff[mask]
+        if actual_torque_diag is not None:
+            actual_torque_diag = actual_torque_diag[mask]
+        if ctrl_output_torque is not None:
+            ctrl_output_torque = ctrl_output_torque[mask]
 
-    return time_s, target, gyro, throttle, dt, fmt, duty_diff, duty_quality, duty_reason
+    return (time_s, target, gyro, throttle, dt, fmt, duty_diff, duty_quality,
+            duty_reason, actual_torque_diag, ctrl_output_torque, ctrl_output_available)
 
 
 def _find_flight_segments(
@@ -1063,30 +1244,103 @@ def fit_plant(
 
     # Load data
     # データ読み込み
-    time_s, target_raw, gyro, throttle, dt, fmt, duty_diff, duty_quality, duty_reason = (
+    (time_s, target_raw, gyro, throttle, dt, fmt, duty_diff, duty_quality, duty_reason,
+     actual_torque_diag, ctrl_output_torque, ctrl_output_available) = (
         _load_axis_data(filepath, axis, fs, time_range, mixer=mixer)
     )
 
-    # Resolve the input mode -- see the module docstring for the 3 modes.
-    # AUTO must not silently pick 'duty' on a 50Hz-forward-filled staircase
-    # (duty_quality == 'duty50'): that would fit a stale/quantized signal
-    # and look like it worked (good R^2, wrong physics). Falls back to 'kp'
-    # instead, which then requires --kp.
-    # 入力モードを解決する — 3モードの詳細はモジュール docstring 参照。
-    # AUTO は50Hz前方補完の階段状データ（duty_quality=='duty50'）で黙って
-    # 'duty' を選んではならない — 古い/粗い信号でフィットしてしまい、
-    # 見かけ上は動作したように見える（R^2は良いが物理的に誤り）。代わりに
-    # 'kp' へフォールバックし、--kp を要求する。
-    if input_mode not in ('auto', 'duty', 'kp'):
-        raise ValueError(f"Unknown input_mode: {input_mode!r}. Choose from: auto, duty, kp")
+    # Resolve the input mode -- see the module docstring. The ladder prefers
+    # the LEAST assumption-laden signal available (rate-sysid design memo,
+    # 2026-09-09, §05's "degradation ladder"): control_output (mixer-agnostic,
+    # no --mixer needed) > duty (mixer-specific inversion) > kp (needs a
+    # known, constant Kp). AUTO must not silently pick 'duty' on a
+    # 50Hz-forward-filled staircase (duty_quality == 'duty50'): that would
+    # fit a stale/quantized signal and look like it worked (good R^2, wrong
+    # physics). Falls back to 'kp' instead, which then requires --kp.
+    # 入力モードを解決する — モジュール docstring 参照。このラダーは最も
+    # 仮定の少ない信号を優先する（2026-09-09 レート同定設計メモ §05の
+    # 「縮退ラダー」）: control_output（ミキサー非依存、--mixer 不要）>
+    # duty（ミキサー依存の逆算）> kp（既知・一定の Kp が要る）。AUTO は
+    # 50Hz前方補完の階段状データ（duty_quality=='duty50'）で黙って 'duty' を
+    # 選んではならない — 古い/粗い信号でフィットしてしまい、見かけ上は
+    # 動作したように見える（R^2は良いが物理的に誤り）。代わりに 'kp' へ
+    # フォールバックし、--kp を要求する。
+    if input_mode not in ('auto', 'control_output', 'duty', 'kp'):
+        raise ValueError(
+            f"Unknown input_mode: {input_mode!r}. Choose from: auto, "
+            "control_output, duty, kp"
+        )
     resolved_mode = input_mode
     if resolved_mode == 'auto':
-        if duty_diff is not None and kp is None and duty_quality == 'duty400':
+        if ctrl_output_available and kp is None:
+            resolved_mode = 'control_output'
+        elif duty_diff is not None and kp is None and duty_quality == 'duty400':
             resolved_mode = 'duty'
         else:
             resolved_mode = 'kp'
 
-    if resolved_mode == 'duty':
+    # Mixer-gain diagnostic (rate-sysid design memo §07/§08): whenever the
+    # log has genuine 400Hz duty (actual_torque_diag is not None), compare
+    # the RESOLVED mode's candidate u_plant against the duty-derived actual
+    # torque. Computed BEFORE segment filtering below (on the full series --
+    # _mixer_conversion_factor() itself is robust to a few quiet stretches
+    # via the least-squares fit); meaningless in 'kp' mode (that
+    # reconstruction models something else entirely) so skipped there.
+    # ミキサーゲイン診断（レート同定設計メモ §07/§08）: 本物の400Hz duty が
+    # あれば（actual_torque_diag が None でなければ）常に、解決済みモードの
+    # 候補 u_plant を duty 逆算の実トルクと突き合わせる。下のセグメント
+    # フィルタより前に計算する（全系列に対して — _mixer_conversion_factor()
+    # 自体が最小二乗フィットで多少の無音区間には頑健）。'kp' モードでは
+    # 無意味（あの再構成は全く別のものをモデル化している）なのでスキップ。
+    mixer_gain: Optional[float] = None
+    mixer_gain_r2: Optional[float] = None
+    mixer_gain_label = ''
+    if actual_torque_diag is not None:
+        if resolved_mode == 'control_output' and ctrl_output_torque is not None:
+            diag = _mixer_conversion_factor(ctrl_output_torque, actual_torque_diag)
+            if diag is not None:
+                mixer_gain, mixer_gain_r2 = diag
+                mixer_gain_label = ('mixer static gain c (commanded '
+                                     'control_output vs duty-derived actual '
+                                     'torque, dimensionless, ~1 for an '
+                                     'accurate mixer)')
+        elif resolved_mode == 'duty' and mixer == 'legacy':
+            diag = _mixer_conversion_factor(duty_diff, actual_torque_diag)
+            if diag is not None:
+                mixer_gain, mixer_gain_r2 = diag
+                mixer_gain_label = ('legacy duty-unit -> real torque '
+                                     '[Nm per legacy duty-differential unit]')
+        elif resolved_mode == 'duty' and mixer == 'vehicle' and ctrl_output_torque is not None:
+            # duty_diff already equals actual_torque_diag here (same
+            # computation) -- the meaningful comparison is against
+            # control_output when it is ALSO present.
+            diag = _mixer_conversion_factor(ctrl_output_torque, actual_torque_diag)
+            if diag is not None:
+                mixer_gain, mixer_gain_r2 = diag
+                mixer_gain_label = ('mixer static gain c (commanded '
+                                     'control_output vs duty-derived actual '
+                                     'torque, dimensionless, ~1 for an '
+                                     'accurate mixer)')
+
+    if resolved_mode == 'control_output':
+        if ctrl_output_torque is None:
+            raise ValueError(
+                "--input control_output requested but this CSV has no "
+                "ctrl_output_torque_<axis>/ctrl_output_rate_hz columns (or "
+                "the entry was not genuine 400Hz) -- needs firmware sending "
+                "the kPktCtrlOutput400 entry (0x4B). Pass --input duty or "
+                "--input kp instead."
+            )
+        # u_plant(t) = control_output.torque(t) -- the PRE-MIXER commanded
+        # torque, already in the SAME physical units (Nm) regardless of
+        # which mixer (legacy linear, vehicle B^-1+motor-curve, or a
+        # learner's own) turned it into motor duty. No --mixer needed.
+        # u_plant(t) = control_output.torque(t) -- ミキサー手前の指令トルク。
+        # どのミキサー（legacy線形、vehicle B^-1+モータ曲線、学習者自作）が
+        # duty に変換したかに関わらず、既に同じ物理単位[Nm]。--mixer 不要。
+        u_plant = ctrl_output_torque
+        kp_used: Optional[float] = None
+    elif resolved_mode == 'duty':
         if duty_diff is None:
             raise ValueError(
                 "--input duty requested but this CSV has no "
@@ -1159,19 +1413,23 @@ def fit_plant(
         )
 
     # K's scale/units -- and everything calibrated against it (the optimizer
-    # bounds below, AND the min_activity floor just below) -- depend on which
-    # mixer produced u_plant when resolved_mode == 'duty' (torque-input K is
-    # ~1000x the duty-differential-input K -- see REFERENCE_PLANT_GAINS_VEHICLE's
-    # docstring above); 'kp' mode always uses the duty-differential scale
-    # (u_plant there is directly comparable to the legacy mixer's u_plant by
-    # construction).
+    # bounds below, AND the min_activity floor just below) -- depend on
+    # whether u_plant is in physical torque [Nm] (torque-input K is ~1000x
+    # the duty-differential-input K -- see REFERENCE_PLANT_GAINS_VEHICLE's
+    # docstring above). That's true for resolved_mode == 'control_output'
+    # (control_output.torque is always Nm) and for resolved_mode == 'duty'
+    # with mixer == 'vehicle'; 'kp' mode always uses the duty-differential
+    # scale (u_plant there is directly comparable to the legacy mixer's
+    # u_plant by construction).
     # K の尺度・単位 -- それに較正された最適化境界（下）と min_activity 閾値
-    # （すぐ下）も -- は、resolved_mode=='duty' のときどちらのミキサーが
-    # u_plant を作ったかに依存する（トルク入力の K は duty差動入力の K より
-    # およそ3桁大きい -- 上の REFERENCE_PLANT_GAINS_VEHICLE のdocstring
-    # 参照）。'kp' モードは常に duty差動スケール（そちらの u_plant は構成上
-    # legacy ミキサーの u_plant と直接比較可能）。
-    use_vehicle_scale = resolved_mode == 'duty' and mixer == 'vehicle'
+    # （すぐ下）も -- は、u_plant が物理トルク[Nm]かどうかに依存する
+    # （トルク入力の K は duty差動入力の K よりおよそ3桁大きい -- 上の
+    # REFERENCE_PLANT_GAINS_VEHICLE のdocstring参照）。これは
+    # resolved_mode=='control_output'（control_output.torque は常にNm）と、
+    # resolved_mode=='duty' かつ mixer=='vehicle' の場合に成り立つ。'kp'
+    # モードは常に duty差動スケール（そちらの u_plant は構成上 legacy
+    # ミキサーの u_plant と直接比較可能）。
+    use_vehicle_scale = resolved_mode == 'control_output' or (resolved_mode == 'duty' and mixer == 'vehicle')
     ref_gains = REFERENCE_PLANT_GAINS_VEHICLE if use_vehicle_scale else REFERENCE_PLANT_GAINS
     ref_K = ref_gains.get(axis, 100.0)
     # Vehicle-scale K sits ~1e5 (1/I_axis); bound wide around it rather than
@@ -1262,9 +1520,21 @@ def fit_plant(
         kp_used=kp_used,
         n_segments=len(K_estimates),
         input_mode=resolved_mode,
-        mixer=mixer if resolved_mode == 'duty' else 'legacy',
+        # 'control_output' u_plant is always torque-scale [Nm], same
+        # reference gains as --mixer vehicle (see to_dict()'s ref_gains
+        # selection) -- report 'vehicle' even though no mixer was actually
+        # inverted, so to_dict() picks REFERENCE_PLANT_GAINS_VEHICLE.
+        # 'control_output' の u_plant は常にトルク尺度[Nm]、--mixer vehicle
+        # と同じ参照ゲイン（to_dict() の ref_gains 選択参照）— 実際には
+        # ミキサーを逆算していなくても 'vehicle' と報告し、to_dict() が
+        # REFERENCE_PLANT_GAINS_VEHICLE を選ぶようにする。
+        mixer=('vehicle' if resolved_mode == 'control_output'
+               else mixer if resolved_mode == 'duty' else 'legacy'),
         duty_quality=duty_quality,
         duty_reason=duty_reason,
+        mixer_gain=mixer_gain,
+        mixer_gain_r_squared=mixer_gain_r2,
+        mixer_gain_label=mixer_gain_label,
     )
 
 
@@ -1294,7 +1564,8 @@ def compute_fit_timeseries(
             'y_simulated': Simulated angular velocity
             'residual': y_measured - y_simulated
     """
-    time_s, target_raw, gyro, throttle, dt, fmt, duty_diff, _duty_quality, _duty_reason = (
+    (time_s, target_raw, gyro, throttle, dt, fmt, duty_diff, _duty_quality, _duty_reason,
+     _actual_torque_diag, ctrl_output_torque, _ctrl_output_available) = (
         _load_axis_data(filepath, result.axis, fs, time_range, mixer=result.mixer)
     )
 
@@ -1304,7 +1575,14 @@ def compute_fit_timeseries(
     # プラント入出力を復元 -- fit_plant() と同じ入力モードのロジック。
     # フィットが実際に使ったモード（result.input_mode）に従う（呼び出し側の
     # rate_max/--kp に引きずられない）。
-    if result.input_mode == 'duty':
+    if result.input_mode == 'control_output':
+        if ctrl_output_torque is None:
+            raise ValueError(
+                "fit used the 'control_output' input mode but this CSV has "
+                "no ctrl_output_torque_<axis> columns"
+            )
+        u_plant = ctrl_output_torque
+    elif result.input_mode == 'duty':
         if duty_diff is None:
             raise ValueError(
                 "fit used the 'duty' input mode but this CSV has no "
@@ -1650,7 +1928,136 @@ def selftest(verbose: bool = True) -> bool:
               f"R^2={result_vehicle.r_squared:.3f}  n_segments={result_vehicle.n_segments}  "
               f"mixer={result_vehicle.mixer}")
 
-    ok = ok_kp and ok_duty and ok_auto and ok_stair and ok_vehicle
+    # --- control_output input mode + mixer-gain diagnostic (rate-sysid
+    # design memo, 2026-09-09, §07 "K_measured = physical gain x mixer gain"
+    # / §08 "measure c from the log"): reuses the roll-only vehicle-physics
+    # synthesis above (u_v drives the REAL forward B^-1 + motor curve ->
+    # duty_fr_v etc, gyro_meas_v), but writes a DELIBERATELY MISCALIBRATED
+    # ctrl_output_torque_roll = u_v / c_true (c_true != 1) -- i.e. the
+    # commanded torque a hypothetical controller asked for is NOT what was
+    # actually delivered (u_v, which drives gyro_meas_v). Proves two things
+    # at once: (1) fitting input_mode='control_output' against the
+    # miscalibrated commanded signal correctly recovers K_measured =
+    # c_true * K_true_vehicle (NOT K_true_vehicle) -- exactly the §07
+    # relationship, not a bug; (2) the mixer_gain diagnostic (commanded vs
+    # duty-derived actual torque) recovers c_true itself.
+    # --- control_output 入力モード＋ミキサーゲイン診断（2026-09-09 レート
+    # 同定設計メモ §07「K_measured = 物理ゲイン x ミキサーゲイン」/
+    # §08「ログから c を測る」）: 上のロール単独励振・vehicle物理合成
+    # （u_v が実際の順方向B^-1+モータ曲線を駆動 -> duty_fr_v等、
+    # gyro_meas_v）を再利用しつつ、意図的に較正のズレた
+    # ctrl_output_torque_roll = u_v / c_true（c_true≠1）を書き込む --
+    # つまり仮想のコントローラが要求した指令トルクは、実際に配達された
+    # もの（gyro_meas_v を駆動する u_v）とは異なる。これで2つを同時に
+    # 証明する: (1) input_mode='control_output' で較正のズレた指令信号に
+    # 対してフィットすると、正しく K_measured = c_true * K_true_vehicle
+    # （K_true_vehicle ではない）を復元する -- まさに§07の関係、バグでは
+    # ない。(2) mixer_gain 診断（指令 vs duty逆算の実トルク）が c_true
+    # 自体を復元する。
+    c_true = 0.85   # deliberately != 1 -- see the comment above
+
+    fieldnames_co = fieldnames_v + [
+        'ctrl_output_thrust', 'ctrl_output_torque_roll',
+        'ctrl_output_torque_pitch', 'ctrl_output_torque_yaw',
+        'ctrl_output_rate_hz',
+    ]
+    fd4, csv_path4 = tempfile.mkstemp(suffix='.csv', prefix='plant_fit_selftest_ctrlout_')
+    try:
+        with os.fdopen(fd4, 'w', newline='') as f:
+            writer = _csv.writer(f)
+            writer.writerow(fieldnames_co)
+            for i in range(n):
+                row = {name: 0.0 for name in fieldnames_co}
+                row['timestamp_us'] = t[i] * 1e6
+                row[gyro_col] = gyro_meas_v[i]
+                row[target_col] = target[i]
+                row['total_thrust'] = thrust_hover_total
+                row['motor_duty_FR'] = duty_fr_v[i]
+                row['motor_duty_RR'] = duty_rr_v[i]
+                row['motor_duty_RL'] = duty_rl_v[i]
+                row['motor_duty_FL'] = duty_fl_v[i]
+                row['vbat'] = vbat_true
+                row['ctrl_output_thrust'] = thrust_hover_total
+                row['ctrl_output_torque_roll'] = u_v[i] / c_true
+                row['ctrl_output_rate_hz'] = 400
+                writer.writerow([row[name] for name in fieldnames_co])
+
+        result_ctrl_output = fit_plant(csv_path4, axis=axis, rate_max=1.0, fs=fs,
+                                        input_mode='control_output')
+    finally:
+        os.unlink(csv_path4)
+
+    K_expected_co = c_true * K_true_vehicle
+    K_err_co = abs(result_ctrl_output.K / K_expected_co - 1.0)
+    tau_err_co = abs(result_ctrl_output.tau_m / tau_m_true - 1.0)
+    mixer_gain_err = (abs(result_ctrl_output.mixer_gain / c_true - 1.0)
+                       if result_ctrl_output.mixer_gain is not None else 1.0)
+    ok_ctrl_output = (K_err_co < 0.15 and tau_err_co < 0.30
+                       and result_ctrl_output.r_squared > 0.9
+                       and mixer_gain_err < 0.15)
+    if verbose:
+        print(f"[control_output] c_true={c_true}  K_expected={K_expected_co:.1f} "
+              f"(= c_true * K_true_vehicle)")
+        print(f"[control_output] fit: K={result_ctrl_output.K:.1f} "
+              f"({K_err_co * 100:.1f}% err)  tau_m={result_ctrl_output.tau_m * 1000:.1f} ms "
+              f"({tau_err_co * 100:.1f}% err)  R^2={result_ctrl_output.r_squared:.3f}  "
+              f"input_mode={result_ctrl_output.input_mode}")
+        mg = result_ctrl_output.mixer_gain
+        mg_str = 'None' if mg is None else f'{mg:.3f}'
+        print(f"[control_output] mixer_gain diagnostic: c={mg_str} "
+              f"(true {c_true}, err {mixer_gain_err * 100:.1f}%)  "
+              f"r2={result_ctrl_output.mixer_gain_r_squared}")
+
+    # --- legacy conversion-factor diagnostic (plausibility, not exact -- the
+    # legacy forward mixer composed with the REAL nonlinear motor curve has
+    # no hand-derivable closed form, unlike the control_output case above):
+    # the EXISTING legacy 'duty' fit (result_duty, from `u`/duty_fr near the
+    # top of this function) already has genuine 400Hz duty and no vbat
+    # column (falls back to nominal), so mixer_gain should come out
+    # populated -- a finite, positive conversion factor [Nm per legacy
+    # duty-unit], not None or garbage.
+    # legacy側の換算係数診断（もっともらしさの確認 -- 正確な期待値ではない。
+    # legacyの順方向ミキサーと実際の非線形モータ曲線の合成は手計算できる
+    # 閉形式ではない、上のcontrol_outputケースと違って）: この関数冒頭の
+    # legacy 'duty'フィット（result_duty、`u`/duty_fr由来）は既に本物の
+    # 400Hz dutyを持ちvbat列は無い（ノミナルにフォールバック）ので、
+    # mixer_gainが populated されているはず -- 有限・正の換算係数
+    # [Nm/legacy duty単位]、Noneでもおかしな値でもない。
+    ok_legacy_diag = (result_duty.mixer_gain is not None
+                       and np.isfinite(result_duty.mixer_gain)
+                       and result_duty.mixer_gain > 0)
+    if verbose:
+        print(f"[duty/legacy] mixer_gain diagnostic: "
+              f"{result_duty.mixer_gain} Nm/legacy-unit  "
+              f"r2={result_duty.mixer_gain_r_squared}  "
+              f"label={result_duty.mixer_gain_label!r}")
+
+    # --- unit-level regression check for _mixer_conversion_factor() itself,
+    # across two very different scales (dimensionless-like ~0.85, and a
+    # legacy-conversion-like ~1.2e-3) -- proves the regression math (not the
+    # CSV/fit_plant plumbing exercised above) recovers an EXACTLY-known slope.
+    # _mixer_conversion_factor() 自体の回帰の単体テスト、2つの大きく異なる
+    # 尺度（無次元的な~0.85と、legacy換算係数的な~1.2e-3）で -- 回帰の数式
+    # 自体（上で確認したCSV/fit_plantの配線ではなく）が既知の傾きを正確に
+    # 復元することを証明する。
+    rng2 = np.random.default_rng(11)
+    actual_synth = rng2.normal(0.0, 1.0, 500)
+    ok_unit_diag = True
+    for k_true_unit in (0.85, 1.2e-3):
+        candidate_synth = actual_synth / k_true_unit
+        diag = _mixer_conversion_factor(candidate_synth, actual_synth)
+        if diag is None:
+            ok_unit_diag = False
+            continue
+        slope, r2 = diag
+        err = abs(slope / k_true_unit - 1.0)
+        ok_unit_diag = ok_unit_diag and err < 1e-6 and r2 > 0.999
+        if verbose:
+            print(f"[mixer_conversion_factor unit test] k_true={k_true_unit:.3g}  "
+                  f"recovered={slope:.6g}  err={err:.2e}  r2={r2:.6f}")
+
+    ok = (ok_kp and ok_duty and ok_auto and ok_stair and ok_vehicle
+          and ok_ctrl_output and ok_legacy_diag and ok_unit_diag)
 
     if verbose:
         print("SELFTEST:", "PASS" if ok else "FAIL")

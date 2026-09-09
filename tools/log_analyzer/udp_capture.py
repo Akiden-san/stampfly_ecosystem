@@ -18,6 +18,9 @@ Packet IDs:
     0x49  ESKF P-diagonal (reserved, not sent by any current firmware)
     0x4A  Motor duty (400Hz, unified-packet entry, 8 samples/entry --
           plant input for `sf sysid fit`, see data_stream_wire.hpp kPktDuty400)
+    0x4B  Control output (400Hz, unified-packet entry, 8 samples/entry --
+          PRE-MIXER commanded thrust+torque, mixer-agnostic plant input for
+          `sf sysid fit`/`rate-fit`, see data_stream_wire.hpp kPktCtrlOutput400)
     0x4F  Status / Heartbeat (1Hz)
 
 Usage:
@@ -56,6 +59,7 @@ PKT_MAG       = 0x46
 PKT_CTRL_REF  = 0x48
 PKT_ESKF_PDIAG = 0x49
 PKT_DUTY400   = 0x4A  # 400Hz motor duty (unified-packet entry, 8 samples/entry)
+PKT_CTRL_OUTPUT400 = 0x4B  # 400Hz pre-mixer commanded thrust+torque (8 samples/entry)
 PKT_RATE_REF  = 0x99  # virtual ID for 400Hz rate_ref (fixed part of unified packet)
 PKT_STATUS    = 0x4F
 
@@ -126,6 +130,15 @@ assert struct.calcsize(FMT_RATE_REF) == 6
 #   duty_FR(H) + duty_RR(H) + duty_RL(H) + duty_FL(H)
 FMT_DUTY400 = '<4H'
 assert struct.calcsize(FMT_DUTY400) == 8
+
+# CtrlOutput400Sample: 16 bytes (one of 8 packed into a 128B kPktCtrlOutput400
+# entry) -- mirrors WireControlOutput400 in data_stream_wire.hpp. The
+# PRE-MIXER commanded thrust[N] + body torque[Nm] R,P,Y -- not quantized
+# (unlike duty's fixed [0,1] range, thrust/torque have no natural fixed scale
+# to quantize against without risking silent clipping).
+#   thrust(f) + torque_roll(f) + torque_pitch(f) + torque_yaw(f)
+FMT_CTRL_OUTPUT400 = '<4f'
+assert struct.calcsize(FMT_CTRL_OUTPUT400) == 16
 
 # Header: 4 bytes
 FMT_HEADER = '<B H B'
@@ -296,6 +309,26 @@ def parse_packet(data: bytes) -> list:
                         'timestamp_us': imu_timestamps[j],
                         'duty_FR': fr / 65535.0, 'duty_RR': rr / 65535.0,
                         'duty_RL': rl / 65535.0, 'duty_FL': fl / 65535.0,
+                    }))
+            # Control output (0x4B): same 8-sub-samples-per-entry convention
+            # as duty400 above, PRE-MIXER thrust[N]+torque[Nm] instead of
+            # post-mixer duty. Mixer-agnostic plant input for `sf sysid fit`/
+            # `rate-fit` -- see data_stream_wire.hpp kPktCtrlOutput400.
+            # 制御出力（0x4B）: 上の duty400 と同じ8サブサンプル/エントリの
+            # 規約。ミキサー後ろの duty ではなく、ミキサー手前の
+            # 推力[N]+トルク[Nm]。`sf sysid fit`/`rate-fit` のミキサー非依存な
+            # プラント入力 -- data_stream_wire.hpp kPktCtrlOutput400 参照。
+            elif (sensor_id == PKT_CTRL_OUTPUT400 and data_size == 128
+                    and offset + data_size <= len(data) - 1):
+                for j in range(8):
+                    thrust, tq_roll, tq_pitch, tq_yaw = struct.unpack_from(
+                        FMT_CTRL_OUTPUT400, data, offset + j * 16)
+                    results.append((PKT_CTRL_OUTPUT400, {
+                        'timestamp_us': imu_timestamps[j],
+                        'ctrl_output_thrust': thrust,
+                        'ctrl_output_torque_roll': tq_roll,
+                        'ctrl_output_torque_pitch': tq_pitch,
+                        'ctrl_output_torque_yaw': tq_yaw,
                     }))
             elif sensor_id in SAMPLE_INFO and offset + data_size <= len(data) - 1:
                 _, fmt, sample_size = SAMPLE_INFO[sensor_id]
@@ -638,6 +671,22 @@ class UDPTelemetryCapture:
             print("  400Hz motor duty (0x4A): NOT present -- "
                   "`sf sysid fit` falls back to --kp reconstruction")
 
+        # 400Hz control_output entry (0x4B) presence -- the PRE-MIXER
+        # commanded thrust+torque, mixer-agnostic plant input for
+        # `sf sysid fit`/`rate-fit`. Absent is not an error: falls back to
+        # the duty-based (mixer-specific) reconstruction above.
+        # 400Hz control_output エントリ（0x4B）の有無 -- ミキサー手前の
+        # 指令推力+トルク、`sf sysid fit`/`rate-fit` のミキサー非依存な
+        # プラント入力。無くてもエラーではなく、上の duty ベース
+        # （ミキサー依存）の復元にフォールバックする。
+        ctrl_output_samples = self.sample_count.get(PKT_CTRL_OUTPUT400, 0)
+        if ctrl_output_samples > 0:
+            print(f"  400Hz control_output (0x4B): present ({ctrl_output_samples} samples) "
+                  f"-- `sf sysid fit` can read u(t) directly, no --mixer needed")
+        else:
+            print("  400Hz control_output (0x4B): NOT present -- "
+                  "`sf sysid fit` falls back to duty-based (--mixer) reconstruction")
+
         # 1Hz Status packet (0x4F) presence -- source of the `vbat` column
         # save_stream_csv() forward-fills, needed only by
         # `sf sysid fit --mixer vehicle` (actuator.cpp's nonlinear
@@ -864,6 +913,7 @@ class UDPTelemetryCapture:
         ctrl_ref = sorted(self.samples.get(PKT_CTRL_REF, []),
                           key=lambda s: s['timestamp_us'])
         duty400 = self.samples.get(PKT_DUTY400, [])
+        ctrl_output400 = self.samples.get(PKT_CTRL_OUTPUT400, [])
         status = sorted(self.samples.get(PKT_STATUS, []),
                         key=lambda s: s['timestamp_us'])
 
@@ -891,6 +941,19 @@ class UDPTelemetryCapture:
                   f"({len(duty400)}) -- ignoring 400Hz duty, using 50Hz "
                   f"CtrlRef forward-fill instead")
             duty400 = []
+
+        if ctrl_output400 and len(ctrl_output400) != len(imu):
+            # Same defensive truncation reasoning as duty400 above. Unlike
+            # duty400, there is no 50Hz forward-fill fallback for torque (the
+            # 50Hz CtrlRef entry never carried it) -- dropping just means the
+            # ctrl_output_* columns come out empty for this file.
+            # 上の duty400 と同じ理由で安全側に倒す。duty400 と違いトルクには
+            # 50Hz前方補完のフォールバックが無い（50Hz CtrlRef エントリは
+            # トルクを運んだことがない）-- 落とすと単に ctrl_output_* 列が
+            # このファイルでは空欄になる。
+            print(f"  Warning: IMU samples ({len(imu)}) != control_output samples "
+                  f"({len(ctrl_output400)}) -- ignoring control_output entry")
+            ctrl_output400 = []
 
         # duty_rate_hz (400 or 50) is APPENDED at the end -- the existing 28
         # columns/order are unchanged so old readers (is_stream_csv() checks
@@ -925,6 +988,26 @@ class UDPTelemetryCapture:
         # "vehicle" は duty だけからでは差動トルク指令を復元できない）。
         # PKT_STATUS を一度も受信していないログでは空欄 -- plant_fit.py が
         # 公称1S LiPo電圧にフォールバックし、その旨を表示する。
+        # ctrl_output_*: the PRE-MIXER commanded thrust[N]+torque[Nm]
+        # (kPktCtrlOutput400/0x4B, 400Hz, same per-index pairing as duty400).
+        # Appended AFTER vbat (absent in a CSV read by an older plant_fit.py).
+        # Unlike duty_rate_hz there is no 50Hz-forward-fill fallback --
+        # ctrl_output_rate_hz is 400 when the entry was present, else 0 and
+        # the 4 data columns are left empty ('') for every row. Lets
+        # `sf sysid fit`/`rate-fit` read u(t) directly without inverting ANY
+        # mixer (legacy or vehicle) -- see docs/events/sci_tutorial_2026 rate-
+        # sysid design memo, 2026-09-09. Comparing this against the duty-
+        # reconstructed actual torque also gives the mixer's gain error as a
+        # diagnostic, purely from logged data.
+        # ctrl_output_*: ミキサー手前の指令推力[N]+トルク[Nm]
+        # （kPktCtrlOutput400/0x4B、400Hz、duty400 と同じ index 対応）。vbat の
+        # 後ろに追記（旧 plant_fit.py で読んだ CSV には無い）。duty_rate_hz と
+        # 異なり50Hz前方補完のフォールバックは無い -- エントリがあれば
+        # ctrl_output_rate_hz=400、無ければ0で4つのデータ列は全行空欄（''）。
+        # `sf sysid fit`/`rate-fit` がどのミキサー（legacy/vehicle）も逆算
+        # せずに u(t) を直接読めるようになる -- 2026-09-09 のレート同定設計
+        # メモ参照。duty から逆算した実トルクと突き合わせれば、ログだけから
+        # ミキサーのゲイン誤差も診断できる。
         fieldnames = [
             'timestamp_us',
             'gyro_x', 'gyro_y', 'gyro_z',
@@ -938,6 +1021,9 @@ class UDPTelemetryCapture:
             'flight_mode',
             'duty_rate_hz',
             'vbat',
+            'ctrl_output_thrust', 'ctrl_output_torque_roll',
+            'ctrl_output_torque_pitch', 'ctrl_output_torque_yaw',
+            'ctrl_output_rate_hz',
         ]
 
         ctrl_idx = 0
@@ -1007,6 +1093,28 @@ class UDPTelemetryCapture:
                     last_status = status[status_idx]
                     status_idx += 1
                 row['vbat'] = last_status['voltage'] if last_status is not None else ''
+
+                # control_output (0x4B): paired by index with this row's IMU
+                # sample, same convention as duty400 above. No forward-fill
+                # fallback -- absent means empty, not zero (a real zero
+                # command is a valid value; empty means "not recorded").
+                # control_output（0x4B）: 上の duty400 と同じ index 対応。
+                # 前方補完のフォールバックは無い -- 無ければ空欄（0ではない。
+                # 実際の0指令は正当な値であり、空欄は「記録されていない」の
+                # 意味）。
+                if ctrl_output400:
+                    co = ctrl_output400[i]
+                    row['ctrl_output_thrust'] = co['ctrl_output_thrust']
+                    row['ctrl_output_torque_roll'] = co['ctrl_output_torque_roll']
+                    row['ctrl_output_torque_pitch'] = co['ctrl_output_torque_pitch']
+                    row['ctrl_output_torque_yaw'] = co['ctrl_output_torque_yaw']
+                    row['ctrl_output_rate_hz'] = 400
+                else:
+                    row['ctrl_output_thrust'] = ''
+                    row['ctrl_output_torque_roll'] = ''
+                    row['ctrl_output_torque_pitch'] = ''
+                    row['ctrl_output_torque_yaw'] = ''
+                    row['ctrl_output_rate_hz'] = 0
 
                 writer.writerow({k: row.get(k, '') for k in fieldnames})
 

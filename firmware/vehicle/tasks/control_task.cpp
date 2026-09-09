@@ -85,6 +85,7 @@ static void publishLogStream(const sf::ControlOutput& control, uint8_t state,
         sample.pos[i]        = est.position[i];
         sample.vel[i]        = est.velocity[i];
         sample.rate_ref[i]   = control.rate_ref[i];
+        sample.torque[i]     = control.torque[i];
     }
     for (int i = 0; i < 4; ++i) {
         sample.quat[i] = est.attitude[i];

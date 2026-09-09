@@ -789,6 +789,60 @@ TEST(wire_quantize_duty_saturation)
     ASSERT_TRUE(quantizeDuty(0.5f) == 32768);     // round(0.5*65535=32767.5)
 }
 
+// kPktCtrlOutput400 (0x4B) — 400Hz pre-mixer commanded thrust+torque, the
+// mixer-agnostic plant input for `sf sysid fit`/`rate-fit`. Mirrors
+// wire_duty400_entry's approach (data_stream.cpp is not host-buildable).
+// kPktCtrlOutput400（0x4B）— ミキサー手前の指令推力＋トルク（400Hz）。
+// `sf sysid fit`/`rate-fit` のミキサー非依存なプラント入力。
+// wire_duty400_entry と同じ手法（data_stream.cpp はホストビルド不可）。
+TEST(wire_ctrl_output400_entry)
+{
+    using namespace sf::datastream;
+
+    sf::LogStreamSample samples[kSamplesPerPacket] = {};
+    for (int i = 0; i < kSamplesPerPacket; ++i) {
+        samples[i].thrust = 0.1f * static_cast<float>(i + 1);
+        for (int a = 0; a < 3; ++a) {
+            samples[i].torque[a] = 0.01f * static_cast<float>(i + 1)
+                                  + 0.001f * static_cast<float>(a);
+        }
+    }
+
+    UnifiedPacketBuilder builder;
+    builder.begin(0, samples);
+
+    WireControlOutput400 ctrl_output400[kSamplesPerPacket] = {};
+    for (int i = 0; i < kSamplesPerPacket; ++i) {
+        ctrl_output400[i].thrust = samples[i].thrust;
+        for (int a = 0; a < 3; ++a) {
+            ctrl_output400[i].torque[a] = samples[i].torque[a];
+        }
+    }
+    static_assert(sizeof(ctrl_output400) == 128, "wire drift");
+    ASSERT_TRUE(builder.addEntry(kPktCtrlOutput400, ctrl_output400, sizeof(ctrl_output400)));
+
+    const size_t length = builder.finish();
+    const uint8_t* buf = builder.buffer();
+
+    // entry_count = 1; ctrl_output400 is the only entry, right after it
+    // (offset 916/917), same convention as wire_duty400_entry.
+    ASSERT_TRUE(buf[916] == 1);
+    ASSERT_TRUE(buf[917] == kPktCtrlOutput400 && buf[918] == 128);
+
+    // Sample 0, thrust: 0.1*1 = 0.10.
+    float s0_thrust;
+    memcpy(&s0_thrust, &buf[919], 4);
+    ASSERT_TRUE(s0_thrust == samples[0].thrust);
+
+    // Sample 7 (last), torque[2] (yaw): offset 919 + 7*16 + 4 + 2*4.
+    float s7_torque_yaw;
+    memcpy(&s7_torque_yaw, &buf[919 + 7 * 16 + 4 + 2 * 4], 4);
+    ASSERT_TRUE(s7_torque_yaw == samples[7].torque[2]);
+
+    ASSERT_TRUE(length == 917 + 2 + 128 + 1);
+    ASSERT_TRUE(xorChecksum(buf, length - 1) == buf[length - 1]);
+}
+
 // =============================================================================
 // TakeoffLandingMgr tests — touchdown detection (firm ground + stalled descent)
 // 離着陸マネージャ — 接地検出（確実な接地＋降下停滞）
@@ -950,6 +1004,7 @@ int main()
     run_wire_quantize_saturation();
     run_wire_duty400_entry();
     run_wire_quantize_duty_saturation();
+    run_wire_ctrl_output400_entry();
 
     printf("\n[Tello state]\n");
     run_tello_state_all_keys_present();

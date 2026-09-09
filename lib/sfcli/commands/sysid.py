@@ -320,16 +320,27 @@ def _register_fit(subparsers):
         description=(
             "Identify open-loop plant parameters G_p(s) = K/(s*(tau_m*s+1)) "
             "from closed-loop P-control flight data. The plant INPUT is "
-            "reconstructed one of two ways, selected by --input (default "
-            "auto): 'duty' reads the actual motor duty (400Hz, needs "
+            "reconstructed one of three ways, selected by --input (default "
+            "auto, preferring the least assumption-laden option the CSV "
+            "supports): 'control_output' reads the PRE-MIXER commanded "
+            "thrust+torque (400Hz, needs firmware sending the "
+            "kPktCtrlOutput400/0x4B wire entry) directly -- no --mixer "
+            "selection and no duty inversion at all, correct regardless of "
+            "which mixer (legacy, vehicle, or a learner's own) actually "
+            "flew; 'duty' reads the actual motor duty (400Hz, needs "
             "firmware sending the kPktDuty400 wire entry) and inverts the "
             "mixer (selected by --mixer, see below) to recover the "
             "differential command -- no --kp needed, and correct even if Kp "
             "changed mid-flight or the duty saturated; 'kp' reconstructs "
             "u_plant = Kp*(rate_ref-gyro) from a known, constant P gain "
-            "(--kp required). 'auto' uses 'duty' when the CSV has "
-            "motor_duty_FR/RR/RL/FL columns and --kp was not given, else "
-            "falls back to 'kp'. The input CSV format is auto-detected: the "
+            "(--kp required). 'auto' picks 'control_output' when present, "
+            "else 'duty' when the CSV has motor_duty_FR/RR/RL/FL columns "
+            "and --kp was not given, else falls back to 'kp'. When both "
+            "control_output and genuine 400Hz duty are present, a mixer-gain "
+            "diagnostic is also reported (how far the mixer that actually "
+            "flew is from the physical model -- see the rate-sysid design "
+            "memo, docs/events/sci_tutorial_2026, 2026-09-09). The input CSV "
+            "format is auto-detected: the "
             "current 400Hz Data Stream (`sf log wifi -o *.csv`, columns "
             "rate_ref_roll/pitch/yaw + gyro_x/y/z -- shared by vehicle and "
             "workshop, --rate-max is ignored since rate_ref is already "
@@ -428,13 +439,19 @@ def _register_fit(subparsers):
     parser.add_argument(
         "--input",
         dest="input_mode",
-        choices=["auto", "duty", "kp"],
+        choices=["auto", "control_output", "duty", "kp"],
         default="auto",
-        help="Plant-input reconstruction mode (default: auto). 'duty' = "
-             "mixer-inverse of the 400Hz motor_duty_FR/RR/RL/FL columns "
-             "(no --kp needed); 'kp' = legacy Kp*(target-gyro) "
-             "reconstruction (--kp required); 'auto' = 'duty' when the "
-             "columns exist and --kp was not given, else 'kp'.",
+        help="Plant-input reconstruction mode (default: auto). "
+             "'control_output' = the PRE-MIXER commanded thrust+torque "
+             "(400Hz ctrl_output_* columns, kPktCtrlOutput400/0x4B) -- no "
+             "--mixer needed, works regardless of which mixer (legacy, "
+             "vehicle, or a learner's own) actually flew; requires firmware "
+             "sending that entry. 'duty' = mixer-inverse of the 400Hz "
+             "motor_duty_FR/RR/RL/FL columns (no --kp needed, but --mixer "
+             "must match the firmware); 'kp' = legacy Kp*(target-gyro) "
+             "reconstruction (--kp required); 'auto' picks the least "
+             "assumption-laden option the CSV supports: control_output > "
+             "duty > kp.",
     )
     parser.add_argument(
         "--mixer",
@@ -654,13 +671,28 @@ def run_fit(args: argparse.Namespace) -> int:
             f"[{r.n_segments} segs]"
         )
         console.print(line)
-        if r.input_mode == 'duty':
+        if r.input_mode == 'control_output':
+            mode_desc = "control_output (pre-mixer commanded thrust+torque, 400Hz, no --mixer needed)"
+        elif r.input_mode == 'duty':
             mode_desc = f"motor duty (--mixer {r.mixer} inverse of motor_duty_FR/RR/RL/FL, 400Hz)"
         else:
             mode_desc = f"Kp reconstruction (Kp={r.kp_used})"
         console.print(f"         input: {mode_desc}  units: K [{K_unit}]")
         if r.duty_reason:
             console.print(f"         duty check: {r.duty_reason}")
+        # Mixer-gain diagnostic (rate-sysid design memo, 2026-09-09, §07/§08):
+        # populated whenever the log has genuine 400Hz duty alongside the
+        # resolved input mode -- tells the caller how far the mixer that
+        # actually flew is from the physical model, straight from the log.
+        # ミキサーゲイン診断（2026-09-09 レート同定設計メモ §07/§08）: 本物の
+        # 400Hz dutyが解決済み入力モードと揃っていれば計算される -- 実際に
+        # 飛んだミキサーが物理モデルからどれだけ乖離しているかを、ログだけ
+        # から呼び出し側に伝える。
+        if r.mixer_gain is not None:
+            console.info(
+                f"         mixer gain: {r.mixer_gain:.4g}  (R^2={r.mixer_gain_r_squared:.3f})  "
+                f"{r.mixer_gain_label}"
+            )
 
     # Design Kp (zeta=0.7). For --mixer vehicle fits, this is directly in the
     # SAME units (Nm/(rad/s)) as firmware/vehicle's rate.roll/pitch/yaw.kp

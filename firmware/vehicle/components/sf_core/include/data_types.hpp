@@ -269,6 +269,8 @@ struct LogStreamSample {
     float rate_ref[3];      // [rad/s] inner-loop setpoint   / 内側ループ角速度目標
     float angle_ref[2];     // [rad] tilt setpoint R,P       / 傾き目標
     float thrust;           // [N] commanded total thrust    / 指令総推力
+    float torque[3];        // [Nm] commanded body torque R,P,Y (pre-mixer,
+                             // control_output.torque)        / 指令機体トルク（ミキサー前）
     float duty[4];          // motor duty FR,RR,RL,FL        / モータ duty
     uint8_t flight_mode;    // FlightMode value              / フライトモード
     uint8_t flight_state;   // FlightState value             / フライト状態

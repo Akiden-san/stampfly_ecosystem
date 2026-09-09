@@ -106,10 +106,15 @@ sf log viz logs/flight_001.csv --time-range 5 15
 `sf log viz flight.csv` はこの形式を自動判別し、7段のパネルで表示します。
 `motor_duty_FR/RR/RL/FL` 列は、400Hz duty エントリ（kPktDuty400）を送る
 ファームでは400Hz実測、送らない旧ファームでは従来通り50Hz指令の前方補完です
-（列名・列数は同じ）。末尾の `vbat` 列は1Hz Status パケット（0x4F）の
+（列名・列数は同じ）。`vbat` 列は1Hz Status パケット（0x4F）の
 バッテリ電圧を各400Hz行へ前方補完したもので（未受信の行は空欄）、
 `sf sysid fit --mixer vehicle`（firmware/vehicle の非線形モータ曲線逆算）
-だけが使います。それ以外の用途では無視して構いません。
+だけが使います。末尾の `ctrl_output_thrust`/`ctrl_output_torque_roll/pitch/yaw`/
+`ctrl_output_rate_hz` 列は、400Hz control_output エントリ（kPktCtrlOutput400/
+0x4B）を送るファームでのみ埋まる、ミキサー手前の指令推力[N]・トルク[Nm]です
+（`sf sysid fit --input control_output`/`sf sysid rate-fit`が使う、ミキサーの
+実装を問わないプラント入力。エントリが無いログでは空欄・`ctrl_output_rate_hz`
+は0）。それ以外の用途では無視して構いません。
 
 | パネル | 内容 | 単位 |
 |-------|------|------|

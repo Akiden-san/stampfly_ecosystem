@@ -77,6 +77,8 @@ inline constexpr uint8_t kPktCtrlRef   = 0x48;  // outer-loop refs + duty (50Hz 
 // ペイロードを P対角共分散として誤デコードしてしまう（両方たまたま64B）。
 // 0x4A は既存の 0x40-0x49/0x4F ブロックの次に空いている id。
 inline constexpr uint8_t kPktDuty400   = 0x4A;  // 400Hz motor duty (8 samples/entry)
+inline constexpr uint8_t kPktCtrlOutput400 = 0x4B;  // 400Hz commanded thrust+torque,
+                                                     // pre-mixer (8 samples/entry)
 inline constexpr uint8_t kPktStatus    = 0x4F;  // standalone 1Hz packet
 inline constexpr uint8_t kPktUnified   = 0x50;  // 50Hz batched packet
 
@@ -107,7 +109,12 @@ inline constexpr int    kSamplesPerPacket = 8;
 /// 他のセンサエントリ（control 22B、ctrl_ref 32B、flow/tof/baro/mag 計 ~70B）用に
 /// ~130B、さらに WiFi MTU（1472）・PC 受信バッファ（2048）に対して ~170B の
 /// 余白を残す。
-inline constexpr size_t kUnifiedMaxSize   = 1300;
+/// 400Hz control_output エントリ（kPktCtrlOutput400）追加に伴い 1400 へ再度
+/// 引き上げ: 前回の典型合計 1107B + 新エントリ 130B（[id][size] 2B + payload
+/// 128B = float4 × 8サンプル）= 1237B、旧 1300B 上限に対して ~63B しか余白が
+/// 無かったため、WiFi MTU（1472）・PC 受信バッファ（2048）に対する余白を
+/// ~163B に戻す。
+inline constexpr size_t kUnifiedMaxSize   = 1400;
 
 // Quantization scales (PC side divides by these to restore physical units)
 // 量子化スケール（PC 側はこれで割って物理量に復元する）
@@ -191,6 +198,40 @@ struct WireDuty400 {
     uint16_t duty[4];   // FR, RR, RL, FL — value × kDutyScale (duty 0..1)
 };
 static_assert(sizeof(WireDuty400) == 8, "wire drift");
+
+/// 400Hz commanded thrust+torque sample — the PRE-MIXER control command
+/// (`control_output` topic: `ControlOutput.thrust`/`.torque`), i.e. what the
+/// controller asked for before the mixer (legacy linear on firmware/workshop,
+/// physical B^-1 + nonlinear motor curve on firmware/vehicle) turned it into
+/// per-motor duty. One kPktCtrlOutput400 ENTRY carries kSamplesPerPacket (8)
+/// of these (128B total payload), paired by INDEX with the same-cycle
+/// ImuEskf/RateRef/Duty400 samples — same convention as WireDuty400.
+/// Reading this directly lets `sf sysid fit`/`rate-fit` identify G_p(s)
+/// without knowing which mixer flew (no --mixer selection, no nonlinear
+/// duty->thrust inversion) -- see docs/events/sci_tutorial_2026 rate-sysid
+/// design memo, 2026-09-09. Comparing this against the duty-reconstructed
+/// actual torque (WireDuty400 + the real motor curve) also gives the mixer's
+/// static gain error `c` as a diagnostic, entirely from logged data. Floats,
+/// not quantized (unlike duty's fixed [0,1] range, thrust/torque have no
+/// natural fixed scale to quantize against without risking silent clipping).
+/// 400Hz 指令推力＋トルクサンプル — ミキサー手前の制御指令（`control_output`
+/// トピック: `ControlOutput.thrust`/`.torque`）。コントローラがミキサー
+/// （firmware/workshop の単純線形、firmware/vehicle の物理B^-1＋非線形モータ
+/// 曲線）に渡す前に「これだけ出してほしい」と要求した値そのもの。
+/// kPktCtrlOutput400 の1エントリに kSamplesPerPacket（8）個分（payload計
+/// 128B）を積み、上の ImuEskf/RateRef/Duty400 と同じ index で対応させる
+/// （WireDuty400 と同じ考え方）。これを直接読めば `sf sysid fit`/`rate-fit`
+/// はどのミキサーで飛んだか知らずに（--mixer選択も非線形duty->thrust逆算も
+/// 不要に）G_p(s) を同定できる — 2026-09-09 のレート同定設計メモ参照。
+/// duty から逆算した実トルク（WireDuty400 ＋ 実モータ曲線）と突き合わせれば、
+/// ログだけからミキサーの静的ゲイン誤差 `c` を診断値として求められる。duty の
+/// ような固定 [0,1] レンジが無く量子化すると黙ってクリップする恐れがあるため
+/// float のまま積む（量子化しない）。
+struct WireControlOutput400 {
+    float thrust;      // [N] commanded total thrust
+    float torque[3];   // [Nm] commanded body torque R, P, Y
+};
+static_assert(sizeof(WireControlOutput400) == 16, "wire drift");
 
 /// 50Hz pilot input entry — FMT_CONTROL '<I 4f' (20B)
 struct WireControl {

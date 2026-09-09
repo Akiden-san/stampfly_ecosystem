@@ -290,6 +290,29 @@ void DataStream::appendEntries(datastream::UnifiedPacketBuilder& builder)
     }
     countDrop(builder.addEntry(datastream::kPktDuty400, duty400, sizeof(duty400)));
 
+    // 400Hz control_output — the PRE-MIXER commanded thrust+torque (all 8
+    // samples of the batch, same index pairing as duty400 above). Lets
+    // `sf sysid fit`/`rate-fit` identify the plant without knowing which
+    // mixer flew, and gives a mixer-gain diagnostic when compared against
+    // duty400. Added right after duty400 for the same reason duty400 is
+    // added first (see countDrop() below): both are load-bearing for
+    // system identification and should be the last entries ever dropped.
+    // 400Hz control_output — ミキサー手前の指令推力＋トルク（バッチ8サンプル
+    // 全て、上の duty400 と同じ index 対応）。`sf sysid fit`/`rate-fit` が
+    // どのミキサーで飛んだか知らずに同定できるようになり、duty400 と突き
+    // 合わせればミキサーゲインの診断も得られる。duty400 の直後に追加する
+    // 理由も同じ（下の countDrop() 参照） — どちらも同定にとって欠かせず、
+    // 最後まで落とされないようにする。
+    datastream::WireControlOutput400 ctrl_output400[datastream::kSamplesPerPacket] = {};
+    for (int i = 0; i < datastream::kSamplesPerPacket; ++i) {
+        ctrl_output400[i].thrust = batch_[i].thrust;
+        for (int a = 0; a < 3; ++a) {
+            ctrl_output400[i].torque[a] = batch_[i].torque[a];
+        }
+    }
+    countDrop(builder.addEntry(datastream::kPktCtrlOutput400, ctrl_output400,
+                               sizeof(ctrl_output400)));
+
     // Pilot input (50Hz cadence — one per packet, like the old vehicle).
     // パイロット入力（50Hz — 旧 vehicle と同じくパケットあたり 1 件）。
     const CommandSetpoint setpoint = command_setpoint.latest();
