@@ -651,6 +651,16 @@ class PlantFitResult:
                                   # a classic closed-loop identifiability
                                   # pitfall, not a plant-sign bug -- fly with
                                   # larger/more frequent stick motion instead.
+    kp_source: Optional[str] = None  # 'user' (--kp given), 'fir_auto'
+                                  # (_estimate_kp_fir() estimated it from
+                                  # this log's own duty), or None
+                                  # (kp_used is None -- direct fit, no Kp
+                                  # involved). See fit_plant()'s auto ladder.
+    kp_auto_r_squared: Optional[float] = None  # _estimate_kp_fir()'s R^2
+                                  # for the u~e FIR regression -- only set
+                                  # when kp_source == 'fir_auto'; a rough
+                                  # confidence signal for the auto-estimated
+                                  # Kp, NOT the plant fit's own r_squared.
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
@@ -678,6 +688,9 @@ class PlantFitResult:
             'mixer_gain_r_squared': self.mixer_gain_r_squared,
             'mixer_gain_label': self.mixer_gain_label,
             'kp_used': self.kp_used,
+            'kp_source': self.kp_source,
+            'kp_auto_r_squared': (round(self.kp_auto_r_squared, 4)
+                                   if self.kp_auto_r_squared is not None else None),
             'n_segments': self.n_segments,
             'n_segments_excitation_dropped': self.n_segments_excitation_dropped,
             'target_excitation_note': self.target_excitation_note,
@@ -1035,6 +1048,125 @@ def _fit_segment_indirect(
     rmse = float(np.sqrt(np.mean(residuals ** 2)))
 
     return K_opt, tau_m_opt, r_squared, rmse
+
+
+# Minimum fit quality for _estimate_kp_fir()'s result to be trusted as a
+# stand-in for a manually-typed --kp. Calibrated against real lesson_07
+# flights (2026-09-10): well-excited logs scored R^2 0.84-0.99; a log with
+# no real proportional relationship between e and u (wrong axis, dead
+# duty column, near-zero excitation) scores far below this.
+# _estimate_kp_fir() の結果を、手入力の --kp の代わりとして信頼してよい
+# 最低フィット品質。実際の実習7フライト（2026-09-10）で較正: 十分に励振
+# されたログは R^2 0.84〜0.99。e と u の間に本物の比例関係が無いログ
+# （軸違い、duty列が死んでいる、励振ほぼ無し）はこれを大きく下回る。
+_KP_AUTO_R2_FLOOR = 0.5
+
+
+def _estimate_kp_fir(
+    e: np.ndarray,
+    u: np.ndarray,
+    throttle: np.ndarray,
+    seg_samples: int,
+    taps: int = 1,
+    ridge_scale: float = 1e-6,
+) -> Optional[Tuple[float, float, int]]:
+    """
+    Auto-estimate the controller's effective proportional gain from a
+    SINGLE flight log, with NO prior knowledge of Kp and NO assumption of
+    a PID structure -- a short, ridge-regularized FIR regression of u(t)
+    (the actual/reconstructed control effort) against lags of e(t) =
+    target(t) - gyro(t). Returns (kp_est, r_squared, n_samples) using only
+    in-flight (throttle > 0.3) segments, or None when there is too little
+    data to fit.
+    単一フライトログから、Kp の事前知識もPID構造の仮定も無しに、制御器の
+    実効比例ゲインを自動推定する -- u(t)（実測/逆算した制御出力）を
+    e(t) = target(t) - gyro(t) の複数ラグに回帰する、短くリッジ正則化した
+    FIR回帰。飛行中（throttle > 0.3）の区間のみを使い、
+    (kp_est, r_squared, n_samples) を返す。フィットに足るデータが無ければ
+    None。
+
+    kp_est = h(0), the FIR's zero-lag coefficient -- the instantaneous
+    proportional-equivalent gain.
+
+    Default taps=1 (a plain scalar regression of u against e, no lags) is
+    DELIBERATE, not a placeholder -- discovered 2026-09-10 while building
+    this function's selftest coverage: e(t) from a real (or realistic
+    synthetic chirp-excited) flight is strongly autocorrelated sample to
+    sample, so with taps>1 the lagged e(t-1), e(t-2), ... columns are
+    near-collinear with e(t). Ordinary/ridge least squares then has no way
+    to know the true relationship is purely instantaneous (h(0)=Kp,
+    h(k>0)=0) and instead SPREADS the true h(0) weight across several
+    correlated lags -- e.g. on the exact synthetic closed loop this
+    selftest uses (true Kp=0.5, zero lag by construction), taps=8 recovered
+    h(0)=0.434 (13% low) while taps=1 recovered h(0)=0.4999... (0.03% low).
+    The controller-identification exercise earlier today (see
+    fir_vs_pid.json / "実習7 同定ログ比較" artifact, §"PID基底 vs
+    数値的(FIR)推定") used taps up to 40 to reveal genuine EXTRA dynamics
+    (useful there -- R^2 rising with taps means "PID undersells this axis");
+    but for THIS function's one job -- a trustworthy scalar Kp to feed
+    _simulate_closed_loop() -- more taps only relearns h(0) more poorly, so
+    keep taps=1 unless a caller has a specific reason to widen it.
+    既定taps=1（ラグ無しの単純なスカラー回帰）は仮置きではなく意図的な選択
+    -- このセルフテストを組んでいる最中に2026-09-10発見: 実際の（あるいは
+    現実的な合成チャープ励振の）フライトの e(t) はサンプル間で強く自己相関
+    するため、taps>1 にすると e(t-1), e(t-2), ... のラグ列が e(t) とほぼ
+    共線になる。最小二乗（リッジ込みでも）は真の関係が瞬時のみ
+    （h(0)=Kp、h(k>0)=0）だと知る術が無く、真の h(0) の重みを複数の相関
+    ラグへ分散させてしまう -- 例えばこのセルフテストが使う厳密な合成閉ループ
+    （真のKp=0.5、構成上ラグ0）で、taps=8 は h(0)=0.434（13%低）を復元した
+    のに対し taps=1 は h(0)=0.4999...（0.03%低）だった。今日先に行った
+    制御器同定の実験（fir_vs_pid.json /「実習7 同定ログ比較」アーティファクト
+    §「PID基底 vs 数値的(FIR)推定」）では taps を40まで使い、本物の追加
+    ダイナミクスをあぶり出した（そこでは有用 -- タップを増やすほどR^2が
+    上がる＝PIDがその軸を過小評価している証拠）。しかしこの関数の仕事は
+    ただ一つ -- _simulate_closed_loop() に渡す信頼できるスカラーKp -- で、
+    taps を増やすとむしろ h(0) の推定精度が悪化するだけなので、呼び出し側に
+    taps を広げる具体的な理由が無い限り taps=1 のままにすること。
+
+    Args:
+        e: target(t) - gyro(t) [rad/s], full-length (same length as u)
+        u: reconstructed control effort (duty_diff -- LEGACY duty-
+            differential scale only; see fit_plant()'s auto ladder for why
+            control_output/torque is not used as this function's `u`)
+        throttle: flight-activity signal for _find_flight_segments()
+        seg_samples: segment length in samples (same as fit_plant()'s
+            segment_length * fs)
+        taps: number of FIR lags (default 1 -- see docstring above for why)
+        ridge_scale: L2 penalty as a fraction of the sample count (keeps
+            the normal-equations solve well-conditioned when a segment has
+            near-collinear lags, and guards taps=1 against a near-silent
+            segment with tiny std(e))
+    """
+    segments = _find_flight_segments(throttle, seg_samples)
+    X_rows: List[np.ndarray] = []
+    y_rows: List[float] = []
+    for seg_start, seg_end in segments:
+        e_seg = e[seg_start:seg_end]
+        u_seg = u[seg_start:seg_end]
+        n_seg = len(e_seg)
+        for k in range(taps - 1, n_seg):
+            X_rows.append(e_seg[k - taps + 1:k + 1][::-1])
+            y_rows.append(u_seg[k])
+
+    if len(y_rows) < taps * 20:
+        return None
+
+    X = np.asarray(X_rows)
+    y = np.asarray(y_rows)
+    ridge = ridge_scale * len(y)
+    try:
+        h = np.linalg.solve(X.T @ X + ridge * np.eye(taps), X.T @ y)
+    except np.linalg.LinAlgError:
+        return None
+
+    u_fit = X @ h
+    ss_tot = np.sum((y - np.mean(y)) ** 2)
+    if ss_tot <= 1e-12:
+        return None
+    ss_res = np.sum((y - u_fit) ** 2)
+    r_squared = 1.0 - ss_res / ss_tot
+
+    return float(h[0]), float(r_squared), len(y)
 
 
 def _detect_csv_format(fieldnames: Optional[List[str]]) -> str:
@@ -1489,45 +1621,69 @@ def fit_plant(
         _load_axis_data(filepath, axis, fs, time_range, mixer=mixer)
     )
 
-    # Resolve the input mode -- see the module docstring. The ladder prefers
-    # the LEAST assumption-laden signal available (rate-sysid design memo,
-    # 2026-09-09, §05's "degradation ladder"): control_output (mixer-agnostic,
-    # no --mixer needed) > duty (mixer-specific inversion) > kp (needs a
-    # known, constant Kp). AUTO must not silently pick 'duty' on a
-    # 50Hz-forward-filled staircase (duty_quality == 'duty50'): that would
-    # fit a stale/quantized signal and look like it worked (good R^2, wrong
-    # physics). Falls back to 'kp' instead, which then requires --kp.
-    # 入力モードを解決する — モジュール docstring 参照。このラダーは最も
-    # 仮定の少ない信号を優先する（2026-09-09 レート同定設計メモ §05の
-    # 「縮退ラダー」）: control_output（ミキサー非依存、--mixer 不要）>
-    # duty（ミキサー依存の逆算）> kp（既知・一定の Kp が要る）。AUTO は
-    # 50Hz前方補完の階段状データ（duty_quality=='duty50'）で黙って 'duty' を
-    # 選んではならない — 古い/粗い信号でフィットしてしまい、見かけ上は
-    # 動作したように見える（R^2は良いが物理的に誤り）。代わりに 'kp' へ
-    # フォールバックし、--kp を要求する。
+    # Resolve the input mode -- see the module docstring. 2026-09-10 rewrite
+    # (this afternoon's tutorial deadline): the OLD ladder preferred any
+    # DIRECT fit (control_output/duty, u -> y) over 'indirect' whenever --kp
+    # was not typed by hand. We now know that preference was backwards --
+    # ANY direct fit is closed-loop-biased regardless of whether u is
+    # independently measured (duty/control_output) or reconstructed from a
+    # known Kp (see _simulate_closed_loop()'s docstring and the real
+    # lesson_07 comparison: direct gave R^2<0, indirect gave R^2 0.55-0.99
+    # on the SAME logs). So 'indirect' should ALWAYS win once a Kp is
+    # available -- and to make that not require the operator to type --kp,
+    # we first try to AUTO-ESTIMATE it from this log's own duty via
+    # _estimate_kp_fir() (short ridge-regularized FIR regression of u
+    # against lags of e=target-gyro, no PID-structure assumption, h(0) is
+    # the effective proportional gain). Only when no Kp is available at all
+    # (given nor auto-estimated) does the ladder fall back to a direct fit,
+    # and 'duty'/'control_output' still require the SAME
+    # duty_quality=='duty50' guard as before (never silently fit a stale
+    # 50Hz-forward-filled staircase).
+    # 入力モードを解決する — モジュール docstring 参照。2026-09-10 改訂
+    # （本日のチュートリアル締切対応）: 旧ラダーは --kp を手入力しない限り
+    # 直接法（control_output/duty、u -> y）を 'indirect' より優先していた
+    # が、この優先順は誤りだったと今日わかった -- u が独立測定（duty/
+    # control_output）か既知Kpからの再構成かに関わらず、直接法は常に閉ループ
+    # バイアスを受ける（_simulate_closed_loop() の docstring、および実際の
+    # 実習7比較: 同じログで直接法は R^2<0、間接法は R^2 0.55〜0.99 参照）。
+    # よって Kp さえ手に入れば 'indirect' が常に勝つべきであり、そのために
+    # オペレータに --kp を手入力させないよう、まずこのログ自身の duty から
+    # _estimate_kp_fir()（e=target-gyro の複数ラグへの短いリッジ正則化FIR
+    # 回帰、PID構造の仮定なし、h(0)が実効比例ゲイン）で自動推定を試みる。
+    # Kp が（手入力・自動推定とも）一切得られない場合のみ、直接法へ縮退する
+    # -- 'duty'/'control_output' は従来通り duty_quality=='duty50' ガード
+    # （50Hz前方補完の階段状データを黙ってフィットしない）を維持する。
     if input_mode not in ('auto', 'control_output', 'duty', 'indirect', 'kp'):
         raise ValueError(
             f"Unknown input_mode: {input_mode!r}. Choose from: auto, "
             "control_output, duty, indirect, kp"
         )
+    seg_samples = int(segment_length * (1.0 / dt))
+    kp_source: Optional[str] = 'user' if kp is not None else None
+    kp_auto_r_squared: Optional[float] = None
     resolved_mode = input_mode
     if resolved_mode == 'auto':
-        if ctrl_output_available and kp is None:
-            resolved_mode = 'control_output'
-        elif duty_diff is not None and kp is None and duty_quality == 'duty400':
-            resolved_mode = 'duty'
-        elif kp is not None:
-            # 2026-09-10: prefer the indirect closed-loop fit over the old
-            # direct 'kp' reconstruction whenever --kp is given -- same
-            # requirement (a known, constant Kp), strictly more robust on
-            # real human-piloted flight data (see _simulate_closed_loop()).
-            # 2026-09-10: --kp が与えられたら、常に旧来の直接 'kp' 再構成
-            # より間接閉ループフィットを優先する -- 要件は同じ（既知・一定の
-            # Kp）で、実際の人間操縦フライトデータに対して頑健さが明確に
-            # 上回る（_simulate_closed_loop() 参照）。
+        if kp is not None:
             resolved_mode = 'indirect'
         else:
-            resolved_mode = 'kp'
+            kp_auto: Optional[float] = None
+            if duty_diff is not None and duty_quality == 'duty400':
+                target_for_kp = target_raw if fmt == "stream" else target_raw * rate_max
+                est = _estimate_kp_fir(target_for_kp - gyro, duty_diff, throttle, seg_samples)
+                if est is not None:
+                    kp_est, kp_r2, _n_fir = est
+                    if kp_est > 0.0 and kp_r2 > _KP_AUTO_R2_FLOOR:
+                        kp_auto, kp_auto_r_squared = kp_est, kp_r2
+            if kp_auto is not None:
+                kp = kp_auto
+                kp_source = 'fir_auto'
+                resolved_mode = 'indirect'
+            elif ctrl_output_available:
+                resolved_mode = 'control_output'
+            elif duty_diff is not None and duty_quality == 'duty400':
+                resolved_mode = 'duty'
+            else:
+                resolved_mode = 'kp'
 
     # Mixer-gain diagnostic (rate-sysid design memo §07/§08): whenever the
     # log has genuine 400Hz duty (actual_torque_diag is not None), compare
@@ -1682,8 +1838,7 @@ def fit_plant(
     min_target_std = min_target_std_frac * rate_max
 
     # Find flight segments
-    # 飛行区間の検出
-    seg_samples = int(segment_length * (1.0 / dt))
+    # 飛行区間の検出 (seg_samples computed earlier, alongside mode resolution)
     segments = _find_flight_segments(throttle, seg_samples)
 
     if not segments:
@@ -1896,6 +2051,8 @@ def fit_plant(
         mixer_gain_label=mixer_gain_label,
         n_segments_excitation_dropped=n_dropped_excitation,
         target_excitation_note=target_excitation_note,
+        kp_source=kp_source,
+        kp_auto_r_squared=kp_auto_r_squared,
     )
 
 
@@ -2102,14 +2259,23 @@ def selftest(verbose: bool = True) -> bool:
                                input_mode='kp')
         result_duty = fit_plant(csv_path, axis=axis, rate_max=1.0, fs=fs,
                                  input_mode='duty')
-        # 'auto' on this genuine (continuously-varying) 400Hz duty CSV must
-        # ALSO pick 'duty' -- proves _classify_duty_source()'s heuristic has
-        # no false positive on real data (no duty_rate_hz column here either,
-        # so this exercises the heuristic branch, not the authoritative one).
-        # この本物の（連続的に変化する）400Hz duty CSV では 'auto' も 'duty'
-        # を選ぶこと -- _classify_duty_source() のヒューリスティックが実データで
-        # 偽陽性を出さないことの証明（ここも duty_rate_hz 列は無く、権威的
-        # 判定ではなくヒューリスティック分岐を検証する）。
+        # 2026-09-10: 'auto' on this genuine (continuously-varying) 400Hz
+        # duty CSV, with NO --kp given, must now resolve to 'indirect' via
+        # _estimate_kp_fir()'s auto-estimated Kp (h(0) from a short FIR
+        # regression of u=duty_diff against lags of target-gyro) -- proving
+        # both that _classify_duty_source()'s heuristic has no false
+        # positive (no duty_rate_hz column here either, so this exercises
+        # the heuristic branch, not the authoritative one) AND that the
+        # FIR auto-Kp estimate is accurate enough to drive a correct
+        # indirect fit end to end, with zero manual parameters.
+        # 2026-09-10: この本物の（連続的に変化する）400Hz duty CSV で、
+        # --kp を一切与えない 'auto' は、_estimate_kp_fir() の自動推定Kp
+        # （u=duty_diff を target-gyro の複数ラグに短いFIR回帰した h(0)）
+        # 経由で 'indirect' に解決されること -- _classify_duty_source() の
+        # ヒューリスティックに偽陽性が無いこと（ここも duty_rate_hz 列は無く、
+        # 権威的判定ではなくヒューリスティック分岐を検証する）と、FIR自動
+        # 推定Kpが手動パラメータ一切無しで正しい間接フィットを駆動できる
+        # 精度であることの両方を証明する。
         result_auto = fit_plant(csv_path, axis=axis, rate_max=1.0, fs=fs,
                                  input_mode='auto')
         # 2026-09-10: indirect closed-loop fit (target->gyro, known kp) on
@@ -2214,7 +2380,13 @@ def selftest(verbose: bool = True) -> bool:
         print(f"true : K={K_true:.1f} [rad/s^2/duty]  tau_m={tau_m_true * 1000:.1f} ms")
     ok_kp = _check(result_kp, 'kp')
     ok_duty = _check(result_duty, 'duty')
-    ok_auto = _check(result_auto, 'auto') and result_auto.input_mode == 'duty'
+    ok_auto = (_check(result_auto, 'auto')
+               and result_auto.input_mode == 'indirect'
+               and result_auto.kp_source == 'fir_auto')
+    if verbose:
+        print(f"[auto] kp_source={result_auto.kp_source}  "
+              f"kp_used={result_auto.kp_used:.4f} (true={kp:.4f})  "
+              f"kp_auto_r2={result_auto.kp_auto_r_squared}")
     ok_indirect = _check(result_indirect, 'indirect') and result_indirect.input_mode == 'indirect'
 
     # --- --mixer vehicle regression: same closed-loop synthesis, but the
@@ -2499,13 +2671,24 @@ def selftest(verbose: bool = True) -> bool:
     finally:
         os.unlink(csv_path5)
 
+    # 2026-09-10: since 'auto' now prefers 'indirect' (via FIR auto-Kp) over
+    # any direct fit, this regression's bar is now stricter: it must not
+    # only avoid the dead all-zero control_output, but resolve all the way
+    # to 'indirect' -- the SAME accuracy check as ok_auto above, on the SAME
+    # legacy-scale flight, just with dead control_output columns present.
+    # 2026-09-10: 'auto' が（FIR自動Kp経由で）直接法より 'indirect' を優先
+    # するようになったため、この回帰テストの基準はより厳しくなった -- 死んだ
+    # 全ゼロ control_output を避けるだけでなく、'indirect' まで解決する
+    # こと。上の ok_auto と同じ精度チェックを、control_output列は存在するが
+    # 死んでいる同じ legacy スケールのフライトに対して行う。
     K_err_ws = abs(result_ws_zero.K / K_true - 1.0)
-    ok_ws_zero = (result_ws_zero.input_mode == 'duty' and K_err_ws < 0.15
-                  and result_ws_zero.r_squared > 0.9)
+    ok_ws_zero = (result_ws_zero.input_mode == 'indirect'
+                  and result_ws_zero.kp_source == 'fir_auto'
+                  and K_err_ws < 0.15 and result_ws_zero.r_squared > 0.9)
     if verbose:
         print(f"[workshop-zero-torque regression] auto resolved to "
-              f"'{result_ws_zero.input_mode}' (must be 'duty', not "
-              f"'control_output'): K={result_ws_zero.K:.1f} "
+              f"'{result_ws_zero.input_mode}' (must be 'indirect', not "
+              f"'control_output'/'duty'): K={result_ws_zero.K:.1f} "
               f"({K_err_ws * 100:.1f}% err)  "
               f"R^2={result_ws_zero.r_squared:.3f}")
 
