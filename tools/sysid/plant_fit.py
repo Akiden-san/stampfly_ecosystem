@@ -1116,16 +1116,43 @@ def _load_axis_data(
     # レート同定設計メモ（docs/events/sci_tutorial_2026、2026-09-09）参照。
     # ミキサー非依存のプラント入力: 読むのに --mixer の選択も非線形な
     # duty->thrust逆算も一切要らない。
+    # NOTE (2026-09-10, urgent fix): the wire entry's *rate* (400Hz) tells you
+    # nothing about whether its *values* are meaningful. firmware/workshop's
+    # WorkshopControlTask never writes LogStreamSample.torque[] at all (see
+    # workshop_control_task.cpp -- it fills only .thrust, from its own
+    # duty-scale MotorRequest.thrust, not physical N) -- torque stays at its
+    # zero-init default even though data_stream.cpp unconditionally sends the
+    # 0x4B entry every cycle. A naive rate-only check would then make 'auto'
+    # PREFER an all-zero, meaningless control_output torque over the
+    # (working) duty-based reconstruction for every workshop/legacy log --
+    # a regression, not an improvement. So: also require non-degenerate
+    # (non-constant-zero) values before trusting this column.
+    # 注（2026-09-10、緊急修正）: 電文の「レート」（400Hz）は「値」が意味を
+    # 持つかとは無関係。firmware/workshop の WorkshopControlTask は
+    # LogStreamSample.torque[] を一切書かない（workshop_control_task.cpp参照
+    # -- 埋めるのは .thrust だけで、しかも物理量Nではなく自前のduty尺度の
+    # MotorRequest.thrust）ため、data_stream.cpp が毎周期0x4Bエントリを無条件
+    # 送信していても torque はゼロ初期化のまま。レートだけで判定すると、
+    # 'auto' が全ての workshop/legacy ログで意味の無い全ゼロトルクを、動く
+    # はずの duty 逆算より優先してしまう -- 改善ではなく退行になる。そこで
+    # 値が非退化（定数ゼロでない）ことも合わせて要求する。
     ctrl_output_torque: Optional[np.ndarray] = None
     ctrl_output_available = False
     if (_CTRL_OUTPUT_RATE_HZ_COL in cols
             and all(c in cols for c in _CTRL_OUTPUT_TORQUE_COL.values())):
         rate_hz_col = np.array([col(r, _CTRL_OUTPUT_RATE_HZ_COL) for r in rows])
-        ctrl_output_available = len(rate_hz_col) > 0 and float(np.median(rate_hz_col)) >= 200.0
-        if ctrl_output_available:
-            ctrl_output_torque = np.array(
+        rate_ok = len(rate_hz_col) > 0 and float(np.median(rate_hz_col)) >= 200.0
+        if rate_ok:
+            candidate = np.array(
                 [col(r, _CTRL_OUTPUT_TORQUE_COL[axis]) for r in rows]
             )
+            # Constant-zero (or near enough to be numerically indistinguishable
+            # from an unpopulated field) => not genuinely populated.
+            # 定数ゼロ（または未使用フィールドと数値的に見分けが付かない
+            # ほど小さい）なら、実際には値が入っていないとみなす。
+            if np.std(candidate) > 1e-9:
+                ctrl_output_available = True
+                ctrl_output_torque = candidate
 
     # Apply time range filter
     # 時間範囲フィルタを適用
@@ -2056,8 +2083,72 @@ def selftest(verbose: bool = True) -> bool:
             print(f"[mixer_conversion_factor unit test] k_true={k_true_unit:.3g}  "
                   f"recovered={slope:.6g}  err={err:.2e}  r2={r2:.6f}")
 
+    # --- regression (2026-09-10, urgent): a genuine firmware/workshop log
+    # sends the 0x4B control_output entry at 400Hz (data_stream.cpp appends
+    # it unconditionally) but never actually WRITES LogStreamSample.torque[]
+    # -- WorkshopControlTask fills only .thrust, from its own duty-scale
+    # MotorRequest.thrust, not physical N (see workshop_control_task.cpp).
+    # So ctrl_output_torque_<axis> reads back as constant zero even though
+    # ctrl_output_rate_hz says 400. Before the fix above, 'auto' would have
+    # PREFERRED this all-zero, meaningless control_output over the (working)
+    # legacy duty reconstruction -- a regression for every real workshop/
+    # lesson_07 log, not an improvement. Reuses the legacy-scale synthetic
+    # flight (u, gyro_meas, duty_fr/rr/rl/fl) from the 'kp'/'duty'/'auto'
+    # block above.
+    # --- 退行防止（2026-09-10、緊急）: 本物の firmware/workshop ログは
+    # 0x4B の control_output エントリを400Hzで送る（data_stream.cpp が無条件
+    # に追加する）が、LogStreamSample.torque[] は実際には一切書かれない --
+    # WorkshopControlTask が埋めるのは .thrust だけで、しかも物理量Nでは
+    # なく自前のduty尺度のMotorRequest.thrust（workshop_control_task.cpp
+    # 参照）。そのため ctrl_output_rate_hz が400と言っていても
+    # ctrl_output_torque_<axis> は定数ゼロのまま読める。上の修正が無ければ
+    # 'auto' はこの全ゼロで無意味な control_output を、動作する legacy duty
+    # 逆算より優先してしまう -- 本物の workshop/実習7 ログすべてにとって
+    # 改善ではなく退行になる。上の 'kp'/'duty'/'auto' ブロックの
+    # legacy スケール合成飛行（u, gyro_meas, duty_fr/rr/rl/fl）を再利用する。
+    fieldnames_ws = fieldnames + [
+        'ctrl_output_thrust', 'ctrl_output_torque_roll',
+        'ctrl_output_torque_pitch', 'ctrl_output_torque_yaw',
+        'ctrl_output_rate_hz',
+    ]
+    fd5, csv_path5 = tempfile.mkstemp(suffix='.csv', prefix='plant_fit_selftest_wszero_')
+    try:
+        with os.fdopen(fd5, 'w', newline='') as f:
+            writer = _csv.writer(f)
+            writer.writerow(fieldnames_ws)
+            for i in range(n):
+                row = {name: 0.0 for name in fieldnames_ws}
+                row['timestamp_us'] = t[i] * 1e6
+                row[gyro_col] = gyro_meas[i]
+                row[target_col] = target[i]
+                row['total_thrust'] = 0.4
+                row['motor_duty_FR'] = duty_fr[i]
+                row['motor_duty_RR'] = duty_rr[i]
+                row['motor_duty_RL'] = duty_rl[i]
+                row['motor_duty_FL'] = duty_fl[i]
+                # ctrl_output_torque_* left at 0.0 (never written, like
+                # WorkshopControlTask) -- only ctrl_output_rate_hz is genuine.
+                row['ctrl_output_rate_hz'] = 400
+                writer.writerow([row[name] for name in fieldnames_ws])
+
+        result_ws_zero = fit_plant(csv_path5, axis=axis, rate_max=1.0, fs=fs,
+                                    input_mode='auto')
+    finally:
+        os.unlink(csv_path5)
+
+    K_err_ws = abs(result_ws_zero.K / K_true - 1.0)
+    ok_ws_zero = (result_ws_zero.input_mode == 'duty' and K_err_ws < 0.15
+                  and result_ws_zero.r_squared > 0.9)
+    if verbose:
+        print(f"[workshop-zero-torque regression] auto resolved to "
+              f"'{result_ws_zero.input_mode}' (must be 'duty', not "
+              f"'control_output'): K={result_ws_zero.K:.1f} "
+              f"({K_err_ws * 100:.1f}% err)  "
+              f"R^2={result_ws_zero.r_squared:.3f}")
+
     ok = (ok_kp and ok_duty and ok_auto and ok_stair and ok_vehicle
-          and ok_ctrl_output and ok_legacy_diag and ok_unit_diag)
+          and ok_ctrl_output and ok_legacy_diag and ok_unit_diag
+          and ok_ws_zero)
 
     if verbose:
         print("SELFTEST:", "PASS" if ok else "FAIL")
