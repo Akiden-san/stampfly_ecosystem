@@ -1127,9 +1127,12 @@ sf sysid fit flight.csv --plot
 % ------------------------------------------------------------------
 \begin{frame}[fragile]{sf sysid rate-fit / rate-tune とは\later}
   \begin{block}{対象は vehicle ファームだけ（実習コードでは使わない）}\footnotesize
-    \code{rate-fit} は記録した目標 $r$ と角速度 $y$ から，vehicle ファームの PID（理想形＋不完全微分）を
-    そのゲインで再計算して入力 $u$ を復元し，周波数領域（ETFE）で $G_p(s)=b\,e^{-Ls}/(s(Ts+1))$ に
-    フィットする。PID の形もゲインも違う実習コードでは復元できない（実習コードは sf sysid fit で duty から同定）
+    \code{rate-fit} は記録した400Hzのduty（実測モータ出力）から vehicle ファームの実ミキサーを
+    逆算し，入力 $u$ を直接復元する——ファームのゲインを知る必要はない。duty の無い旧ログでは，
+    既知のゲインで vehicle ファームの PID（理想形＋不完全微分）をそのまま再計算する経路
+    （\code{--kp}）にフォールバックする。復元した $u$ と角速度 $y$ を周波数領域（ETFE）で
+    $G_p(s)=b\,e^{-Ls}/(s(Ts+1))$ にフィットする。PID の形もゲインも違う実習コードには
+    \code{--kp} 経路が使えない（実習コードは sf sysid fit で duty から同定）
   \end{block}
 
   \begin{block}{3 つのコマンドの役割}\footnotesize
