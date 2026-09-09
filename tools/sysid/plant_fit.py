@@ -2298,6 +2298,8 @@ def compute_fit_timeseries(
     # プラント入出力を復元 -- fit_plant() と同じ入力モードのロジック。
     # フィットが実際に使ったモード（result.input_mode）に従う（呼び出し側の
     # rate_max/--kp に引きずられない）。
+    target_physical = target_raw if fmt == "stream" else target_raw * rate_max
+
     if result.input_mode == 'control_output':
         if ctrl_output_torque is None:
             raise ValueError(
@@ -2313,19 +2315,53 @@ def compute_fit_timeseries(
             )
         u_plant = duty_diff
     else:
-        target = target_raw if fmt == "stream" else target_raw * rate_max
-        u_plant = result.kp_used * (target - gyro)
+        # 'indirect' and 'kp' both reconstruct u = kp*(target-gyro) for
+        # DISPLAY here; 'indirect' never fits against this u (see
+        # fit_plant()'s 'indirect' branch) -- its y_simulated below uses
+        # target_physical directly instead.
+        # 'indirect' と 'kp' はどちらも表示用に u = kp*(target-gyro) を
+        # 復元する -- 'indirect' はこの u に対してフィットしたことは一度も
+        # ない（fit_plant() の 'indirect' 分岐参照）。下の y_simulated は
+        # target_physical を直接使う。
+        u_plant = result.kp_used * (target_physical - gyro)
     y_measured = gyro
 
     # Simulate full time series with identified parameters
     # 同定パラメータで全時系列をシミュレート
     omega0 = y_measured[0]
-    n_init = min(10, len(y_measured) - 1)
-    z0 = float(y_measured[n_init] - y_measured[0]) / (n_init * dt)
 
-    y_simulated = _simulate_plant(
-        result.K, result.tau_m, u_plant, dt, omega0, z0,
-    )
+    if result.input_mode == 'indirect':
+        # Simulate the CLOSED loop (target->gyro) directly, matching what
+        # the fit was actually validated against (_fit_segment_indirect).
+        # Open-loop integrating u=kp*(target-gyro) through _simulate_plant()
+        # (like the other modes below) DIVERGES over a long series: the
+        # simulation has no feedback correcting it, so any small K/tau_m
+        # mismatch accumulates without bound through the plant's pure
+        # integrator across tens of seconds -- unlike the real (measured)
+        # closed loop, which stays bounded because of ACTUAL sensor
+        # feedback. Confirmed via --plot on a real lesson_07 log: open-loop
+        # here produced a simulated trace ~100x the real gyro's range while
+        # the segment-level R^2 the fit reported was a modest but sane 0.59.
+        # 閉ループ（target->gyro）を直接シミュレートする -- フィットが実際に
+        # 検証されたのと同じ方式（_fit_segment_indirect）。下の他モードと
+        # 同様に u=kp*(target-gyro) を _simulate_plant() で開ループ積分する
+        # と、長い時系列全体で発散する: シミュレーションにはそれを補正する
+        # フィードバックが無いため、わずかな K/tau_m のズレでもプラントの
+        # 純粋な積分器を通じて数十秒かけて無制限に蓄積する -- 実際の
+        # （実測の）閉ループは実センサのフィードバックにより有界に留まるのと
+        # 対照的。実習7の実ログで --plot 検証済み: 開ループでは実測ジャイロ
+        # の範囲の約100倍のシミュレーション軌跡になったが、フィットが報告
+        # したセグメント単位の R^2 は 0.59 という地味だが妥当な値だった。
+        y_simulated = _simulate_closed_loop(
+            result.K, result.tau_m, result.kp_used, target_physical, dt, omega0,
+        )
+    else:
+        n_init = min(10, len(y_measured) - 1)
+        z0 = float(y_measured[n_init] - y_measured[0]) / (n_init * dt)
+
+        y_simulated = _simulate_plant(
+            result.K, result.tau_m, u_plant, dt, omega0, z0,
+        )
 
     return {
         'time': time_s,
