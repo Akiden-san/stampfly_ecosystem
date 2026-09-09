@@ -439,7 +439,7 @@ def _register_fit(subparsers):
     parser.add_argument(
         "--input",
         dest="input_mode",
-        choices=["auto", "control_output", "duty", "kp"],
+        choices=["auto", "control_output", "duty", "indirect", "kp"],
         default="auto",
         help="Plant-input reconstruction mode (default: auto). "
              "'control_output' = the PRE-MIXER commanded thrust+torque "
@@ -448,10 +448,22 @@ def _register_fit(subparsers):
              "vehicle, or a learner's own) actually flew; requires firmware "
              "sending that entry. 'duty' = mixer-inverse of the 400Hz "
              "motor_duty_FR/RR/RL/FL columns (no --kp needed, but --mixer "
-             "must match the firmware); 'kp' = legacy Kp*(target-gyro) "
-             "reconstruction (--kp required); 'auto' picks the least "
-             "assumption-laden option the CSV supports: control_output > "
-             "duty > kp.",
+             "must match the firmware). 'indirect' = fits the CLOSED-LOOP "
+             "target->gyro transfer function directly and backs out K/tau_m "
+             "from the known --kp algebraically, instead of fitting the "
+             "reconstructed u=kp*(target-gyro) directly (that naive 'kp' "
+             "fit is a textbook closed-loop identifiability trap on real, "
+             "modestly-excited human-piloted flight -- a human cannot "
+             "safely produce the ~8Hz persistent stick motion the direct "
+             "fit would need; 'indirect' recovered K within a few % to "
+             "~25% of theory on real lesson_07 test flights where 'kp' gave "
+             "R^2<0 and K off by 1-3 orders of magnitude on the SAME data, "
+             "2026-09-10). Needs --kp, same as 'kp'. 'kp' = the older "
+             "direct Kp*(target-gyro) reconstruction (--kp required) -- "
+             "kept for comparison/debugging, not recommended for real "
+             "flight data. 'auto' picks the least assumption-laden option "
+             "the CSV supports: control_output > duty > (indirect if --kp "
+             "given, else an error asking for --kp).",
     )
     parser.add_argument(
         "--mixer",
@@ -484,6 +496,18 @@ def _register_fit(subparsers):
         help="Maximum angular rate [rad/s] (default: 1.0, yaw typically 5.0). "
              "Only used by the 'kp' input mode's legacy ctrl*rate_max path -- "
              "ignored for Data Stream CSVs and the 'duty' input mode.",
+    )
+    parser.add_argument(
+        "--min-target-std-frac",
+        type=float,
+        default=0.1,
+        help="Drop a segment when std(target/rate_ref) over it is below "
+             "this fraction of --rate-max (default: 0.1). A near-constant "
+             "stick reference makes u=Kp*(target-y) collapse onto -Kp*y, "
+             "which fits a strongly negative/implausible K that looks like "
+             "a sign-inverted plant but is a closed-loop identifiability "
+             "artifact -- fly with larger, more continuous stick motion "
+             "instead of loosening this check. Pass 0 to disable.",
     )
     parser.add_argument(
         "--time-range",
@@ -634,6 +658,7 @@ def run_fit(args: argparse.Namespace) -> int:
                 time_range=tuple(args.time_range) if args.time_range else None,
                 input_mode=args.input_mode,
                 mixer=args.mixer,
+                min_target_std_frac=args.min_target_std_frac,
             )
             results[axis] = result
         except ValueError as e:
@@ -675,6 +700,8 @@ def run_fit(args: argparse.Namespace) -> int:
             mode_desc = "control_output (pre-mixer commanded thrust+torque, 400Hz, no --mixer needed)"
         elif r.input_mode == 'duty':
             mode_desc = f"motor duty (--mixer {r.mixer} inverse of motor_duty_FR/RR/RL/FL, 400Hz)"
+        elif r.input_mode == 'indirect':
+            mode_desc = f"indirect closed-loop fit (target->gyro, Kp={r.kp_used} known)"
         else:
             mode_desc = f"Kp reconstruction (Kp={r.kp_used})"
         console.print(f"         input: {mode_desc}  units: K [{K_unit}]")
@@ -693,6 +720,8 @@ def run_fit(args: argparse.Namespace) -> int:
                 f"         mixer gain: {r.mixer_gain:.4g}  (R^2={r.mixer_gain_r_squared:.3f})  "
                 f"{r.mixer_gain_label}"
             )
+        if r.target_excitation_note:
+            console.warning(f"         excitation: {r.target_excitation_note}")
 
     # Design Kp (zeta=0.7). For --mixer vehicle fits, this is directly in the
     # SAME units (Nm/(rad/s)) as firmware/vehicle's rate.roll/pitch/yaw.kp

@@ -18,32 +18,46 @@ L5 の P 制御で飛行し、WiFi テレメトリでデータを取得した後
 
 ### アルゴリズム概要
 
-$K_p$ が既知なので、テレメトリデータからプラントの入出力を復元できる。
-`ws::set_rate_target(roll, pitch, yaw)` を呼ぶと、その角速度目標が 400Hz
-Data Stream の `rate_ref_roll/pitch/yaw` 列に記録される（Body FRD, [rad/s]）:
+`sf sysid fit` は既定（`--input auto`）で **duty優先方式** を使う: 400Hz で
+記録される4モータの `motor_duty_FR/RR/RL/FL` 列をミキサーの逆算式に通し、
+レートループ PID がその周期に実際に出力した差動指令 $u(t)$ を直接復元する。
+$K_p$ の値を知る必要も、フライト中に一定であることを仮定する必要もない。
 
 ```
 Data Stream に記録されるデータ（sf log wifi -o *.csv）:
-  rate_ref_roll : ロール角速度目標 [rad/s]（ws::set_rate_target の記録値）
-  gyro_x        : ロール角速度実測 [rad/s]
+  motor_duty_FR/RR/RL/FL : 4モータ duty [0,1]（400Hz）
+  gyro_x                  : ロール角速度実測 [rad/s]
 
-プラント入出力の復元（rate_ref は既に絶対値なので rate_max 換算は不要）:
-  u_plant  = Kp × (rate_ref_roll − gyro_x)     ← プラントへの入力
-  y_plant  = gyro_x                             ← プラントの出力
+プラント入出力の復元（ミキサー逆算、--kp 不要）:
+  u_plant  = mixer_inverse(motor_duty_FR/RR/RL/FL)   ← プラントへの入力
+  y_plant  = gyro_x                                   ← プラントの出力
 
 開ループモデルをフィッティング:
   G_p(s) = K / (s·(τm·s + 1))
   minimize |y_simulated − y_plant|²   → K, τm を同定
 ```
 
-`sf sysid fit` は CSV のヘッダ列から自動的にこの形式（"stream"）を判別する。
-`rate_ref_*` 列が無い旧形式 CSV（`ctrl_roll` + `gyro_corrected_x` など、
-`target = ctrl_roll × rate_max`）にも後方互換で対応する。
+400Hz duty 列の無い旧ログ向けのフォールバックとして、$K_p$ が既知であれば
+`rate_ref_roll/pitch/yaw` 列（`ws::set_rate_target` の記録値）から
+$u_{plant} = K_p \times (\text{rate\_ref} - \text{gyro})$ を計算する
+"kp" 方式もある（`--input kp --kp 0.5` で明示指定）。`sf sysid fit` は
+CSV のヘッダ列から自動的に方式を判別する（`--input auto`、既定）。
 
 ### なぜ開ループ同定が可能か
 
-閉ループデータでも $K_p$ が既知なら、プラントへの入力 $u(t)$ を計算できる。
-そのため、閉ループモデルを経由せずに開ループモデルを直接同定できる。
+duty方式は、閉ループ制御の外側にあるモータ指令そのもの（4モータ duty）を
+直接観測して逆算するため、$K_p$ の値にもフィードバック則の仮定にも依存
+しない。kp方式（フォールバック）でも、閉ループデータで $K_p$ が既知なら
+プラントへの入力 $u(t)$ を計算できるため、閉ループモデルを経由せずに
+開ループモデルを直接同定できる。
+
+> **重要（励振不足の落とし穴）:** どちらの方式でも、スティックをほとんど
+> 動かさずに一定方向へ持ち続けた区間があると、閉ループの P 制御則
+> $u = K_p(\text{target} - y)$ が $u \approx \text{定数} - K_p y$ に潰れ、
+> $u$ と $y$ が「プラントの動特性やハードウェアの符号とは無関係に」強く
+> 負相関して見える（閉ループ同定の典型的な落とし穴）。`sf sysid fit` は
+> この状態を検出すると該当区間を除外し警告するが、そもそも起きないよう
+> ステップ2の励振の指示に従うこと。
 
 ## 3. 手順
 
@@ -58,8 +72,12 @@ Data Stream に記録されるデータ（sf log wifi -o *.csv）:
 ### ステップ 2: フライト & データ取得
 
 1. PC でテレメトリ受信を開始（`.csv` を指定するとマージ済み Data Stream CSV を直接保存）: `sf log wifi -o flight.csv`
-2. ARM → ホバリング → スティック操作でロール・ピッチ入力
-3. 2〜3回のスティック操作で十分
+2. ARM → ホバリング → スティック操作でロール・ピッチ・ヨー入力
+3. **フライト全体を通じて、各軸のスティックを大きめの振幅で連続的に、
+   ランダムっぽく動かし続けること。** 一定方向に持ち続ける時間を作らない
+   （2〜3回軽く動かすだけでは全く足りない — 目安として、記録全体での
+   `rate_ref` の標準偏差が `rate_max` の 10% 未満だと `sf sysid fit` が
+   励振不足として区間を除外し、同定に失敗する）
 4. 着陸 → DISARM
 
 `flight.csv` には `timestamp_us, gyro_x/y/z, rate_ref_roll/pitch/yaw, total_thrust` 等が1周期1行で入る（拡張子を `.jsonl` にすると従来通りセンサ種別ごとの JSON Lines で保存され、`sf sysid fit` の入力には使えない）。
@@ -67,14 +85,17 @@ Data Stream に記録されるデータ（sf log wifi -o *.csv）:
 ### ステップ 3: 同定
 
 ```bash
-# 全軸を同定（--rate-max は stream 形式では無視される。rate_ref が既に絶対値のため）
-sf sysid fit flight.csv --kp 0.5 --plot
+# 全軸を同定（duty優先方式が自動選択される。--kp 不要）
+sf sysid fit flight.csv --plot
 
 # 特定軸のみ
-sf sysid fit flight.csv --kp 0.5 --axis roll --plot
+sf sysid fit flight.csv --axis roll --plot
 
 # 結果を YAML に保存
-sf sysid fit flight.csv --kp 0.5 -o my_plant.yaml
+sf sysid fit flight.csv -o my_plant.yaml
+
+# 400Hz duty 列の無い旧ログの場合のみ、kp方式にフォールバック
+sf sysid fit flight.csv --input kp --kp 0.5 --plot
 ```
 
 ### ステップ 4: L6 理論値と比較
@@ -126,34 +147,50 @@ Fly with L5's P controller, capture WiFi telemetry, then run `sf sysid fit` for 
 
 ### Algorithm Overview
 
-Since $K_p$ is known, plant I/O can be reconstructed from telemetry. Calling
-`ws::set_rate_target(roll, pitch, yaw)` records that rate target into the
-400Hz Data Stream's `rate_ref_roll/pitch/yaw` columns (Body FRD, [rad/s]):
+By default (`--input auto`), `sf sysid fit` uses the **duty-first method**:
+it feeds the 400Hz `motor_duty_FR/RR/RL/FL` columns through the mixer's
+inverse to directly recover the differential command $u(t)$ the rate-loop
+PID actually issued that cycle. There is no need to know $K_p$, or to
+assume it stayed constant during the flight.
 
 ```
 Data Stream columns (sf log wifi -o *.csv):
-  rate_ref_roll : roll rate target [rad/s] (recorded by ws::set_rate_target)
-  gyro_x        : measured roll rate [rad/s]
+  motor_duty_FR/RR/RL/FL : 4 motor duties [0,1] (400Hz)
+  gyro_x                  : measured roll rate [rad/s]
 
-Plant I/O reconstruction (rate_ref is already absolute -- no rate_max scaling):
-  u_plant  = Kp × (rate_ref_roll − gyro_x)     <- plant input
-  y_plant  = gyro_x                             <- plant output
+Plant I/O reconstruction (mixer inverse, no --kp needed):
+  u_plant  = mixer_inverse(motor_duty_FR/RR/RL/FL)   <- plant input
+  y_plant  = gyro_x                                   <- plant output
 
 Open-loop model fitting:
   G_p(s) = K / (s·(τm·s + 1))
   minimize |y_simulated − y_plant|²   → identify K, τm
 ```
 
-`sf sysid fit` auto-detects this ("stream") format from the CSV header, and
-stays backward-compatible with the legacy CSV schema (`ctrl_roll` +
-`gyro_corrected_x`, `target = ctrl_roll × rate_max`) when `rate_ref_*`
-columns are absent.
+As a fallback for older logs without the 400Hz duty columns, a "kp" method
+computes $u_{plant} = K_p \times (\text{rate\_ref} - \text{gyro})$ from the
+`rate_ref_roll/pitch/yaw` columns (recorded by `ws::set_rate_target`) when
+$K_p$ is known (`--input kp --kp 0.5`). `sf sysid fit` auto-detects which
+method to use from the CSV header (`--input auto`, the default).
 
 ### Why Open-Loop Identification Works
 
-Even with closed-loop data, if $K_p$ is known, the plant input $u(t)$
-can be computed directly. This allows open-loop model identification
-without going through the closed-loop model.
+The duty method directly observes the motor command itself (4 motor
+duties), outside the closed loop, so it needs neither $K_p$ nor any
+assumption about the feedback law. The kp fallback also works on
+closed-loop data: if $K_p$ is known, the plant input $u(t)$ can be computed
+directly, allowing open-loop identification without going through the
+closed-loop model.
+
+> **Important (the insufficient-excitation pitfall):** with either method,
+> a stretch where the stick barely moves and is held in one direction
+> collapses the closed-loop P-control law $u = K_p(\text{target} - y)$ into
+> $u \approx \text{const} - K_p y$, making $u$ and $y$ look strongly and
+> misleadingly *negatively* correlated -- regardless of the true plant
+> dynamics or hardware sign convention (a classic closed-loop
+> identifiability pitfall). `sf sysid fit` detects and drops such segments
+> with a warning, but follow Step 2's excitation guidance so it doesn't
+> happen in the first place.
 
 ## 3. Procedure
 
@@ -168,8 +205,13 @@ without going through the closed-loop model.
 ### Step 2: Flight & Data Capture
 
 1. Start telemetry on PC (a `.csv` extension saves the merged Data Stream CSV directly): `sf log wifi -o flight.csv`
-2. ARM → hover → apply roll/pitch stick inputs
-3. 2-3 stick inputs are sufficient
+2. ARM → hover → apply roll/pitch/yaw stick inputs
+3. **Keep moving each axis's stick continuously, with large amplitude, in a
+   quasi-random pattern throughout the whole flight.** Never hold one
+   direction for long (a couple of light stick taps is nowhere near
+   enough -- as a rule of thumb, `sf sysid fit` drops segments as
+   insufficiently excited, and fitting fails, when the recorded
+   `rate_ref`'s standard deviation is below 10% of `rate_max`)
 4. Land → DISARM
 
 `flight.csv` has one row per control cycle with `timestamp_us, gyro_x/y/z, rate_ref_roll/pitch/yaw, total_thrust`, etc. (a `.jsonl` extension instead saves the legacy per-sample JSON Lines format, which `sf sysid fit` cannot read).
@@ -177,14 +219,17 @@ without going through the closed-loop model.
 ### Step 3: Identification
 
 ```bash
-# Identify all axes (--rate-max is ignored for stream-format CSVs -- rate_ref is already absolute)
-sf sysid fit flight.csv --kp 0.5 --plot
+# Identify all axes (duty-first method is auto-selected -- no --kp needed)
+sf sysid fit flight.csv --plot
 
 # Single axis only
-sf sysid fit flight.csv --kp 0.5 --axis roll --plot
+sf sysid fit flight.csv --axis roll --plot
 
 # Save results to YAML
-sf sysid fit flight.csv --kp 0.5 -o my_plant.yaml
+sf sysid fit flight.csv -o my_plant.yaml
+
+# Only for older logs without the 400Hz duty columns, fall back to kp method
+sf sysid fit flight.csv --input kp --kp 0.5 --plot
 ```
 
 ### Step 4: Compare with L6 Theory
