@@ -18,70 +18,68 @@ L5 の P 制御で飛行し、WiFi テレメトリでデータを取得した後
 
 ### アルゴリズム概要
 
-`sf sysid fit` は既定（`--input auto`）で **duty優先方式** を使う: 400Hz で
-記録される4モータの `motor_duty_FR/RR/RL/FL` 列をミキサーの逆算式に通し、
-レートループ PID がその周期に実際に出力した差動指令 $u(t)$ を直接復元する。
-$K_p$ の値を知る必要も、フライト中に一定であることを仮定する必要もない。
+`sf sysid fit` は既定（`--input auto`）で **間接閉ループ方式**
+（`--input indirect`）を使う。400Hz で記録される4モータの
+`motor_duty_FR/RR/RL/FL` 列から短タップの FIR 回帰で瞬時比例ゲイン相当
+（$K_p$）を自動推定し、その $K_p$ で target→gyro の閉ループ伝達関数
+そのものを直接フィットする。$K_p$ の値を知る必要も `--kp` を指定する
+必要もない（duty 列は「$u(t)$ を直接復元する」旧来の使い方ではなく、
+$K_p$ を自動推定するための材料として使われる）:
 
 ```
 Data Stream に記録されるデータ（sf log wifi -o *.csv）:
-  motor_duty_FR/RR/RL/FL : 4モータ duty [0,1]（400Hz）
-  gyro_x                  : ロール角速度実測 [rad/s]
+  motor_duty_FR/RR/RL/FL  : 4モータ duty [0,1]（400Hz、Kp自動推定に使用）
+  rate_ref_roll/pitch/yaw : 角速度目標 [rad/s]（target、閉ループの入力）
+  gyro_x                   : ロール角速度実測 [rad/s]（閉ループの出力）
 
-プラント入出力の復元（ミキサー逆算、--kp 不要）:
-  u_plant  = mixer_inverse(motor_duty_FR/RR/RL/FL)   ← プラントへの入力
-  y_plant  = gyro_x                                   ← プラントの出力
-
-開ループモデルをフィッティング:
-  G_p(s) = K / (s·(τm·s + 1))
-  minimize |y_simulated − y_plant|²   → K, τm を同定
+間接閉ループ同定（既定、--kp 不要）:
+  1. duty 列から短タップ FIR 回帰で Kp を自動推定
+  2. target(t) → gyro(t) の閉ループ応答を，推定した Kp で
+     シミュレーションし，実測 gyro と比較して K, τm をフィット
 ```
 
-400Hz duty 列の無い旧ログでは、$K_p$ を `--kp` で渡すと **間接閉ループ方式**
-（`--input indirect`、`auto` はここに自動フォールバックする）が使われる。
-こちらは $u=K_p(\text{target}-\text{gyro})$ を「外部入力」として直接
-フィットするのではなく、target→gyro の閉ループ伝達関数そのものを
-フィットし、既知の $K_p$ から代数的に $K$, $\tau_m$ を逆算する:
-
-```
-間接方式（--input indirect、--kp 必須）:
-  target(t) は真に外部の信号（パイロットのスティック）、gyro(t) と
-  代数的に絡み合っていない → target → gyro の閉ループ応答を直接
-  シミュレーションし、実測 gyro と比較して K, τm をフィット
-  （u=Kp*(target-gyro) を外部入力として直接使う旧来の "kp" 方式は
-  参照する）
-```
+400Hz duty 列が無い、または FIR 推定の当てはまりが悪い（推定の R² が
+閾値未満）ログでは、次の順にフォールバックする: (1) `control_output`
+（プリミキサー指令、400Hz、`--mixer` 不要）、(2) **duty優先方式**
+（ミキサー逆算で $u(t)=$ mixer\_inverse(duty) を直接復元し、開ループで
+フィット。`--kp` は不要だが `--mixer` の指定が正しいことが必須）、
+(3) 明示的な `--kp` による旧来の直接フィット
+（$u=K_p(\text{target}-\text{gyro})$ を外部入力として使う、
+`--input kp --kp 0.5`）。`--kp` を明示的に渡した場合は FIR 推定を
+スキップし、そのまま指定した $K_p$ で間接閉ループ方式を使う（既知の
+$K_p$ との比較や、duty 列の無い旧ログでの再現に使う）。
 
 人間の操縦では持続的な高周波（〜8Hz）励振を安全に作れないため、
-$u=K_p(\text{target}-\text{gyro})$ を直接フィットする旧来の "kp" 方式は
-実飛行データで破綻しやすい（実測で R² < 0、K が理論値から1〜3桁ズレる例
-あり）。間接方式はこの問題を回避し、実飛行データで K を理論値の数%〜
-数十%程度まで復元できる（ただし $\tau_m$ は人間操縦データからは高周波
-成分不足のため引き続き不確実になりやすい）。旧来の "kp" 方式は比較・
-デバッグ用に `--input kp --kp 0.5` で明示指定した場合のみ残っている。
-`sf sysid fit` は CSV とオプションから自動的に方式を判別する
-（`--input auto`、既定: duty優先 → --kp があれば間接 → それ以外は
-旧kp方式）。
+$u=K_p(\text{target}-\text{gyro})$ を外部入力として直接フィットする
+旧来の "kp"/duty優先方式は実飛行データで破綻しやすい（実測で R² < 0、
+K が理論値から1〜3桁ズレる例あり）。既定の間接閉ループ方式はこの問題を
+回避し、実飛行データで K を理論値の数%〜数十%程度まで復元できる
+（ただし $\tau_m$ は、人間操縦データからは高周波成分が不足するため、
+K ほど頑健には決まらない — 詳細は下の重要事項を参照）。
 
-### なぜ開ループ同定が可能か
+### なぜ閉ループのまま同定できるか
 
-duty方式は、閉ループ制御の外側にあるモータ指令そのもの（4モータ duty）を
-直接観測して逆算するため、$K_p$ の値にもフィードバック則の仮定にも依存
-しない。間接方式・旧kp方式は、閉ループデータでも $K_p$ が既知なら
-プラントへの入力・応答の関係を復元できるという同じ原理に基づくが、
-間接方式は target を外部信号として直接扱う分、実飛行データに対して
-遥かに頑健である。
+間接閉ループ方式は、target(t)（パイロットのスティック由来、gyro(t) と
+代数的に絡み合っていない真に外部の信号）を直接シミュレーションの入力に
+使い、実測 gyro と比較する。閉ループを経由せず $u(t)$ を単独で復元
+しようとする duty優先方式・旧来の "kp" 方式よりも、実飛行データに対して
+遥かに頑健である。duty優先方式自体は、閉ループ制御の外側にあるモータ
+指令そのもの（4モータ duty）を直接観測して逆算するため、$K_p$ の値にも
+フィードバック則の仮定にも依存しない、という別の利点を持つ。
 
-> **重要（励振不足の落とし穴、duty/旧kp方式）:** duty方式・旧来の "kp"
-> 方式では、スティックをほとんど動かさずに一定方向へ持ち続けた区間が
-> あると、閉ループの P 制御則 $u = K_p(\text{target} - y)$ が
+> **重要（励振不足の落とし穴 / τm の識別性）:** duty優先方式・旧来の
+> "kp" 方式では、スティックをほとんど動かさずに一定方向へ持ち続けた
+> 区間があると、閉ループの P 制御則 $u = K_p(\text{target} - y)$ が
 > $u \approx \text{定数} - K_p y$ に潰れ、$u$ と $y$ が「プラントの
 > 動特性やハードウェアの符号とは無関係に」強く負相関して見える
 > （閉ループ同定の典型的な落とし穴）。`sf sysid fit` はこの状態を検出
-> すると該当区間を除外し警告する。間接方式はこの罠を構造的に回避する
-> （target を外部信号として直接フィットするため）が、良い $\tau_m$ を
-> 得るにはやはり大きめ・高頻度な励振が要る。いずれにせよステップ2の
-> 励振の指示に従うこと。
+> すると該当区間を除外し警告する。既定の間接閉ループ方式は K について
+> この罠を構造的に回避するが、**$\tau_m$ は別問題として、励振が弱いと
+> 本質的に決まりにくい**（実測では、複数の $\tau_m$ 候補で当てはまり
+> の良さ R² がほとんど変わらない「識別性の低い」状態になりうる —
+> 「間接方式を使えば $\tau_m$ も自動的に正確になる」わけではない）。
+> 良い $\tau_m$ を得るには、K の場合よりもさらに大きめ・高頻度・広帯域な
+> 励振が要る。いずれにせよステップ2の励振の指示に従うこと。
 
 ## 3. 手順
 
@@ -109,7 +107,7 @@ duty方式は、閉ループ制御の外側にあるモータ指令そのもの�
 ### ステップ 3: 同定
 
 ```bash
-# 全軸を同定（duty優先方式が自動選択される。--kp 不要）
+# 全軸を同定（既定で間接閉ループ方式が自動選択される。--kp も不要）
 sf sysid fit flight.csv --plot
 
 # 特定軸のみ
@@ -118,11 +116,11 @@ sf sysid fit flight.csv --axis roll --plot
 # 結果を YAML に保存
 sf sysid fit flight.csv -o my_plant.yaml
 
-# 400Hz duty 列の無い旧ログの場合、--kp を渡すと間接閉ループ方式が
-# 自動選択される（--input indirect で明示指定も可能）
+# 既知の Kp を明示指定したい場合（FIR自動推定をスキップしてそのKpを使う）
 sf sysid fit flight.csv --kp 0.5 --plot
 
-# 比較・デバッグ用に旧来の直接 "kp" 方式を明示的に使いたい場合のみ
+# 400Hz duty 列の無い旧ログなど、間接方式が使えない場合の直接fit
+# （比較・デバッグ用。--mixer が正しいログにのみ有効）
 sf sysid fit flight.csv --input kp --kp 0.5 --plot
 ```
 
@@ -135,6 +133,12 @@ sf sysid fit flight.csv --input kp --kp 0.5 --plot
 | Yaw | ? | 8.0 | ? | 0.020 |
 
 同定した K, τm から設計 Kp を計算: $K_p = 1/(4\zeta^2 K \tau_m)$
+
+**τm が理論値から大きくズレていても、必ずしも失敗ではない:** 上の重要事項
+で触れた通り、τm は K よりも励振に敏感で、通常のスティック操作では
+理論値0.02sの数倍（0.05〜0.08s程度）に振れることがある（複数の候補τmで
+R² がほとんど変わらない、識別性の低い状態）。K の一致度をまず確認し、
+τm の大きなズレは「励振をさらに強めて再挑戦する」動機として扱うこと。
 
 ## 4. API
 
@@ -175,78 +179,75 @@ Fly with L5's P controller, capture WiFi telemetry, then run `sf sysid fit` for 
 
 ### Algorithm Overview
 
-By default (`--input auto`), `sf sysid fit` uses the **duty-first method**:
-it feeds the 400Hz `motor_duty_FR/RR/RL/FL` columns through the mixer's
-inverse to directly recover the differential command $u(t)$ the rate-loop
-PID actually issued that cycle. There is no need to know $K_p$, or to
-assume it stayed constant during the flight.
+By default (`--input auto`), `sf sysid fit` uses the **indirect
+closed-loop method** (`--input indirect`). It auto-estimates the
+instantaneous proportional gain ($K_p$) from the 400Hz
+`motor_duty_FR/RR/RL/FL` columns via a short-tap FIR regression, then
+fits the closed-loop target->gyro transfer function directly using that
+$K_p$. There is no need to know $K_p$, or to pass `--kp` (the duty
+columns aren't used the old way, to reconstruct $u(t)$ directly -- they're
+just the material the FIR regression uses to estimate $K_p$):
 
 ```
 Data Stream columns (sf log wifi -o *.csv):
-  motor_duty_FR/RR/RL/FL : 4 motor duties [0,1] (400Hz)
-  gyro_x                  : measured roll rate [rad/s]
+  motor_duty_FR/RR/RL/FL  : 4 motor duties [0,1] (400Hz, feeds Kp auto-estimate)
+  rate_ref_roll/pitch/yaw : rate target [rad/s] (target, the closed-loop input)
+  gyro_x                   : measured roll rate [rad/s] (the closed-loop output)
 
-Plant I/O reconstruction (mixer inverse, no --kp needed):
-  u_plant  = mixer_inverse(motor_duty_FR/RR/RL/FL)   <- plant input
-  y_plant  = gyro_x                                   <- plant output
-
-Open-loop model fitting:
-  G_p(s) = K / (s·(τm·s + 1))
-  minimize |y_simulated − y_plant|²   → identify K, τm
+Indirect closed-loop identification (default, no --kp needed):
+  1. Auto-estimate Kp from the duty columns via a short-tap FIR regression
+  2. Simulate the target(t) -> gyro(t) closed-loop response with that Kp
+     and fit K, tau_m against the measured gyro
 ```
 
-For older logs without the 400Hz duty columns, passing $K_p$ via `--kp`
-selects the **indirect closed-loop method** (`--input indirect`, which
-`auto` falls back to automatically). Instead of fitting
-$u=K_p(\text{target}-\text{gyro})$ directly as an external input, it fits
-the closed-loop target->gyro transfer function itself and backs out $K$,
-$\tau_m$ algebraically from the known $K_p$:
-
-```
-Indirect method (--input indirect, --kp required):
-  target(t) is a genuinely external signal (the pilot's stick), not
-  algebraically entangled with gyro(t) -- so simulate the closed-loop
-  target -> gyro response directly and fit K, tau_m against the measured
-  gyro (contrast with the older "kp" method, which uses
-  u=Kp*(target-gyro) as a direct external input)
-```
+For logs without the 400Hz duty columns, or where the FIR estimate's own
+fit is poor (its R² is below a threshold), `sf sysid fit` falls back in
+this order: (1) `control_output` (the pre-mixer command, 400Hz, no
+`--mixer` needed), (2) the **duty-first method** (reconstruct
+$u(t)=$ mixer\_inverse(duty) directly and fit it open-loop -- no `--kp`
+needed, but `--mixer` must be correct), (3) the older direct fit with an
+explicit `--kp` ($u=K_p(\text{target}-\text{gyro})$ used as a direct
+external input, `--input kp --kp 0.5`). Passing `--kp` explicitly skips
+the FIR estimate and uses that $K_p$ for the indirect method instead
+(useful to compare against a known $K_p$, or to reproduce an older log
+without duty columns).
 
 A human pilot cannot safely sustain the persistent high-frequency (~8Hz)
-excitation the direct "kp" method needs, so fitting
-$u=K_p(\text{target}-\text{gyro})$ directly tends to fail on real flight
-data (observed R² < 0, K off by 1-3 orders of magnitude in practice). The
-indirect method avoids this and recovers K within a few percent to a few
-tens of percent of theory on real flight data (though $\tau_m$ still tends
-to stay uncertain from human-piloted data, which lacks enough
-high-frequency content). The older "kp" method remains available for
-comparison/debugging only, via the explicit `--input kp --kp 0.5`.
-`sf sysid fit` auto-detects which method to use from the CSV and options
-(`--input auto`, the default: duty-first -> indirect if `--kp` is given ->
-otherwise the older kp method).
+excitation the direct "kp"/duty-first methods need when used as an
+external-input fit, so fitting $u=K_p(\text{target}-\text{gyro})$ directly
+tends to fail on real flight data (observed R² < 0, K off by 1-3 orders of
+magnitude in practice). The default indirect closed-loop method avoids
+this and recovers K within a few percent to a few tens of percent of
+theory on real flight data (though $\tau_m$ is not as robustly determined
+as K -- see the important note below).
 
-### Why Open-Loop Identification Works
+### Why This Stays Well-Posed Without Opening the Loop
 
-The duty method directly observes the motor command itself (4 motor
-duties), outside the closed loop, so it needs neither $K_p$ nor any
-assumption about the feedback law. The indirect and older kp methods rest
-on the same principle -- that closed-loop data still lets you recover the
-plant input/response relationship once $K_p$ is known -- but the indirect
-method is far more robust on real flight data because it treats target as
-a genuinely external signal instead of folding it into a directly-fitted
-$u(t)$.
+The indirect closed-loop method feeds target(t) -- a genuinely external
+signal (the pilot's stick), not algebraically entangled with gyro(t) --
+directly into the simulation and compares against the measured gyro. This
+is far more robust on real flight data than the duty-first/older "kp"
+methods, which try to reconstruct $u(t)$ on its own outside the loop. The
+duty-first method has its own separate advantage: it directly observes the
+motor command itself (4 motor duties), so it needs neither $K_p$ nor any
+assumption about the feedback law.
 
-> **Important (the insufficient-excitation pitfall, duty/older-kp
-> methods):** with the duty method or the older "kp" method, a stretch
+> **Important (the insufficient-excitation pitfall / $\tau_m$'s
+> identifiability):** with the duty-first or older "kp" methods, a stretch
 > where the stick barely moves and is held in one direction collapses the
 > closed-loop P-control law $u = K_p(\text{target} - y)$ into
 > $u \approx \text{const} - K_p y$, making $u$ and $y$ look strongly and
 > misleadingly *negatively* correlated -- regardless of the true plant
 > dynamics or hardware sign convention (a classic closed-loop
 > identifiability pitfall). `sf sysid fit` detects and drops such segments
-> with a warning. The indirect method structurally sidesteps this trap (it
-> fits target directly as an external signal), but still needs large,
-> frequent stick motion for a good $\tau_m$. Either way, follow Step 2's
-> excitation guidance.
+> with a warning. The default indirect method structurally sidesteps this
+> trap for K, but **$\tau_m$ is a separate problem: it stays poorly
+> determined whenever excitation is weak** (in practice, several candidate
+> $\tau_m$ values can give nearly the same R² -- a low-identifiability
+> situation. Using the indirect method does NOT automatically make
+> $\tau_m$ accurate). Getting a good $\tau_m$ needs even larger, more
+> frequent, broader-bandwidth excitation than K does. Either way, follow
+> Step 2's excitation guidance.
 
 ## 3. Procedure
 
@@ -275,7 +276,8 @@ $u(t)$.
 ### Step 3: Identification
 
 ```bash
-# Identify all axes (duty-first method is auto-selected -- no --kp needed)
+# Identify all axes (indirect closed-loop method is auto-selected by
+# default -- no --kp needed)
 sf sysid fit flight.csv --plot
 
 # Single axis only
@@ -284,11 +286,12 @@ sf sysid fit flight.csv --axis roll --plot
 # Save results to YAML
 sf sysid fit flight.csv -o my_plant.yaml
 
-# For older logs without the 400Hz duty columns, passing --kp auto-selects
-# the indirect closed-loop method (or pass --input indirect explicitly)
+# Pass a known Kp explicitly to skip the FIR auto-estimate and use that Kp
 sf sysid fit flight.csv --kp 0.5 --plot
 
-# Only to explicitly use the older direct "kp" method for comparison/debugging
+# Direct fit for logs without the 400Hz duty columns, or wherever the
+# indirect method isn't usable (comparison/debugging; --mixer must be
+# correct for the log)
 sf sysid fit flight.csv --input kp --kp 0.5 --plot
 ```
 
@@ -301,6 +304,14 @@ sf sysid fit flight.csv --input kp --kp 0.5 --plot
 | Yaw | ? | 8.0 | ? | 0.020 |
 
 Compute design Kp from identified parameters: $K_p = 1/(4\zeta^2 K \tau_m)$
+
+**A large $\tau_m$ deviation from theory is not necessarily a failure:**
+as the important note above explains, $\tau_m$ is more sensitive to
+excitation than K and can land several times the theoretical 0.02s
+(0.05-0.08s or so) under normal stick handling (a low-identifiability
+situation where several candidate $\tau_m$ values give nearly the same
+R²). Check how well K matches first, and treat a large $\tau_m$ deviation
+as a reason to fly with stronger excitation and retry, not as a bug.
 
 ## 4. API
 
