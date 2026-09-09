@@ -95,6 +95,7 @@
 | R10 | 学習者バイパス機構を提供（`params::sim::use_true_*` 等で Estimator/Controller を素朴化、SILS/学習段階で各層を独立検証可能） |
 | R11 | Guidance / Navigation Topic を予約定義（`command_target`, `nav_path`）。実装は将来でも、置き場所と入出力契約を今決める |
 | R12 | `firmware/workshop/` の HAL コピーを廃止し、vehicle の HAL を共有する。Workshop API は L0 ラッパーとして再実装する |
+| R17 | モータミキサー（配分＋モータ曲線）は `sf::app::mixer()` を差し替え口とする単一の正典実装を持ち、L0/L1 双方が同じ実装を共有する（独自複製を禁止）。ミキサーへの入力は常に物理量（推力[N]・トルク[Nm]）とし、経験定数でduty直値に丸め込まない（詳細は §2「ミキサー差し替え口」節、実装は将来でも今契約を決める＝R11 と同じ原則）。設計提案・未実装、現状は `ws_internal.hpp` が独自の簡易線形ミキサーを複製している（既知の乖離、詳細は次節参照） |
 
 **Topic 運用**
 
@@ -117,6 +118,7 @@
 | INV-2 | **空中の全フェーズでパイロットの姿勢操縦（roll/pitch/yaw）を奪わない。** 自動化は鉛直・水平位置など特定の並進軸に限定する。例外は「リンク途絶（パイロット不在）」のみで、その判定は設定点の新鮮さ（R16 のタイムアウト）で行い、**単一のゲートで水平化**する。フェーズ名で姿勢を 0 固定しない。 | 実機バグ2件（TakeoffClimb 姿勢死・Landing 姿勢死）の再発防止 |
 | INV-3 | **「検出」と「判断」を分離する。** 接地・離陸・持上げ等の検出ロジックは検出層（`sf_takeoff_landing` 等）に置き、`publish` した事実を `StateManager` が判断する。制御器や状態機械に検出ロジックを散らさない。 | 設計原則「検出と判断の分離」、§4 |
 | INV-4 | **状態機械の各 (状態 × 入力) セルは規範表（`detailed_design.md` §3.1）で全て規定される。** 表に無い暗黙の振る舞いを作らない。遷移の追加・変更は表を先に更新する。 | モード調停バグ（2026-06-11）の教訓 |
+| INV-5 | **モータミキサーへの入力は常に物理量（推力[N]・機体トルク[Nm]）とし、幾何配分（B⁻¹、線形）とモータ曲線（duty変換、非線形・機体依存）の2段に分離する。** どちらの段も経験定数1個に押し込めて隠さない（例: 旧 `k=0.25/3.7` は幾何・モータ曲線・電圧補償を1定数に丸め込んでいた）。学習者が自作するミキサーも含め、全実装がこの入出力契約を満たす。 | `sf sysid fit`/`rate-fit` がミキサーの中身を知らずに `control_output`（ミキサー手前の物理量）を直接読めるようにするため。2026-09-09、workshop/vehicleミキサー乖離バグの再発防止として策定 |
 
 ### 責務 ↔ ESP-IDF コンポーネント対応表
 
@@ -130,7 +132,7 @@
 | 4 | フェイルセーフ | `sf_failsafe` | — |
 | 5 | 離着陸マネージャー | `sf_takeoff_landing` | — |
 | 6 | 制御 | `sf_controller`（インターフェース）, `sf_controller_pid`（PID実装）, `sf_app_hooks`（L1 差し替え口: `sf::app::controller()` / `estimator()` / `start()` と既定実装） | 差替可能設計のため2層＋差し替え口 |
-| 7 | アクチュエーション | `sf_actuator`, `sf_hal_motor` | ロジック層 + ハード層 |
+| 7 | アクチュエーション | `sf_actuator`, `sf_hal_motor`, `sf_app_hooks`（L1 差し替え口: `sf::app::mixer()`、設計提案・未実装、R17/INV-5） | ロジック層 + ハード層 + 差し替え口 |
 | 8 | コマンド処理 | `sf_command` | — |
 | 9 | 通信 | `sf_comm` | — |
 | 10 | ナビゲーター | （未実装、将来） | — |
@@ -161,12 +163,15 @@ vehicle は **学習者がレベルに応じて入口を選べる** 並列 API �
 
 L1 の差し替え口は `sf_app_hooks`（`app_hooks.hpp`）の 3 関数だけである。`ControlTask` は起動時に `sf::app::controller()` から `IController` を、`ImuTask` は `sf::app::estimator()` から `IEstimator` を 1 回だけ受け取り、`app_main()` は全タスク起動後に `sf::app::start()` を呼ぶ（Phase 5）。アプリが無いときは `app_default.cpp` が既定（`PidController`、`estimator.type` による ESKF／相補の選択、何もしない `start()`）を供給し、既定挙動は変わらない。アプリは `firmware/apps/<name>/*.cpp` として main コンポーネントに直接コンパイルされる（弱シンボルや同名コンポーネントの上書きは使わない — 理由は `docs/plans/sf-app-sils-plan.md` §2）。
 
+**（設計提案・未実装）** 4 番目の差し替え口として `sf::app::mixer()` を追加し、`Actuator` が起動時に `IMixer` を 1 回だけ受け取る形にする。詳細は本節末尾「ミキサー差し替え口」参照。
+
 | 不変条件 | 照合結果 |
 |---------|---------|
 | INV-1（単一の姿勢＋レートパイプライン） | フックは `IController` **全体**を差し替える。`compute()` の呼び出し位置・回数は変わらず、並列の姿勢則は生じない。**自作コントローラは鉛直フェーズ（Grounded / TakeoffClimb / Airborne / Landing）の扱いを自分の `compute()` 内で引き継ぐ責務を負う**（`onTakeoff()` / `onLanding()` 等の通知は従来どおり届く） |
 | INV-2（パイロットの姿勢操縦を奪わない） | フックは制御則の実装を替えるだけで、設定点の経路・リンク途絶判定（R16）には触れない。自作コントローラもこの規則を守ること |
 | INV-3（検出と判断の分離） | 検出層・`StateManager` は無変更。フックは制御器と推定器の「どう計算するか」だけを差し替える |
 | INV-4（状態機械の規範表） | 状態機械に変更なし |
+| INV-5（ミキサー入力は物理量、設計提案） | `sf::app::mixer()` は `control_output`（推力[N]+トルク[Nm]）のみを受け取る。学習者が段2（モータ曲線）を粗く近似してもこの契約自体は変わらないため、`control_output` を直接ログすれば同定はミキサー実装に依存しない |
 
 L0（`firmware/workshop`）は `ControlTask` を丸ごと `WorkshopControlTask` に置き換える別の入口であり、L1 のフックとは並列に共存する（本節冒頭の原則どおり）。workshop ビルドは vehicle の `ImuTask` を共有するため `sf_app_hooks` の既定実装を使う。
 
@@ -181,6 +186,7 @@ L0（`firmware/workshop`）は `ControlTask` を丸ごと `WorkshopControlTask` 
 | PMW3901 Flow | `ws::flow_vx()` | `sensor_flow` | `PMW3901Wrapper` | SPI bus |
 | Power monitor | `ws::battery_voltage()` | `sensor_power` | `PowerMonitor` | I2C |
 | LEDC PWM motor | `ws::motor_set_duty()` | `actuator_motor` | `MotorDriver` | LEDC timer |
+| モータミキサー（配分＋モータ曲線） | `ws::set_rate_target()` 等の出力を内部ミキサーが変換（差替不可、設計提案） | `sf::app::mixer()`（`control_output`→duty、設計提案・未実装） | （ミキサーは L1/L0 共通実装、L2 では扱わない） | — |
 | WS2812 RGB LED | `ws::led_color()` | (`notify_pattern`) | `LEDDriver` | RMT |
 | Buzzer | (内部) | (`notify_tone`) | `BuzzerDriver` | LEDC ch |
 | Button | (内部) | (`button_event`) | `ButtonDriver` | GPIO ISR |
@@ -188,6 +194,21 @@ L0（`firmware/workshop`）は `ControlTask` を丸ごと `WorkshopControlTask` 
 | WiFi UDP | (内部) | (telemetry pkt) | `sf_telemetry` | netif/socket |
 
 L0〜L2 は学習者が任意に選択し、隣接層へ階段的に降りられる構造とする。L3 はファーム実装者専用（学習者は通常触らない）。
+
+#### ミキサー差し替え口（設計提案・未実装、R17/INV-5）
+
+**現状（2026-09-09時点）:** `firmware/vehicle` の `sf_actuator::mixerCompute()` は物理単位（推力[N]・トルク[Nm]）の B⁻¹ 幾何配分＋非線形モータ曲線（`thrustToDuty`: モータ曲線 + バッテリ電圧補償）を実装するが、`firmware/workshop` の `ws_internal.hpp::resolve()` は `vehicle_old` から移植した単純な線形近似（`duty = thrust + k*(±R±P±Y)`、`k=0.25/3.7` の経験定数1個に幾何・モータ曲線・電圧補償を丸め込む）を**独自に複製**している。両者は R12（HAL共有）の精神に反して乖離しており、`sf sysid fit` 等の同定ツールがどちらのミキサーで飛んだログかを事前に知らないと正しく逆算できない、という不具合を引き起こした（2026-09-08〜09 の一連の修正、`--mixer {legacy,vehicle}` として一時的に吸収）。
+
+**提案する設計（次回作業で着手、着手前に SILS 回帰・既存実習ゲインへの影響をシミュレーションで検証すること — CLAUDE.md「制御系パラメータ変更」原則）:**
+
+1. **ミキサーを2段に分離する（INV-5）:**
+   - **段1: 幾何配分**（`(thrust, torque_roll, torque_pitch, torque_yaw) → 4モータ推力[N]`）。B⁻¹ 行列による純粋な線形代数で、近似の余地がない（腕の長さ・トルク推力比が分かれば誰が書いても同じ式になる）
+   - **段2: モータ曲線**（`モータ推力[N] → duty[0,1]`）。ここが非線形・機体依存（√・2次式・バッテリ補償）で、初心者向けの粗い近似（例: `duty ≈ 推力/最大推力` の線形近似）と、上級者向けの正確なモデル（`duty=f(√(T/Ct))/Vbat`）を選べる、教育的に意味のある分岐点にする
+   - 既定実装（両段とも）は `firmware/vehicle` の物理モデルを正典とし、`firmware/workshop`・`firmware/apps/*` が同じ実装を共有する（複製禁止）
+2. **`sf_app_hooks` に4番目の差し替え口 `sf::app::mixer()` を追加**（`controller()`/`estimator()`/`start()` と同じパターン）。学習者は段1・段2どちらか、または両方を自作して差し替えられる。L0（Workshop）も同じ既定実装を使い、`ws::` 経由で段2まで自作できる上級者向け出口を用意する（L0の「HW知識ゼロ」という設計原則は既定実装が担保するので崩れない）
+3. **`control_output`（ミキサー手前の物理量、推力[N]+トルク[Nm]）を400Hz Data Streamに追加する。** この信号は既に `control_output` トピックとして存在し、`sf_telemetry` の別パケット（`TELEM_TYPE_PHASE2A_BASIC`、`sf telemetry` ライブ表示用）では送信済みだが、`sf log wifi` が使う400Hz Data Streamにはまだ無い。追加すれば `sf sysid fit`/`rate-fit` はミキサーの実装（段1・段2どちらの精度でも、学習者の自作ミキサーでも）を一切知らずに `u(t)` を直接読める。これによりミキサーごとの逆算ロジック（`_thrust_from_duty()` 等）は新規ログに対しては不要になる（旧ログ向けの後方互換としては残す）
+
+**この設計が解決する問題:** ミキサーの精度（幾何のみ／モータ曲線あり／電圧補償あり）に関わらず、システム同定は常に同じように扱える。学習者は自分のミキサー近似がどれだけ実飛行特性からズレるかを、同定結果そのものから測定できる（閉じた学習ループ）。
 
 詳細な API 設計指針と Examples 計画は [`coding_and_education.md`](coding_and_education.md) を参照。
 
