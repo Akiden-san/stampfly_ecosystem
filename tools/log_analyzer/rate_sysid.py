@@ -5,10 +5,17 @@ rate_sysid.py — レートループ同定＋PID 自動チューニング（sf s
 Pipeline / 手順:
  1. Load the Data Stream CSV (400 Hz): r = rate_ref_<axis> (the excitation rides
     on it), y = gyro_<axis>.
- 2. RECONSTRUCT the rate-loop output u (torque [Nm]) by replaying the firmware's
-    exact discrete PID (D-on-M, Tustin, conditional anti-windup — a line-for-line
-    port of pid.hpp) on (r, y) with the gains that flew. The 400 Hz stream has no
-    torque channel; the controller is deterministic, so u is recoverable exactly.
+ 2. RECOVER the rate-loop output u (torque [Nm]). The PRIMARY path reads the
+    400 Hz motor-duty entry (kPktDuty400) directly and inverts firmware/vehicle's
+    real mixer (B^-1 allocation + nonlinear motor curve, sf_actuator/
+    actuator.cpp) -- exact, and correct even if the firmware gains are unknown
+    or were changed mid-flight (shared implementation with `sf sysid fit
+    --mixer vehicle`, see sysid.plant_fit). Only when a log has no genuine
+    400 Hz duty (older firmware/capture) does this fall back to REPLAYING the
+    firmware's exact discrete PID (D-on-M, Tustin, conditional anti-windup —
+    a line-for-line port of pid.hpp) on (r, y) with the gains that flew --
+    this legacy path requires knowing those gains and assumes the firmware PID
+    math exactly, so prefer the duty path whenever it's available.
  3. ETFE: G_hat(jω) = S_ur*(ω)... actually S_uy/S_uu via Welch cross-spectra over
     the excited band.
  4. Parametric fit of G(s) = b·e^{-Ls} / (s(Ts+1)) — b = 1/J effective inverse
@@ -22,10 +29,16 @@ Pipeline / 手順:
 
  1. Data Stream CSV（400Hz）を読む: r = rate_ref_<axis>（励振が乗っている）、
     y = gyro_<axis>。
- 2. ファームの離散 PID（D-on-M・Tustin・条件付き AW — pid.hpp の逐語移植）を
-    飛行時ゲインで (r,y) に再生し、レートループ出力 u（トルク [Nm]）を「再構成」
-    する。400Hz ストリームにトルクは無いが、制御器は決定論的なので u は厳密に
-    復元できる。
+ 2. レートループ出力 u（トルク [Nm]）を「復元」する。**基本の経路**は400Hzの
+    モータduty エントリ（kPktDuty400）を直接読み、firmware/vehicle の実際の
+    ミキサー（B^-1配分＋非線形モータ曲線、sf_actuator/actuator.cpp）を逆算する
+    ——厳密で、ファームのゲインが未知でも・飛行中に変更されていても正しい
+    （`sf sysid fit --mixer vehicle` と実装を共有、sysid.plant_fit 参照）。
+    本物の400Hz duty が無い（旧ファーム/旧キャプチャの）ログのときだけ、
+    ファームの離散 PID（D-on-M・Tustin・条件付き AW — pid.hpp の逐語移植）を
+    飛行時ゲインで (r,y) に再生する経路にフォールバックする——こちらはゲイン
+    を知っている必要があり、ファーム PID の数式をそのまま仮定するため、
+    duty 経路が使えるときは常にそちらを優先する。
  3. ETFE: Welch クロススペクトルで G_hat = S_uy/S_uu（励振帯域のみ）。
  4. G(s) = b·e^{-Ls}/(s(Ts+1)) のパラメトリックフィット（b=有効慣性逆数、
     T=モータ/プロペラ遅れ、L=むだ時間）。対数振幅＋折返し位相コストの Nelder-Mead。
@@ -45,8 +58,29 @@ Mechanical-spec default plant / 機械仕様ベースの既定プラント:
 
 import json
 import math
+import sys as _sys
+from pathlib import Path as _Path
 
 import numpy as np
+
+# Import the duty->torque physics from sysid.plant_fit (--mixer vehicle) so
+# this module and `sf sysid fit` share ONE implementation of firmware/
+# vehicle's actual mixer inversion instead of two copies that can silently
+# drift apart (exactly the bug this whole effort started from -- see
+# _duty_differential_vehicle()'s docstring in plant_fit.py).
+# duty->トルクの物理計算は sysid.plant_fit（--mixer vehicle）から import し、
+# このモジュールと `sf sysid fit` が firmware/vehicle 実ミキサー逆算の実装を
+# 1つだけ共有する（2つのコピーが黙って食い違う——今回の一連の作業の発端と
+# 同じバグ——のを防ぐ。plant_fit.py の _duty_differential_vehicle() の
+# docstring参照）。
+_TOOLS_DIR = str(_Path(__file__).resolve().parent.parent)
+if _TOOLS_DIR not in _sys.path:
+    _sys.path.insert(0, _TOOLS_DIR)
+from sysid.plant_fit import (  # noqa: E402
+    _duty_differential_vehicle, _classify_duty_source,
+    _DUTY_COLS, _DUTY_RATE_HZ_COL, _VBAT_COL, _V_BATT_NOMINAL, _V_BATT_MIN,
+    _ARM_D, _MOTOR_AM, _MOTOR_BM, _MOTOR_CM, _MOTOR_CT,
+)
 
 ETA = 0.125                  # firmware incomplete-derivative coefficient / 不完全微分係数
 FS = 400.0                   # Data Stream rate [Hz]
@@ -315,24 +349,98 @@ def loop_margins(b, T, L, kp, ti, td, eta=ETA):
 # =============================================================================
 
 def load_csv(path, axis):
-    """Pull (t, r, y) for one axis from a Data Stream CSV (sf log convert).
-    Data Stream CSV から1軸分の (t, r, y) を取り出す。"""
+    """Pull (t, r, y, duty_u, duty_quality, duty_reason) for one axis from a
+    Data Stream CSV (sf log convert).
+    Data Stream CSV から1軸分の (t, r, y, duty_u, duty_quality, duty_reason) を
+    取り出す。
+
+    duty_u is the differential TORQUE [Nm] recovered by inverting firmware/
+    vehicle's real mixer on the 400Hz motor_duty_FR/RR/RL/FL columns (see
+    module docstring) -- None if those columns aren't in the CSV. duty_quality
+    is 'duty400' (genuine 400Hz, safe to use as u directly), 'duty50' (an
+    older 50Hz-forward-filled staircase -- too coarse, caller must fall back
+    to replay_pid()), or None when duty_u is None (duty_reason explains why).
+    duty_u はfirmware/vehicle の実ミキサーを400Hzの motor_duty_FR/RR/RL/FL 列
+    から逆算した差動トルク[Nm]（モジュール docstring 参照）——CSV にその列が
+    無ければ None。duty_quality は 'duty400'（本物の400Hz、そのまま u として
+    使える）、'duty50'（旧い50Hz前方補完の階段状データ——粗すぎるので呼び出し
+    側は replay_pid() にフォールバックすること）、または duty_u が None の
+    ときの None（理由は duty_reason）。
+    """
     import csv as _csv
     col_r = f"rate_ref_{axis}"
     col_y = {"roll": "gyro_x", "pitch": "gyro_y", "yaw": "gyro_z"}[axis]
     t, r, y = [], [], []
+    duty_fr, duty_rr, duty_rl, duty_fl = [], [], [], []
+    duty_rate_hz, vbat = [], []
     with open(path) as f:
-        for row in _csv.DictReader(f):
+        reader = _csv.DictReader(f)
+        fieldnames = set(reader.fieldnames or [])
+        has_duty_cols = all(c in fieldnames for c in _DUTY_COLS)
+        has_duty_rate_hz = _DUTY_RATE_HZ_COL in fieldnames
+        has_vbat = _VBAT_COL in fieldnames
+        for row in reader:
             try:
                 r.append(float(row[col_r]))
                 y.append(float(row[col_y]))
-                t.append(float(row.get("timestamp", len(t))))
             except (KeyError, ValueError):
                 continue
+            t.append(len(t) * DT)
+            if has_duty_cols:
+                try:
+                    duty_fr.append(float(row['motor_duty_FR']))
+                    duty_rr.append(float(row['motor_duty_RR']))
+                    duty_rl.append(float(row['motor_duty_RL']))
+                    duty_fl.append(float(row['motor_duty_FL']))
+                except (KeyError, ValueError):
+                    duty_fr.append(0.0); duty_rr.append(0.0)
+                    duty_rl.append(0.0); duty_fl.append(0.0)
+            if has_duty_rate_hz:
+                try:
+                    duty_rate_hz.append(float(row[_DUTY_RATE_HZ_COL]))
+                except (KeyError, ValueError):
+                    duty_rate_hz.append(0.0)
+            if has_vbat:
+                try:
+                    vbat.append(float(row[_VBAT_COL]))
+                except (KeyError, ValueError):
+                    vbat.append(0.0)
     if len(r) < 1024:
         raise ValueError(f"too few samples ({len(r)}) — capture with the "
                          "excitation running (sf log wifi + api sysid)")
-    return np.array(t), np.array(r), np.array(y)
+
+    duty_u = duty_quality = None
+    duty_reason = "no motor_duty_FR/RR/RL/FL columns in CSV"
+    if has_duty_cols:
+        duty_fr = np.array(duty_fr); duty_rr = np.array(duty_rr)
+        duty_rl = np.array(duty_rl); duty_fl = np.array(duty_fl)
+        duty_rate_hz_arr = np.array(duty_rate_hz) if has_duty_rate_hz else None
+        duty_quality, duty_reason = _classify_duty_source(
+            duty_fr, duty_rr, duty_rl, duty_fl, duty_rate_hz_arr)
+
+        # vbat forward-filled from the 1Hz PKT_STATUS entry (udp_capture.py
+        # save_stream_csv()); nominal 1S LiPo fallback when absent/implausible,
+        # same policy as sysid.plant_fit._load_axis_data()'s --mixer vehicle path.
+        # vbat は1Hz PKT_STATUS からの前方補完（udp_capture.py 参照）。無い/
+        # 非現実的な場合は公称1S LiPo電圧にフォールバック
+        # （sysid.plant_fit._load_axis_data() の --mixer vehicle 経路と同じ方針）。
+        vbat_note = ''
+        if has_vbat:
+            vbat_arr = np.array(vbat)
+            bad = vbat_arr < _V_BATT_MIN
+            if np.any(bad):
+                vbat_arr = np.where(bad, _V_BATT_NOMINAL, vbat_arr)
+                vbat_note = (f" ({int(np.sum(bad))}/{len(vbat_arr)} rows had no/"
+                             f"implausible vbat -- used the nominal {_V_BATT_NOMINAL}V there)")
+        else:
+            vbat_arr = np.full(len(duty_fr), _V_BATT_NOMINAL)
+            vbat_note = (f" (no vbat column in CSV -- used the nominal "
+                         f"{_V_BATT_NOMINAL}V throughout; re-capture with a current "
+                         "udp_capture.py for the real battery-sag-corrected fit)")
+        duty_reason += vbat_note
+        duty_u = _duty_differential_vehicle(duty_fr, duty_rr, duty_rl, duty_fl, vbat_arr, axis)
+
+    return np.array(t), np.array(r), np.array(y), duty_u, duty_quality, duty_reason
 
 
 def plot_fit(omega, G_hat, coh, b, T, L, axis, path):
@@ -361,18 +469,58 @@ def plot_fit(omega, G_hat, coh, b, T, L, axis, path):
     fig.tight_layout(); fig.savefig(path, dpi=110); plt.close(fig)
 
 
-def fit_from_csv(path, axis, gains=None, f_lo=0.8, f_hi=30.0, plot_path=None):
-    """Full pipeline: CSV → replay u → ETFE → parametric (b, T, L).
-    全手順: CSV → u 再生 → ETFE → (b,T,L)。plot_path 指定で Bode＋コヒーレンス図を保存。"""
+def fit_from_csv(path, axis, gains=None, f_lo=0.8, f_hi=30.0, plot_path=None,
+                  input_mode='auto'):
+    """Full pipeline: CSV → recover u → ETFE → parametric (b, T, L).
+    全手順: CSV → u 復元 → ETFE → (b,T,L)。plot_path 指定で Bode＋コヒーレンス図を保存。
+
+    Args:
+        input_mode: 'auto' (default) -- prefer the 400Hz motor-duty
+            reconstruction (exact, no firmware-gain assumption) and fall back
+            to the legacy PID-replay reconstruction only when the CSV has no
+            genuine 400Hz duty (older firmware/capture). 'duty' forces the
+            duty path (error if unavailable). 'kp' forces the legacy replay
+            path (error path is unchanged from before this input existed).
+        input_mode: 'auto'（既定）—— 400Hzモータduty復元（厳密、ファーム
+            ゲインの仮定不要）を優先し、本物の400Hz duty が無いログ（旧ファー
+            ム/旧キャプチャ）のときだけ従来のPID再生経路にフォールバックする。
+            'duty' は duty 経路を強制（使えなければエラー）。'kp' は従来の
+            再生経路を強制（本入力追加前と同じ挙動）。
+    """
+    if input_mode not in ('auto', 'duty', 'kp'):
+        raise ValueError(f"Unknown input_mode: {input_mode!r}. Choose from: auto, duty, kp")
+
     g = dict(DEFAULT_GAINS[axis])
     if gains:
         g.update(gains)
-    _t, r, y = load_csv(path, axis)
-    u = replay_pid(r, y, g["kp"], g["ti"], g["td"], g["limit"])
+    _t, r, y, duty_u, duty_quality, duty_reason = load_csv(path, axis)
+
+    resolved_mode = input_mode
+    if resolved_mode == 'auto':
+        resolved_mode = 'duty' if (duty_u is not None and duty_quality == 'duty400') else 'kp'
+
+    if resolved_mode == 'duty':
+        if duty_u is None:
+            raise ValueError(
+                "--input duty requested but this CSV has no motor_duty_FR/RR/"
+                f"RL/FL columns ({duty_reason}). Capture with firmware "
+                "sending the 400Hz duty entry (kPktDuty400), or pass --input kp.")
+        if duty_quality != 'duty400':
+            raise ValueError(
+                f"--input duty requested but this log's motor_duty_* is not "
+                f"genuine 400Hz data ({duty_reason}). Pass --input kp instead "
+                "(needs --kp/--ti/--td for the firmware gains that flew).")
+        u = duty_u
+    else:
+        u = replay_pid(r, y, g["kp"], g["ti"], g["td"], g["limit"])
+
     omega, G_hat, coh = etfe(u, y, f_lo=f_lo, f_hi=f_hi)
     result = fit_plant(omega, G_hat, coh, axis)
     result["axis"] = axis
-    result["gains_used"] = g
+    result["input_mode"] = resolved_mode
+    result["duty_reason"] = duty_reason
+    if resolved_mode == 'kp':
+        result["gains_used"] = g
     if plot_path:
         plot_fit(omega, G_hat, coh, result["b"], result["T"], result["L"], axis, plot_path)
         result["plot_path"] = str(plot_path)
@@ -451,6 +599,52 @@ def selftest(verbose=True):
           abs(fit["L"] - L_true) < 0.004 and
           abs(ach["wc"] / 20.0 - 1) < 0.05 and
           abs(ach["pm_deg"] - 60.0) < 3.0)
+
+    # --- duty-path regression (the NEW, preferred path): forward-map the
+    # SAME true u[] (roll torque) through firmware/vehicle's real forward
+    # mixer (B^-1 allocation, pitch=yaw=0, then thrustToDuty()) to synthesize
+    # 4 motor duties, then invert with _duty_differential_vehicle() -- the
+    # function fit_from_csv(input_mode='duty'/'auto') uses -- and confirm it
+    # recovers u AND fits the same known plant. Proves the duty path reaches
+    # the same result as the PID-replay path above WITHOUT knowing the PID
+    # gains. vbat_true is deliberately off V_BATT_NOMINAL so a bug that
+    # silently used the nominal fallback instead of the real voltage would
+    # show up here as a scale error.
+    # duty経路の回帰（新しい・優先すべき経路）: 同じ真の u[]（ロールトルク）を
+    # firmware/vehicle の実順方向ミキサー（B^-1配分、pitch=yaw=0、その後
+    # thrustToDuty()）で4モータduty に変換し、_duty_differential_vehicle()
+    # （fit_from_csv(input_mode='duty'/'auto') が使う関数）で逆算してuと
+    # 既知プラントの両方を復元できることを確認する。duty経路がPIDゲインを
+    # 知らなくても上のPID再生経路と同じ結果に到達することの証明。vbat_true は
+    # 意図的に V_BATT_NOMINAL からずらしてあり、実電圧を使わず黙ってノミナル
+    # にフォールバックするバグがあればスケール誤差として現れる。
+    vbat_true = 3.85    # [V] != V_BATT_NOMINAL (3.7)
+    thrust_hover = 0.4  # [N] arbitrary in-flight value; keeps all 4 motor
+                         # thrusts positive across the excitation amplitude
+    t_fr = 0.25 * (thrust_hover - u / _ARM_D)
+    t_rr = 0.25 * (thrust_hover - u / _ARM_D)
+    t_rl = 0.25 * (thrust_hover + u / _ARM_D)
+    t_fl = 0.25 * (thrust_hover + u / _ARM_D)
+
+    def _thrust_to_duty(t_arr):
+        omega_m = np.sqrt(np.maximum(t_arr, 0.0) / _MOTOR_CT)
+        volts = _MOTOR_AM * omega_m ** 2 + _MOTOR_BM * omega_m + _MOTOR_CM
+        return volts / vbat_true
+
+    duty_fr, duty_rr = _thrust_to_duty(t_fr), _thrust_to_duty(t_rr)
+    duty_rl, duty_fl = _thrust_to_duty(t_rl), _thrust_to_duty(t_fl)
+    vbat_arr = np.full(n, vbat_true)
+
+    u_duty = _duty_differential_vehicle(duty_fr, duty_rr, duty_rl, duty_fl, vbat_arr, "roll")
+    err_u_duty = float(np.max(np.abs(u_duty - u)))
+    omega_d, G_hat_d, coh_d = etfe(u_duty, y)
+    fit_d = fit_plant(omega_d, G_hat_d, coh_d, "roll")
+    ok_duty = (err_u_duty < 1e-6 and
+               abs(fit_d["b"] / b_true - 1) < 0.15 and
+               abs(fit_d["T"] / T_true - 1) < 0.30 and
+               abs(fit_d["L"] - L_true) < 0.004)
+    ok = ok and ok_duty
+
     if verbose:
         print(f"replay max|u_rec-u| = {err_u:.2e} (exactness of the PID port)")
         print(f"fit : b={fit['b']:.0f} (true {b_true:.0f})  "
@@ -460,6 +654,10 @@ def selftest(verbose=True):
         print(f"tune: kp={tune['kp']:.3e} ti={tune['ti']:.3f} td={tune['td']:.4f}")
         print(f"      achieved wc={ach['wc']:.1f} rad/s pm={ach['pm_deg']:.1f} deg "
               f"gm={ach['gm_db']:.1f} dB")
+        print(f"duty path: max|u_duty-u| = {err_u_duty:.2e}  "
+              f"fit b={fit_d['b']:.0f} T={fit_d['T'] * 1000:.1f}ms "
+              f"L={fit_d['L'] * 1000:.2f}ms coh={fit_d['coherence_mean']:.2f}  "
+              f"{'PASS' if ok_duty else 'FAIL'}")
         print("SELFTEST:", "PASS" if ok else "FAIL")
     return ok
 

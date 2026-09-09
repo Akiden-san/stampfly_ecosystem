@@ -545,7 +545,7 @@ def run_help(args: argparse.Namespace) -> int:
     console.print("  sf sysid inertia roll_step.csv --axis roll -o result.yaml")
     console.print("  sf sysid params show")
     console.print("  sf sysid validate identified.yaml --ref defaults.yaml")
-    console.print("  sf sysid rate-fit flight.csv --axis roll --kp 0.5 --plot")
+    console.print("  sf sysid rate-fit flight.csv --axis roll --plot   # duty-based, no --kp needed")
     console.print("  sf sysid rate-tune --fit fit.json --wc 25 --pm 60")
     console.print("  sf sysid rate-excite --axis roll --takeoff --land")
     return 0
@@ -1349,17 +1349,35 @@ def _register_rate_fit(subparsers):
         "rate-fit",
         help="Identify the rate-loop plant G(s)=b·e^(-Ls)/(s(Ts+1)) from a Data Stream CSV",
         description=(
-            "Reconstructs the rate-PID output (exact firmware replay on "
-            "rate_ref/gyro), computes the ETFE over the excited band and fits "
-            "b (1/inertia), T (motor lag), L (dead time). Run --selftest to "
-            "verify the whole pipeline against a synthetic known plant."),
+            "Recovers the rate-PID output u(t). The PRIMARY path (--input duty, "
+            "default when the log has it) reads the 400Hz motor-duty entry "
+            "directly and inverts firmware/vehicle's real mixer -- exact, and "
+            "correct even if the gains that flew are unknown or changed "
+            "mid-flight (same implementation `sf sysid fit --mixer vehicle` "
+            "uses). Only logs without genuine 400Hz duty (older firmware/"
+            "capture) fall back to --input kp (exact firmware PID replay on "
+            "rate_ref/gyro, needs --kp/--ti/--td). Either way, computes the "
+            "ETFE over the excited band and fits b (1/inertia), T (motor lag), "
+            "L (dead time). Run --selftest to verify both input paths against "
+            "a synthetic known plant."),
     )
     parser.add_argument("input", nargs="?", help="Data Stream CSV (sf log convert output)")
     parser.add_argument("--axis", choices=["roll", "pitch", "yaw"], default="roll",
                         help="axis to identify (default: roll)")
-    parser.add_argument("--kp", type=float, help="rate Kp that flew (default: firmware default)")
-    parser.add_argument("--ti", type=float, help="rate Ti that flew")
-    parser.add_argument("--td", type=float, help="rate Td that flew")
+    parser.add_argument("--input-mode", dest="input_mode",
+                        choices=["auto", "duty", "kp"], default="auto",
+                        help="how to recover u(t) (default: auto -- prefers the "
+                             "400Hz motor-duty reconstruction, falls back to "
+                             "--kp replay only for logs without genuine 400Hz "
+                             "duty). 'duty' forces the duty path (error if "
+                             "unavailable); 'kp' forces the legacy PID-replay "
+                             "path for old logs (requires --kp)")
+    parser.add_argument("--kp", type=float,
+                        help="rate Kp that flew -- only used by the --input-mode "
+                             "kp/auto-fallback replay path (default: firmware "
+                             "default); not needed for the duty path")
+    parser.add_argument("--ti", type=float, help="rate Ti that flew (kp-replay path only)")
+    parser.add_argument("--td", type=float, help="rate Td that flew (kp-replay path only)")
     parser.add_argument("--f-lo", type=float, default=0.8, help="fit band low [Hz]")
     parser.add_argument("--f-hi", type=float, default=30.0, help="fit band high [Hz]")
     parser.add_argument("-o", "--output", help="write the fit result JSON here")
@@ -1386,15 +1404,20 @@ def run_rate_fit(args) -> int:
     elif args.plot:
         plot_path = str(Path(args.input).with_suffix("")) + f"_bode_{args.axis}.png"
     result = rs.fit_from_csv(args.input, args.axis, gains=gains,
-                             f_lo=args.f_lo, f_hi=args.f_hi, plot_path=plot_path)
-    console.info(f"axis {result['axis']}: "
-                 f"b={result['b']:.0f} 1/(kg m^2)  (J_eff={result['inertia_eff']:.3e})")
+                             f_lo=args.f_lo, f_hi=args.f_hi, plot_path=plot_path,
+                             input_mode=args.input_mode)
+    input_desc = ("400Hz motor duty (firmware/vehicle mixer inverted)"
+                  if result["input_mode"] == "duty" else "PID replay (--kp)")
+    console.info(f"axis {result['axis']}: input={input_desc}")
+    if result["input_mode"] == "kp":
+        console.info(f"  ({result['duty_reason']})")
+    console.info(f"b={result['b']:.0f} 1/(kg m^2)  (J_eff={result['inertia_eff']:.3e})")
     console.info(f"T={result['T'] * 1e3:.1f} ms (motor lag)   "
                  f"L={result['L'] * 1e3:.2f} ms (dead time)   "
                  f"coherence={result['coherence_mean']:.2f}")
     if result["coherence_mean"] < 0.6:
-        console.warn("coherence < 0.6 — weak excitation or noisy data; "
-                     "re-fly with larger amplitude / longer chirp")
+        console.warning("coherence < 0.6 — weak excitation or noisy data; "
+                        "re-fly with larger amplitude / longer chirp")
     if result.get("plot_path"):
         console.success(f"Bode + coherence figure: {result['plot_path']}")
     if args.output:
