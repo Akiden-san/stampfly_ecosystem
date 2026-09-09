@@ -37,27 +37,51 @@ Data Stream に記録されるデータ（sf log wifi -o *.csv）:
   minimize |y_simulated − y_plant|²   → K, τm を同定
 ```
 
-400Hz duty 列の無い旧ログ向けのフォールバックとして、$K_p$ が既知であれば
-`rate_ref_roll/pitch/yaw` 列（`ws::set_rate_target` の記録値）から
-$u_{plant} = K_p \times (\text{rate\_ref} - \text{gyro})$ を計算する
-"kp" 方式もある（`--input kp --kp 0.5` で明示指定）。`sf sysid fit` は
-CSV のヘッダ列から自動的に方式を判別する（`--input auto`、既定）。
+400Hz duty 列の無い旧ログでは、$K_p$ を `--kp` で渡すと **間接閉ループ方式**
+（`--input indirect`、`auto` はここに自動フォールバックする）が使われる。
+こちらは $u=K_p(\text{target}-\text{gyro})$ を「外部入力」として直接
+フィットするのではなく、target→gyro の閉ループ伝達関数そのものを
+フィットし、既知の $K_p$ から代数的に $K$, $\tau_m$ を逆算する:
+
+```
+間接方式（--input indirect、--kp 必須）:
+  target(t) は真に外部の信号（パイロットのスティック）、gyro(t) と
+  代数的に絡み合っていない → target → gyro の閉ループ応答を直接
+  シミュレーションし、実測 gyro と比較して K, τm をフィット
+  （u=Kp*(target-gyro) を外部入力として直接使う旧来の "kp" 方式は
+  参照する）
+```
+
+人間の操縦では持続的な高周波（〜8Hz）励振を安全に作れないため、
+$u=K_p(\text{target}-\text{gyro})$ を直接フィットする旧来の "kp" 方式は
+実飛行データで破綻しやすい（実測で R² < 0、K が理論値から1〜3桁ズレる例
+あり）。間接方式はこの問題を回避し、実飛行データで K を理論値の数%〜
+数十%程度まで復元できる（ただし $\tau_m$ は人間操縦データからは高周波
+成分不足のため引き続き不確実になりやすい）。旧来の "kp" 方式は比較・
+デバッグ用に `--input kp --kp 0.5` で明示指定した場合のみ残っている。
+`sf sysid fit` は CSV とオプションから自動的に方式を判別する
+（`--input auto`、既定: duty優先 → --kp があれば間接 → それ以外は
+旧kp方式）。
 
 ### なぜ開ループ同定が可能か
 
 duty方式は、閉ループ制御の外側にあるモータ指令そのもの（4モータ duty）を
 直接観測して逆算するため、$K_p$ の値にもフィードバック則の仮定にも依存
-しない。kp方式（フォールバック）でも、閉ループデータで $K_p$ が既知なら
-プラントへの入力 $u(t)$ を計算できるため、閉ループモデルを経由せずに
-開ループモデルを直接同定できる。
+しない。間接方式・旧kp方式は、閉ループデータでも $K_p$ が既知なら
+プラントへの入力・応答の関係を復元できるという同じ原理に基づくが、
+間接方式は target を外部信号として直接扱う分、実飛行データに対して
+遥かに頑健である。
 
-> **重要（励振不足の落とし穴）:** どちらの方式でも、スティックをほとんど
-> 動かさずに一定方向へ持ち続けた区間があると、閉ループの P 制御則
-> $u = K_p(\text{target} - y)$ が $u \approx \text{定数} - K_p y$ に潰れ、
-> $u$ と $y$ が「プラントの動特性やハードウェアの符号とは無関係に」強く
-> 負相関して見える（閉ループ同定の典型的な落とし穴）。`sf sysid fit` は
-> この状態を検出すると該当区間を除外し警告するが、そもそも起きないよう
-> ステップ2の励振の指示に従うこと。
+> **重要（励振不足の落とし穴、duty/旧kp方式）:** duty方式・旧来の "kp"
+> 方式では、スティックをほとんど動かさずに一定方向へ持ち続けた区間が
+> あると、閉ループの P 制御則 $u = K_p(\text{target} - y)$ が
+> $u \approx \text{定数} - K_p y$ に潰れ、$u$ と $y$ が「プラントの
+> 動特性やハードウェアの符号とは無関係に」強く負相関して見える
+> （閉ループ同定の典型的な落とし穴）。`sf sysid fit` はこの状態を検出
+> すると該当区間を除外し警告する。間接方式はこの罠を構造的に回避する
+> （target を外部信号として直接フィットするため）が、良い $\tau_m$ を
+> 得るにはやはり大きめ・高頻度な励振が要る。いずれにせよステップ2の
+> 励振の指示に従うこと。
 
 ## 3. 手順
 
@@ -94,7 +118,11 @@ sf sysid fit flight.csv --axis roll --plot
 # 結果を YAML に保存
 sf sysid fit flight.csv -o my_plant.yaml
 
-# 400Hz duty 列の無い旧ログの場合のみ、kp方式にフォールバック
+# 400Hz duty 列の無い旧ログの場合、--kp を渡すと間接閉ループ方式が
+# 自動選択される（--input indirect で明示指定も可能）
+sf sysid fit flight.csv --kp 0.5 --plot
+
+# 比較・デバッグ用に旧来の直接 "kp" 方式を明示的に使いたい場合のみ
 sf sysid fit flight.csv --input kp --kp 0.5 --plot
 ```
 
@@ -167,30 +195,58 @@ Open-loop model fitting:
   minimize |y_simulated − y_plant|²   → identify K, τm
 ```
 
-As a fallback for older logs without the 400Hz duty columns, a "kp" method
-computes $u_{plant} = K_p \times (\text{rate\_ref} - \text{gyro})$ from the
-`rate_ref_roll/pitch/yaw` columns (recorded by `ws::set_rate_target`) when
-$K_p$ is known (`--input kp --kp 0.5`). `sf sysid fit` auto-detects which
-method to use from the CSV header (`--input auto`, the default).
+For older logs without the 400Hz duty columns, passing $K_p$ via `--kp`
+selects the **indirect closed-loop method** (`--input indirect`, which
+`auto` falls back to automatically). Instead of fitting
+$u=K_p(\text{target}-\text{gyro})$ directly as an external input, it fits
+the closed-loop target->gyro transfer function itself and backs out $K$,
+$\tau_m$ algebraically from the known $K_p$:
+
+```
+Indirect method (--input indirect, --kp required):
+  target(t) is a genuinely external signal (the pilot's stick), not
+  algebraically entangled with gyro(t) -- so simulate the closed-loop
+  target -> gyro response directly and fit K, tau_m against the measured
+  gyro (contrast with the older "kp" method, which uses
+  u=Kp*(target-gyro) as a direct external input)
+```
+
+A human pilot cannot safely sustain the persistent high-frequency (~8Hz)
+excitation the direct "kp" method needs, so fitting
+$u=K_p(\text{target}-\text{gyro})$ directly tends to fail on real flight
+data (observed R² < 0, K off by 1-3 orders of magnitude in practice). The
+indirect method avoids this and recovers K within a few percent to a few
+tens of percent of theory on real flight data (though $\tau_m$ still tends
+to stay uncertain from human-piloted data, which lacks enough
+high-frequency content). The older "kp" method remains available for
+comparison/debugging only, via the explicit `--input kp --kp 0.5`.
+`sf sysid fit` auto-detects which method to use from the CSV and options
+(`--input auto`, the default: duty-first -> indirect if `--kp` is given ->
+otherwise the older kp method).
 
 ### Why Open-Loop Identification Works
 
 The duty method directly observes the motor command itself (4 motor
 duties), outside the closed loop, so it needs neither $K_p$ nor any
-assumption about the feedback law. The kp fallback also works on
-closed-loop data: if $K_p$ is known, the plant input $u(t)$ can be computed
-directly, allowing open-loop identification without going through the
-closed-loop model.
+assumption about the feedback law. The indirect and older kp methods rest
+on the same principle -- that closed-loop data still lets you recover the
+plant input/response relationship once $K_p$ is known -- but the indirect
+method is far more robust on real flight data because it treats target as
+a genuinely external signal instead of folding it into a directly-fitted
+$u(t)$.
 
-> **Important (the insufficient-excitation pitfall):** with either method,
-> a stretch where the stick barely moves and is held in one direction
-> collapses the closed-loop P-control law $u = K_p(\text{target} - y)$ into
+> **Important (the insufficient-excitation pitfall, duty/older-kp
+> methods):** with the duty method or the older "kp" method, a stretch
+> where the stick barely moves and is held in one direction collapses the
+> closed-loop P-control law $u = K_p(\text{target} - y)$ into
 > $u \approx \text{const} - K_p y$, making $u$ and $y$ look strongly and
 > misleadingly *negatively* correlated -- regardless of the true plant
 > dynamics or hardware sign convention (a classic closed-loop
 > identifiability pitfall). `sf sysid fit` detects and drops such segments
-> with a warning, but follow Step 2's excitation guidance so it doesn't
-> happen in the first place.
+> with a warning. The indirect method structurally sidesteps this trap (it
+> fits target directly as an external signal), but still needs large,
+> frequent stick motion for a good $\tau_m$. Either way, follow Step 2's
+> excitation guidance.
 
 ## 3. Procedure
 
@@ -228,7 +284,11 @@ sf sysid fit flight.csv --axis roll --plot
 # Save results to YAML
 sf sysid fit flight.csv -o my_plant.yaml
 
-# Only for older logs without the 400Hz duty columns, fall back to kp method
+# For older logs without the 400Hz duty columns, passing --kp auto-selects
+# the indirect closed-loop method (or pass --input indirect explicitly)
+sf sysid fit flight.csv --kp 0.5 --plot
+
+# Only to explicitly use the older direct "kp" method for comparison/debugging
 sf sysid fit flight.csv --input kp --kp 0.5 --plot
 ```
 
