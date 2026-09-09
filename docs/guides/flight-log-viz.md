@@ -106,7 +106,10 @@ sf log viz logs/flight_001.csv --time-range 5 15
 `sf log viz flight.csv` はこの形式を自動判別し、7段のパネルで表示します。
 `motor_duty_FR/RR/RL/FL` 列は、400Hz duty エントリ（kPktDuty400）を送る
 ファームでは400Hz実測、送らない旧ファームでは従来通り50Hz指令の前方補完です
-（列名・列数は同じ）。
+（列名・列数は同じ）。末尾の `vbat` 列は1Hz Status パケット（0x4F）の
+バッテリ電圧を各400Hz行へ前方補完したもので（未受信の行は空欄）、
+`sf sysid fit --mixer vehicle`（firmware/vehicle の非線形モータ曲線逆算）
+だけが使います。それ以外の用途では無視して構いません。
 
 | パネル | 内容 | 単位 |
 |-------|------|------|

@@ -648,24 +648,49 @@ MANIFEST: Dict[str, List[ParamCheck]] = {
             expected=EXPECTED_CM,
             note="body table (EN)",
         ),
+        ParamCheck(
+            # tools/sysid/plant_fit.py's `sf sysid fit --mixer vehicle`
+            # inverts firmware/vehicle's actual duty=f(sqrt(T/Ct))/Vbat motor
+            # curve to recover the differential torque command from logged
+            # motor duty -- it needs the SAME Cm actuator.cpp uses, hand-
+            # copied there (see that file's _MOTOR_CM comment) since this
+            # family is not machine-generated on the Python side (see this
+            # group's own header comment above).
+            # tools/sysid/plant_fit.py の `sf sysid fit --mixer vehicle` は
+            # firmware/vehicle の実際の duty=f(√(T/Ct))/Vbat モータ曲線を
+            # 逆算し、記録された motor duty から差動トルク指令を復元する --
+            # actuator.cpp と同じ Cm が必要で、そちらへ手動転記してある
+            # （同ファイルの _MOTOR_CM コメント参照。このファミリは Python
+            # 側で機械生成されていない -- 上のグループ冒頭コメント参照）。
+            file="tools/sysid/plant_fit.py",
+            regex=r'_MOTOR_CM:\s*float\s*=\s*([0-9.eE+-]+)',
+            expected=EXPECTED_CM,
+            note="_duty_differential_vehicle()'s motor-curve inversion _MOTOR_CM",
+        ),
     ],
 
     # -------------------------------------------------------------------
     # Am_flight_anchored / Bm_flight_anchored — flight-anchored motor curve
     # (added 2026-08-22): legacy_motor_curve's Am/Bm folded with the
-    # flight-verified hover.thrust_corr=1.12. Sole consumer: firmware
-    # actuator.cpp's MOTOR_AM/MOTOR_BM. See control/models/
-    # stampfly_physical.yaml's flight_anchored_motor_curve family header
-    # comment for the derivation and the caveat that this curve family and
-    # measured_2026_07/plant.hpp's ODE family describe two different motors
-    # (~1.252x thrust divergence at hover, unresolved -- backlog #3).
+    # flight-verified hover.thrust_corr=1.12. Consumers: firmware
+    # actuator.cpp's MOTOR_AM/MOTOR_BM, and (since 2026-09-09)
+    # tools/sysid/plant_fit.py's `sf sysid fit --mixer vehicle` inversion of
+    # that same curve (see the "Cm" group's plant_fit.py row above for why).
+    # See control/models/stampfly_physical.yaml's flight_anchored_motor_curve
+    # family header comment for the derivation and the caveat that this
+    # curve family and measured_2026_07/plant.hpp's ODE family describe two
+    # different motors (~1.252x thrust divergence at hover, unresolved --
+    # backlog #3).
     # フライト実証済みモータ曲線（2026-08-22追加）: legacy_motor_curve の
     # Am/Bm と、飛行実証済みの hover.thrust_corr=1.12 を畳み込んだもの。
-    # 唯一の消費者は firmware actuator.cpp の MOTOR_AM/MOTOR_BM。導出と、
-    # 本ファミリが measured_2026_07/plant.hpp の ODEファミリとは別のモータを
-    # 記述している（ホバー点で約1.252倍の推力差、バックログ#3で未決着）
-    # という注意点は control/models/stampfly_physical.yaml の
-    # flight_anchored_motor_curve ファミリ冒頭コメント参照。
+    # 消費者: firmware actuator.cpp の MOTOR_AM/MOTOR_BM、および
+    # （2026-09-09〜）tools/sysid/plant_fit.py の `sf sysid fit --mixer
+    # vehicle` が同じ曲線を逆算する箇所（理由は上の "Cm" グループの
+    # plant_fit.py 行参照）。導出と、本ファミリが measured_2026_07/plant.hpp
+    # の ODEファミリとは別のモータを記述している（ホバー点で約1.252倍の
+    # 推力差、バックログ#3で未決着）という注意点は control/models/
+    # stampfly_physical.yaml の flight_anchored_motor_curve ファミリ冒頭
+    # コメント参照。
     # -------------------------------------------------------------------
     "Am_flight_anchored": [
         ParamCheck(
@@ -674,6 +699,12 @@ MANIFEST: Dict[str, List[ParamCheck]] = {
             expected=EXPECTED_AM_FA,
             note="V=Am*w^2+Bm*w+Cm curve MOTOR_AM (flight_anchored_motor_curve, adopted 2026-08-22)",
         ),
+        ParamCheck(
+            file="tools/sysid/plant_fit.py",
+            regex=r'_MOTOR_AM:\s*float\s*=\s*([0-9.eE+-]+)',
+            expected=EXPECTED_AM_FA,
+            note="_duty_differential_vehicle()'s motor-curve inversion _MOTOR_AM",
+        ),
     ],
     "Bm_flight_anchored": [
         ParamCheck(
@@ -681,6 +712,12 @@ MANIFEST: Dict[str, List[ParamCheck]] = {
             regex=r'MOTOR_BM\s*=\s*([0-9.eE+-]+)f;',
             expected=EXPECTED_BM_FA,
             note="V=Am*w^2+Bm*w+Cm curve MOTOR_BM (flight_anchored_motor_curve, adopted 2026-08-22)",
+        ),
+        ParamCheck(
+            file="tools/sysid/plant_fit.py",
+            regex=r'_MOTOR_BM:\s*float\s*=\s*([0-9.eE+-]+)',
+            expected=EXPECTED_BM_FA,
+            note="_duty_differential_vehicle()'s motor-curve inversion _MOTOR_BM",
         ),
     ],
 

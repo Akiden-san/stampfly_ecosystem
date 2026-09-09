@@ -248,6 +248,65 @@ def test_save_stream_csv_falls_back_to_50hz_ctrl_ref_when_no_duty400():
             assert int(row['duty_rate_hz']) == 50
 
 
+# =============================================================================
+# save_stream_csv() vbat forward-fill tests (feeds `sf sysid fit --mixer
+# vehicle`'s battery-voltage-dependent motor-curve inversion -- see
+# plant_fit.py _thrust_from_duty())
+# save_stream_csv() の vbat 前方補完テスト（`sf sysid fit --mixer vehicle`
+# の電圧依存モータ曲線逆算が使う -- plant_fit.py の _thrust_from_duty() 参照）
+# =============================================================================
+
+def test_save_stream_csv_forward_fills_vbat_from_status_packets():
+    """vbat must merge-asof the 1Hz PKT_STATUS voltage onto each 400Hz row:
+    rows before the first status packet fall back to the LAST status seen so
+    far, and a later status sample must flip the value for all subsequent
+    rows -- proven with two status samples carrying deliberately DIFFERENT
+    voltages that straddle the middle of the 8-row block."""
+    cap = udp_capture.UDPTelemetryCapture()
+    ts0, dt = 1_000_000, 2500
+    _seed_imu_and_rate_ref(cap, ts0, dt)
+    # Row timestamps: 1000000, 1002500, ..., 1017500 (8 rows, i=0..7).
+    cap.samples[udp_capture.PKT_STATUS].append({
+        'timestamp_us': ts0 - 1000, 'voltage': 4.05,
+    })
+    cap.samples[udp_capture.PKT_STATUS].append({
+        'timestamp_us': ts0 + 4 * dt - 500, 'voltage': 3.95,   # 1009500, between rows 3 and 4
+    })
+
+    with tempfile.TemporaryDirectory() as td:
+        csv_path = Path(td) / "stream.csv"
+        cap.save_stream_csv(str(csv_path))
+        with open(csv_path) as f:
+            rows = list(csv.DictReader(f))
+
+        assert len(rows) == N
+        for i, row in enumerate(rows):
+            expected = 4.05 if i < 4 else 3.95
+            assert abs(float(row['vbat']) - expected) < 1e-4, \
+                f"row {i}: vbat={row['vbat']!r}, expected {expected}"
+
+
+def test_save_stream_csv_vbat_empty_without_status_packets():
+    """No PKT_STATUS ever received (e.g. a short capture, or old firmware)
+    must leave vbat empty, not some silently-wrong default -- plant_fit.py's
+    _load_axis_data() falls back to the nominal battery voltage on '' and
+    reports that fallback, which requires knowing the column was genuinely
+    absent/unfilled."""
+    cap = udp_capture.UDPTelemetryCapture()
+    ts0, dt = 1_000_000, 2500
+    _seed_imu_and_rate_ref(cap, ts0, dt)
+
+    with tempfile.TemporaryDirectory() as td:
+        csv_path = Path(td) / "stream.csv"
+        cap.save_stream_csv(str(csv_path))
+        with open(csv_path) as f:
+            rows = list(csv.DictReader(f))
+
+        assert len(rows) == N
+        for row in rows:
+            assert row['vbat'] == ''
+
+
 def _run_all():
     tests = [
         test_duty400_entry_decodes_8_samples_paired_with_imu_timestamps,
@@ -256,6 +315,8 @@ def _run_all():
         test_unknown_entry_id_is_skipped_without_corrupting_later_entries,
         test_save_stream_csv_uses_400hz_duty_when_present,
         test_save_stream_csv_falls_back_to_50hz_ctrl_ref_when_no_duty400,
+        test_save_stream_csv_forward_fills_vbat_from_status_packets,
+        test_save_stream_csv_vbat_empty_without_status_packets,
     ]
     failures = 0
     for t in tests:

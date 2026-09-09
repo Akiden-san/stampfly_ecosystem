@@ -637,6 +637,25 @@ class UDPTelemetryCapture:
         else:
             print("  400Hz motor duty (0x4A): NOT present -- "
                   "`sf sysid fit` falls back to --kp reconstruction")
+
+        # 1Hz Status packet (0x4F) presence -- source of the `vbat` column
+        # save_stream_csv() forward-fills, needed only by
+        # `sf sysid fit --mixer vehicle` (actuator.cpp's nonlinear
+        # thrust-to-duty motor curve is voltage-dependent). Absent logs still
+        # work with --mixer vehicle -- plant_fit.py falls back to the nominal
+        # 1S LiPo voltage -- so this is informational, not an error.
+        # 1Hz Status パケット（0x4F）の有無 -- save_stream_csv() が前方補完
+        # する `vbat` 列の元。`sf sysid fit --mixer vehicle`（actuator.cpp の
+        # 電圧依存の非線形 thrust→duty モータ曲線）だけが必要とする。無くても
+        # --mixer vehicle は動く（plant_fit.py が公称1S LiPo電圧に
+        # フォールバックする）ので、これはエラーではなく情報表示。
+        status_samples = self.sample_count.get(PKT_STATUS, 0)
+        if status_samples > 0:
+            print(f"  1Hz Status (0x4F): present ({status_samples} samples) "
+                  f"-- vbat column available for `sf sysid fit --mixer vehicle`")
+        else:
+            print("  1Hz Status (0x4F): NOT present -- "
+                  "`sf sysid fit --mixer vehicle` falls back to nominal battery voltage")
         print()
 
     def save_jsonl(self, filepath: str):
@@ -845,6 +864,8 @@ class UDPTelemetryCapture:
         ctrl_ref = sorted(self.samples.get(PKT_CTRL_REF, []),
                           key=lambda s: s['timestamp_us'])
         duty400 = self.samples.get(PKT_DUTY400, [])
+        status = sorted(self.samples.get(PKT_STATUS, []),
+                        key=lambda s: s['timestamp_us'])
 
         if not imu:
             raise ValueError("no IMU+ESKF samples captured -- nothing to save")
@@ -883,6 +904,27 @@ class UDPTelemetryCapture:
         # 補完の階段状データかを読み手（`sf sysid fit --input auto`）に伝え、
         # 自動モードが古い/粗い信号で黙って誤同定しないようにする。
         duty_rate_hz = 400 if duty400 else 50
+        # vbat: the 1Hz PKT_STATUS battery voltage, forward-filled onto every
+        # 400Hz row -- same merge-asof pattern as ctrl_ref below. Appended
+        # AFTER duty_rate_hz (so, like it, absent in a CSV read by an older
+        # plant_fit.py, which simply won't look for this column). Sole
+        # consumer: `sf sysid fit --mixer vehicle`, which needs the live
+        # battery voltage to invert actuator.cpp's nonlinear
+        # thrust-to-duty motor curve (duty = f(sqrt(T/Ct)) / Vbat) -- unlike
+        # --mixer legacy's simple linear mixer, "vehicle" cannot recover the
+        # differential torque command from duty alone. Empty when no
+        # PKT_STATUS packet was ever received (plant_fit.py then falls back
+        # to the nominal 1S LiPo voltage and says so).
+        # vbat: 1Hz の PKT_STATUS バッテリ電圧を、全400Hz行へ前方補完する --
+        # 下の ctrl_ref と同じ merge-asof パターン。duty_rate_hz の後ろに
+        # 追記する（それと同様、旧い plant_fit.py で読んだ CSV には無く、
+        # 単にこの列を探さないだけ）。唯一の消費者は
+        # `sf sysid fit --mixer vehicle` -- actuator.cpp の非線形な
+        # thrust→duty モータ曲線（duty = f(√(T/Ct)) / Vbat）を逆算するのに
+        # 実電源電圧が必要（--mixer legacy の単純な線形ミキサーと異なり、
+        # "vehicle" は duty だけからでは差動トルク指令を復元できない）。
+        # PKT_STATUS を一度も受信していないログでは空欄 -- plant_fit.py が
+        # 公称1S LiPo電圧にフォールバックし、その旨を表示する。
         fieldnames = [
             'timestamp_us',
             'gyro_x', 'gyro_y', 'gyro_z',
@@ -895,10 +937,13 @@ class UDPTelemetryCapture:
             'motor_duty_FR', 'motor_duty_RR', 'motor_duty_RL', 'motor_duty_FL',
             'flight_mode',
             'duty_rate_hz',
+            'vbat',
         ]
 
         ctrl_idx = 0
         last_ctrl = None
+        status_idx = 0
+        last_status = None
         with open(filepath, 'w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -949,6 +994,19 @@ class UDPTelemetryCapture:
                     row['motor_duty_RL'] = d['duty_RL']
                     row['motor_duty_FL'] = d['duty_FL']
                 row['duty_rate_hz'] = duty_rate_hz
+
+                # Forward-fill the latest 1Hz PKT_STATUS voltage at/before
+                # this 400Hz sample's timestamp (same merge-asof as ctrl_ref
+                # above). Left as '' (empty) until the first status packet
+                # arrives, same as ctrl_ref's pre-first-packet rows.
+                # この 400Hz サンプルの時刻以前で最新の 1Hz PKT_STATUS 電圧を
+                # 前方補完する（上の ctrl_ref と同じ merge-asof）。最初の
+                # status パケット受信前は ctrl_ref の受信前行と同様 ''（空欄）
+                # のまま。
+                while status_idx < len(status) and status[status_idx]['timestamp_us'] <= ts:
+                    last_status = status[status_idx]
+                    status_idx += 1
+                row['vbat'] = last_status['voltage'] if last_status is not None else ''
 
                 writer.writerow({k: row.get(k, '') for k in fieldnames})
 

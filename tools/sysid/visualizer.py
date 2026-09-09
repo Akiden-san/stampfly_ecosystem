@@ -359,6 +359,7 @@ def plot_plant_fit(
     r_squared: Optional[float] = None,
     output_path: Optional[str | Path] = None,
     show: bool = True,
+    u_plant_unit: str = 'duty',
 ) -> Optional['plt.Figure']:
     """
     Plot plant model fit results
@@ -379,6 +380,9 @@ def plot_plant_fit(
         r_squared: Fit quality R^2 (for annotation)
         output_path: If provided, save figure to this path
         show: If True, display plot interactively
+        u_plant_unit: Unit label for the plant-input twin axis (e.g. 'duty'
+            for --mixer legacy, 'Nm' for --mixer vehicle, 'duty (Kp*err)'
+            for --input kp)
 
     Returns:
         Matplotlib figure (or None if showing)
@@ -404,7 +408,7 @@ def plot_plant_fit(
     ax1_twin = ax1.twinx()
     ax1_twin.plot(time, u_plant, color=color_input, linewidth=0.5,
                   alpha=0.3, label='Plant input u(t)')
-    ax1_twin.set_ylabel('Plant input [duty]', color=color_input)
+    ax1_twin.set_ylabel(f'Plant input [{u_plant_unit}]', color=color_input)
     ax1_twin.tick_params(axis='y', labelcolor=color_input)
 
     # Annotation with fit parameters

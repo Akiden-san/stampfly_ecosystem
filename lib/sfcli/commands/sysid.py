@@ -323,20 +323,31 @@ def _register_fit(subparsers):
             "reconstructed one of two ways, selected by --input (default "
             "auto): 'duty' reads the actual motor duty (400Hz, needs "
             "firmware sending the kPktDuty400 wire entry) and inverts the "
-            "X-quad mixer to recover the differential duty command -- no "
-            "--kp needed, and correct even if Kp changed mid-flight or the "
-            "duty saturated; 'kp' reconstructs u_plant = Kp*(rate_ref-gyro) "
-            "from a known, constant P gain (--kp required). 'auto' uses "
-            "'duty' when the CSV has motor_duty_FR/RR/RL/FL columns and "
-            "--kp was not given, else falls back to 'kp'. The input CSV "
-            "format is auto-detected: the current 400Hz Data Stream "
-            "(`sf log wifi -o *.csv`, columns rate_ref_roll/pitch/yaw + "
-            "gyro_x/y/z -- shared by vehicle and workshop, --rate-max is "
-            "ignored since rate_ref is already rad/s) or the legacy "
-            "analysis CSV (ctrl_roll/pitch/yaw + gyro_corrected_x/y/z, "
-            "--rate-max required, 'kp' mode only). "
-            "Run --selftest to verify the whole pipeline (both input modes) "
-            "against a synthetic known plant."
+            "mixer (selected by --mixer, see below) to recover the "
+            "differential command -- no --kp needed, and correct even if Kp "
+            "changed mid-flight or the duty saturated; 'kp' reconstructs "
+            "u_plant = Kp*(rate_ref-gyro) from a known, constant P gain "
+            "(--kp required). 'auto' uses 'duty' when the CSV has "
+            "motor_duty_FR/RR/RL/FL columns and --kp was not given, else "
+            "falls back to 'kp'. The input CSV format is auto-detected: the "
+            "current 400Hz Data Stream (`sf log wifi -o *.csv`, columns "
+            "rate_ref_roll/pitch/yaw + gyro_x/y/z -- shared by vehicle and "
+            "workshop, --rate-max is ignored since rate_ref is already "
+            "rad/s) or the legacy analysis CSV (ctrl_roll/pitch/yaw + "
+            "gyro_corrected_x/y/z, --rate-max required, 'kp' mode only). "
+            "--mixer (default legacy) picks WHICH duty inversion 'duty'/"
+            "'auto' use, and the CSV alone cannot say which is right -- you "
+            "must know which firmware produced the log: 'legacy' inverts "
+            "the simple linear X-quad mixer (ws_internal.hpp / vehicle_old) "
+            "-- correct for `sf lesson` (firmware/workshop) and "
+            "firmware/vehicle_old logs; 'vehicle' inverts firmware/vehicle's "
+            "actual mixer (physical B^-1 allocation through a nonlinear "
+            "motor curve, sf_actuator/actuator.cpp) -- REQUIRED for `sf "
+            "app` (firmware/vehicle-based custom controller) logs, or the "
+            "fit silently reconstructs the wrong signal (looks like a fit "
+            "failure or gives a physically-impossible K/tau_m). "
+            "Run --selftest to verify the whole pipeline (all input/mixer "
+            "combinations) against a synthetic known plant."
         ),
         epilog=(
             "Examples:\n"
@@ -344,9 +355,25 @@ def _register_fit(subparsers):
             "      Auto-selects the 'duty' input mode when flight.csv has\n"
             "      400Hz motor duty columns (firmware sending kPktDuty400) --\n"
             "      no --kp needed, and correct even if Kp changed mid-flight.\n"
+            "      Uses --mixer legacy (the default) -- correct for `sf lesson`\n"
+            "      (firmware/workshop) and firmware/vehicle_old logs.\n"
             "      flight.csv に400Hzモータduty列があれば（kPktDuty400を送る\n"
             "      ファーム）'duty' 入力モードを自動選択する -- --kp 不要、\n"
-            "      Kp が飛行中に変わっていても正しい。\n"
+            "      Kp が飛行中に変わっていても正しい。--mixer legacy（既定）を\n"
+            "      使う -- `sf lesson`（firmware/workshop）と\n"
+            "      firmware/vehicle_old のログに正しい。\n"
+            "\n"
+            "  sf sysid fit flight.csv --mixer vehicle --plot\n"
+            "      For a log from `sf app` (a firmware/vehicle-based custom\n"
+            "      controller): inverts firmware/vehicle's ACTUAL mixer\n"
+            "      (physical B^-1 allocation + nonlinear motor curve) instead\n"
+            "      of the legacy linear one. --mixer legacy on this data\n"
+            "      silently fits the WRONG signal.\n"
+            "      `sf app`（firmware/vehicle ベースの自作コントローラ）の\n"
+            "      ログ向け: legacy の線形ミキサーではなく firmware/vehicle の\n"
+            "      実際のミキサー（物理的なB^-1配分＋非線形モータ曲線）を\n"
+            "      逆算する。このデータに --mixer legacy を使うと誤った信号を\n"
+            "      静かにフィットしてしまう。\n"
             "\n"
             "  sf sysid fit flight.csv --kp 0.5 --plot\n"
             "      Fallback for OLD logs without the 400Hz duty columns:\n"
@@ -361,20 +388,25 @@ def _register_fit(subparsers):
             "      roll軸のみ同定し、結果をYAMLファイルに保存する。\n"
             "\n"
             "  sf sysid fit --selftest\n"
-            "      Verify the whole pipeline (duty AND kp input modes)\n"
-            "      against a synthetic known plant.\n"
+            "      Verify the whole pipeline (duty AND kp input modes, both\n"
+            "      --mixer legacy AND --mixer vehicle) against a synthetic\n"
+            "      known plant.\n"
             "      既知の合成プラントに対してパイプライン全体（duty/kp両方の\n"
-            "      入力モード）を自己検証する。\n"
+            "      入力モード、--mixer legacy/vehicle 両方）を自己検証する。\n"
             "\n"
             "Output:\n"
-            "  Prints K [1/s] and tau_m [s] per axis, each compared against a\n"
-            "  reference: K vs. REFERENCE_PLANT_GAINS (theoretical gain from the\n"
-            "  vehicle's mechanical parameters) and tau_m vs. the firmware's\n"
-            "  default tau_m, with the percent error for both, plus which input\n"
-            "  mode ('duty' or 'kp') was actually used.\n"
-            "  軸ごとにK[1/s]とtau_m[s]を表示し、機体の機械パラメータから求めた\n"
-            "  理論値（REFERENCE_PLANT_GAINS）およびファーム既定のtau_mとの誤差\n"
-            "  [%]を併記する。実際に使った入力モード（'duty'/'kp'）も表示する。\n"
+            "  Prints K and tau_m [s] per axis, each compared against a\n"
+            "  reference: K vs. REFERENCE_PLANT_GAINS ('legacy' mixer,\n"
+            "  [rad/s^2/duty]) or REFERENCE_PLANT_GAINS_VEHICLE ('vehicle'\n"
+            "  mixer, [rad/s^2/Nm] = 1/body-inertia) depending on --mixer, and\n"
+            "  tau_m vs. the firmware's default tau_m, with the percent error\n"
+            "  for both, plus which input mode ('duty' or 'kp') and mixer were\n"
+            "  actually used.\n"
+            "  軸ごとにKとtau_m[s]を表示し、--mixer に応じた理論値\n"
+            "  （'legacy'ならREFERENCE_PLANT_GAINS [rad/s^2/duty]、'vehicle'なら\n"
+            "  REFERENCE_PLANT_GAINS_VEHICLE [rad/s^2/Nm]=1/機体慣性）および\n"
+            "  ファーム既定のtau_mとの誤差[%]を併記する。実際に使った入力\n"
+            "  モード（'duty'/'kp'）とミキサーも表示する。\n"
             "\n"
             "Capture the input data with:\n"
             "  sf log wifi -d 30 -o flight.csv\n"
@@ -403,6 +435,22 @@ def _register_fit(subparsers):
              "(no --kp needed); 'kp' = legacy Kp*(target-gyro) "
              "reconstruction (--kp required); 'auto' = 'duty' when the "
              "columns exist and --kp was not given, else 'kp'.",
+    )
+    parser.add_argument(
+        "--mixer",
+        choices=["legacy", "vehicle"],
+        default="legacy",
+        help="Which mixer the 'duty'/'auto' input modes invert (default: "
+             "legacy). 'legacy' = the simple linear X-quad mixer "
+             "(ws_internal.hpp / vehicle_old) -- correct for `sf lesson` "
+             "(firmware/workshop) and firmware/vehicle_old logs. 'vehicle' "
+             "= firmware/vehicle's ACTUAL mixer (physical B^-1 allocation "
+             "through a nonlinear motor curve, sf_actuator/actuator.cpp) -- "
+             "required for `sf app` (firmware/vehicle-based custom "
+             "controller) logs. The CSV cannot say which firmware produced "
+             "it, so this is never auto-detected -- pick wrong and the fit "
+             "silently reconstructs the wrong signal. Ignored when --input "
+             "resolves to 'kp'.",
     )
     parser.add_argument(
         "--kp",
@@ -508,7 +556,8 @@ def run_fit(args: argparse.Namespace) -> int:
     try:
         sys.path.insert(0, str(paths.root() / "tools"))
         from sysid.plant_fit import (
-            fit_plant, compute_fit_timeseries, REFERENCE_PLANT_GAINS, selftest,
+            fit_plant, compute_fit_timeseries, REFERENCE_PLANT_GAINS,
+            REFERENCE_PLANT_GAINS_VEHICLE, selftest,
         )
         from sysid.defaults import get_flat_defaults
     except ImportError as e:
@@ -567,6 +616,7 @@ def run_fit(args: argparse.Namespace) -> int:
                 rate_max=rate_max,
                 time_range=tuple(args.time_range) if args.time_range else None,
                 input_mode=args.input_mode,
+                mixer=args.mixer,
             )
             results[axis] = result
         except ValueError as e:
@@ -585,37 +635,55 @@ def run_fit(args: argparse.Namespace) -> int:
     console.print()
 
     for axis, r in results.items():
-        ref_K = REFERENCE_PLANT_GAINS.get(axis, 0.0)
+        # K's reference/units depend on which mixer produced it -- see
+        # PlantFitResult.to_dict() in plant_fit.py for the same logic.
+        # K の参照値・単位は、どちらのミキサーが生成したかで異なる --
+        # plant_fit.py の PlantFitResult.to_dict() と同じロジック。
+        ref_gains = REFERENCE_PLANT_GAINS_VEHICLE if r.mixer == 'vehicle' else REFERENCE_PLANT_GAINS
+        K_unit = "rad/s^2 per Nm" if r.mixer == 'vehicle' else "rad/s^2 per differential duty"
+        ref_K = ref_gains.get(axis, 0.0)
         ref_tau = defaults['tau_m']
         K_err = abs(r.K - ref_K) / ref_K * 100 if ref_K > 0 else 0
         tau_err = abs(r.tau_m - ref_tau) / ref_tau * 100 if ref_tau > 0 else 0
 
         line = (
             f"  {axis.capitalize():6s} "
-            f"K = {r.K:6.1f} (ref: {ref_K:5.1f}, err: {K_err:4.1f}%)  "
+            f"K = {r.K:10.1f} (ref: {ref_K:10.1f}, err: {K_err:4.1f}%)  "
             f"tau_m = {r.tau_m:.3f} (ref: {ref_tau:.3f}, err: {tau_err:4.1f}%)  "
             f"R2 = {r.r_squared:.2f}  "
             f"[{r.n_segments} segs]"
         )
         console.print(line)
         if r.input_mode == 'duty':
-            mode_desc = "motor duty (mixer-inverse of motor_duty_FR/RR/RL/FL, 400Hz)"
+            mode_desc = f"motor duty (--mixer {r.mixer} inverse of motor_duty_FR/RR/RL/FL, 400Hz)"
         else:
             mode_desc = f"Kp reconstruction (Kp={r.kp_used})"
-        console.print(f"         input: {mode_desc}  "
-                       f"units: K [rad/s^2 per differential duty]")
+        console.print(f"         input: {mode_desc}  units: K [{K_unit}]")
         if r.duty_reason:
             console.print(f"         duty check: {r.duty_reason}")
 
-    # Design Kp (zeta=0.7)
+    # Design Kp (zeta=0.7). For --mixer vehicle fits, this is directly in the
+    # SAME units (Nm/(rad/s)) as firmware/vehicle's rate.roll/pitch/yaw.kp
+    # params (K there is a torque gain -- see plant_fit.py's
+    # REFERENCE_PLANT_GAINS_VEHICLE docstring); for 'legacy'/'kp' fits it is
+    # the legacy duty-differential-scale Kp, NOT directly usable as a
+    # firmware/vehicle param.
+    # 設計Kp（zeta=0.7）。--mixer vehicle のフィットでは、これは
+    # firmware/vehicle の rate.roll/pitch/yaw.kp パラメータと**同じ単位**
+    # （Nm/(rad/s)）になる（K がトルクゲインのため -- plant_fit.py の
+    # REFERENCE_PLANT_GAINS_VEHICLE docstring参照）。'legacy'/'kp' の
+    # フィットでは legacy の duty差動スケールのKpであり、firmware/vehicle の
+    # パラメータにそのまま使えるものではない。
     console.print()
     console.print("  Design Kp (zeta=0.7):")
     for axis, r in results.items():
         if r.K > 0 and r.tau_m > 0:
             Kp_design = 1.0 / (4.0 * 0.7**2 * r.K * r.tau_m)
-            ref_K = REFERENCE_PLANT_GAINS.get(axis, 0.0)
+            ref_gains = REFERENCE_PLANT_GAINS_VEHICLE if r.mixer == 'vehicle' else REFERENCE_PLANT_GAINS
+            ref_K = ref_gains.get(axis, 0.0)
             Kp_ref = 1.0 / (4.0 * 0.7**2 * ref_K * defaults['tau_m']) if ref_K > 0 else 0
-            console.print(f"    {axis.capitalize():6s} Kp = {Kp_design:.4f} (ref: {Kp_ref:.4f})")
+            Kp_unit = "Nm/(rad/s)" if r.mixer == 'vehicle' else "duty/(rad/s)"
+            console.print(f"    {axis.capitalize():6s} Kp = {Kp_design:.6f} (ref: {Kp_ref:.6f}) [{Kp_unit}]")
 
     # Save output
     if args.output:
@@ -624,6 +692,7 @@ def run_fit(args: argparse.Namespace) -> int:
             'method': 'plant_fit',
             'source': str(args.input),
             'kp': args.kp,
+            'mixer': args.mixer,
             'axes': {axis: r.to_dict() for axis, r in results.items()},
         }
 
@@ -663,6 +732,11 @@ def run_fit(args: argparse.Namespace) -> int:
                         base = Path(args.plot_output)
                         plot_out = str(base.with_stem(f"{base.stem}_{axis}"))
 
+                    if r.input_mode == 'duty':
+                        u_plant_unit = 'Nm' if r.mixer == 'vehicle' else 'duty'
+                    else:
+                        u_plant_unit = 'duty (Kp*err)'
+
                     plot_plant_fit(
                         time=ts['time'],
                         u_plant=ts['u_plant'],
@@ -675,6 +749,7 @@ def run_fit(args: argparse.Namespace) -> int:
                         r_squared=r.r_squared,
                         output_path=plot_out,
                         show=args.plot,
+                        u_plant_unit=u_plant_unit,
                     )
                 except Exception as e:
                     console.warning(f"Plot failed for {axis}: {e}")
